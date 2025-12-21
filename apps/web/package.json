@@ -1,0 +1,29 @@
+{
+  "name": "financelab-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@financelab/ui": "file:../../packages/ui",
+    "appwrite": "^21.5.0",
+    "next": "16.1.0",
+    "node-appwrite": "^21.0.0",
+    "papaparse": "^5.5.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "18.2.66",
+    "@types/react-dom": "18.2.22",
+    "eslint": "9.16.0",
+    "eslint-config-next": "16.1.0",
+    "typescript": "5.7.2"
+  }
+}
