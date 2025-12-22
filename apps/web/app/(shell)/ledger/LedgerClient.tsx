@@ -9,6 +9,7 @@ type LedgerClientProps = {
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+const TRANSFER_CATEGORY = "Transfer";
 
 export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const [categoryMap, setCategoryMap] = useState<Record<string, string>>(() => {
@@ -19,6 +20,25 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     return initial;
   });
   const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
+  const [transferMap, setTransferMap] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    rows.forEach((row) => {
+      initial[row.id] = row.isTransfer;
+    });
+    return initial;
+  });
+  const [lastCategoryMap, setLastCategoryMap] = useState<Record<string, string>>(
+    () => {
+      const initial: Record<string, string> = {};
+      rows.forEach((row) => {
+        initial[row.id] = row.category;
+      });
+      return initial;
+    }
+  );
+  const [transferState, setTransferState] = useState<Record<string, SaveState>>(
+    {}
+  );
 
   const sortedCategories = useMemo(() => {
     return [...categories].sort((a, b) => a.localeCompare(b));
@@ -41,10 +61,56 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     }
   };
 
+  const handleTransferToggle = async (id: string) => {
+    const nextValue = !transferMap[id];
+    const nextCategory = nextValue
+      ? TRANSFER_CATEGORY
+      : lastCategoryMap[id] ?? "Uncategorised";
+    if (nextValue) {
+      setLastCategoryMap((prev) => ({
+        ...prev,
+        [id]: categoryMap[id] ?? "Uncategorised"
+      }));
+    }
+    setTransferMap((prev) => ({ ...prev, [id]: nextValue }));
+    setCategoryMap((prev) => ({ ...prev, [id]: nextCategory }));
+    setTransferState((prev) => ({ ...prev, [id]: "saving" }));
+    try {
+      const response = await fetch(`/api/transactions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_transfer: nextValue,
+          category: nextCategory
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Update failed");
+      }
+      setTransferState((prev) => ({ ...prev, [id]: "idle" }));
+    } catch (error) {
+      setTransferMap((prev) => ({ ...prev, [id]: !nextValue }));
+      setCategoryMap((prev) => ({
+        ...prev,
+        [id]: nextValue
+          ? categoryMap[id] ?? "Uncategorised"
+          : TRANSFER_CATEGORY
+      }));
+      setTransferState((prev) => ({ ...prev, [id]: "error" }));
+    }
+  };
+
+  if (rows.length === 0) {
+    return <div className="empty-state">No ledger transactions yet.</div>;
+  }
+
   return (
     <div className="list">
       {rows.map((row) => {
         const currentState = saveState[row.id] ?? "idle";
+        const transferCurrentState = transferState[row.id] ?? "idle";
+        const isTransfer = transferMap[row.id] ?? false;
+        const isMatched = row.isTransferMatched;
         return (
           <div
             key={row.id}
@@ -57,7 +123,11 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
             <div className="row-meta row-meta-edit">
               <select
                 className="category-select"
-                value={categoryMap[row.id] ?? "Uncategorised"}
+                value={
+                  isTransfer
+                    ? TRANSFER_CATEGORY
+                    : categoryMap[row.id] ?? "Uncategorised"
+                }
                 onChange={(event) =>
                   {
                     const nextValue = event.target.value;
@@ -68,8 +138,11 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
                     setSaveState((prev) => ({ ...prev, [row.id]: "idle" }));
                   }
                 }
+                disabled={isTransfer}
               >
-                {sortedCategories.map((category) => (
+                {[TRANSFER_CATEGORY, ...sortedCategories]
+                  .filter((value, index, array) => array.indexOf(value) === index)
+                  .map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -88,6 +161,25 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
                   : currentState === "error"
                   ? "Retry"
                   : "Update"}
+              </button>
+              <button
+                className={`pill${isTransfer ? " active" : ""}${isMatched ? " confirmed" : ""}`}
+                type="button"
+                onClick={() => handleTransferToggle(row.id)}
+                disabled={
+                  transferCurrentState === "saving" ||
+                  (isTransfer && isMatched)
+                }
+              >
+                {transferCurrentState === "saving"
+                  ? "Saving..."
+                  : transferCurrentState === "error"
+                  ? "Retry"
+                  : isTransfer && isMatched
+                  ? "Transfer ✓"
+                  : isTransfer
+                  ? "Transfer"
+                  : "Mark transfer"}
               </button>
               <span className={`amount ${row.tone}`}>{row.amount}</span>
             </div>

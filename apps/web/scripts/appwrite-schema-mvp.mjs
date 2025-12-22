@@ -77,6 +77,7 @@ const collections = [
     attributes: [
       { type: "string", key: "workspace_id", size: 64, required: true },
       { type: "string", key: "source_name", size: 80, required: true },
+      { type: "string", key: "source_account", size: 120, required: false },
       { type: "string", key: "file_name", size: 160, required: false },
       { type: "integer", key: "row_count", required: true },
       { type: "string", key: "status", size: 40, required: true },
@@ -94,6 +95,7 @@ const collections = [
       { type: "string", key: "amount", size: 40, required: true },
       { type: "string", key: "currency", size: 8, required: false },
       { type: "string", key: "account_name", size: 120, required: false },
+      { type: "string", key: "source_account", size: 120, required: false },
       { type: "string", key: "category_name", size: 80, required: false },
       { type: "string", key: "direction", size: 12, required: false },
       { type: "string", key: "notes", size: 200, required: false },

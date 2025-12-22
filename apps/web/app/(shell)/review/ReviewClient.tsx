@@ -41,6 +41,10 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
     }
   };
 
+  if (items.length === 0) {
+    return <div className="empty-state">No items to review.</div>;
+  }
+
   return (
     <div className="review-grid">
       {items.map((item) => {

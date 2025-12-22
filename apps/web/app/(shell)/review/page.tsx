@@ -1,10 +1,12 @@
-import { SectionHead } from "@financelab/ui";
+import { Card, SectionHead } from "@financelab/ui";
 import ReviewClient from "./ReviewClient";
-import { getCategories, getReviewItems } from "../../../lib/data";
+import TransferMatchClient from "./TransferMatchClient";
+import { getCategories, getReviewItems, getTransferReviewData } from "../../../lib/data";
 
 export default async function ReviewPage() {
   const reviewItems = await getReviewItems();
   const categories = await getCategories();
+  const transferReviewData = await getTransferReviewData();
 
   return (
     <>
@@ -29,7 +31,16 @@ export default async function ReviewPage() {
           </>
         }
       />
-      <ReviewClient items={reviewItems} categories={categories} />
+      <div className="review-stack">
+        <ReviewClient items={reviewItems} categories={categories} />
+        <Card title="Transfer Matches">
+          <TransferMatchClient
+            suggestions={transferReviewData.suggestions}
+            unmatched={transferReviewData.unmatched}
+            paired={transferReviewData.paired}
+          />
+        </Card>
+      </div>
     </>
   );
 }

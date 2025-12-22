@@ -1,8 +1,49 @@
-import { Card, DonutChart, Hero, SectionHead, TrendChart, WaterfallChart } from "@financelab/ui";
-import { getStatCards } from "../../../lib/data";
+import {
+  Card,
+  DonutChart,
+  Hero,
+  SectionHead,
+  TrendChart,
+  WaterfallChart
+} from "@financelab/ui";
+import {
+  getCashFlowWaterfall,
+  getExpenseBreakdown,
+  getStatCards
+} from "../../../lib/data";
+import MonthSelector from "../reports/expenses/MonthSelector";
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams?: Promise<{ month?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const statCards = await getStatCards();
+  const breakdown = await getExpenseBreakdown(resolvedSearchParams?.month);
+  const cashFlow = await getCashFlowWaterfall(resolvedSearchParams?.month);
+  const spendByCategory = breakdown.categories;
+  const spendTotal = spendByCategory.reduce((sum, item) => sum + item.amount, 0);
+  const topCategories = spendByCategory.slice(0, 3);
+  const otherTotal = spendByCategory
+    .slice(3)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const segmentClasses = ["seg-a", "seg-b", "seg-c"];
+  const dotClasses = ["a", "b", "c"];
+  const spendSegments = topCategories.map((item, index) => ({
+    className: segmentClasses[index],
+    value: item.amount
+  }));
+  const spendLegend = topCategories.map((item, index) => ({
+    label: `${item.name} ${item.percent}%`,
+    dot: dotClasses[index]
+  }));
+
+  if (otherTotal > 0 && spendTotal > 0) {
+    const otherPercent = Math.round((otherTotal / spendTotal) * 100);
+    spendSegments.push({ className: "seg-d", value: otherTotal });
+    spendLegend.push({ label: `Other ${otherPercent}%`, dot: "d" });
+  }
 
   return (
     <>
@@ -40,13 +81,15 @@ export default async function DashboardPage() {
       <div className="grid charts">
         <DonutChart
           title="Spend by Category"
-          segmentClasses={["seg-a", "seg-b", "seg-c"]}
-          legend={[
-            { label: "Housing 14%", dot: "a" },
-            { label: "Transport 30%", dot: "b" },
-            { label: "Groceries 4%", dot: "c" },
-            { label: "Other 52%", dot: "d" }
-          ]}
+          actions={
+            <MonthSelector
+              options={breakdown.monthOptions}
+              selected={breakdown.selectedMonth}
+              basePath="/dashboard"
+            />
+          }
+          segments={spendSegments}
+          legend={spendLegend}
         />
         <DonutChart
           title="Portfolio Split"
@@ -58,7 +101,7 @@ export default async function DashboardPage() {
           ]}
         />
         <TrendChart />
-        <WaterfallChart />
+        <WaterfallChart steps={cashFlow.steps} />
       </div>
     </>
   );

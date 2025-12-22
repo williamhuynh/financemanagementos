@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { Client, Databases } from "node-appwrite";
+import { Client, Databases, ID } from "node-appwrite";
 
 const DEFAULT_WORKSPACE_ID = "default";
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: Request) {
   const endpoint =
     process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
   const projectId =
@@ -23,26 +20,12 @@ export async function PATCH(
   }
 
   const body = (await request.json()) as {
-    category?: string;
-    is_transfer?: boolean;
+    fromId?: string;
+    toId?: string;
   };
-  const updates: Record<string, unknown> = {
-    workspace_id: DEFAULT_WORKSPACE_ID
-  };
-
-  if (body.category !== undefined) {
-    const category = body.category.trim() || "Uncategorised";
-    updates.category_name = category;
-    updates.needs_review = category === "Uncategorised";
-  }
-
-  if (body.is_transfer !== undefined) {
-    updates.is_transfer = body.is_transfer;
-  }
-
-  if (Object.keys(updates).length === 1) {
+  if (!body.fromId || !body.toId) {
     return NextResponse.json(
-      { detail: "No updates provided." },
+      { detail: "Missing transfer pair identifiers." },
       { status: 400 }
     );
   }
@@ -51,9 +34,19 @@ export async function PATCH(
   client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   const databases = new Databases(client);
 
-  const { id } = await params;
+  const transferDoc = {
+    workspace_id: DEFAULT_WORKSPACE_ID,
+    from_transaction_id: body.fromId,
+    to_transaction_id: body.toId,
+    matched_at: new Date().toISOString()
+  };
 
-  await databases.updateDocument(databaseId, "transactions", id, updates);
+  const created = await databases.createDocument(
+    databaseId,
+    "transfer_pairs",
+    ID.unique(),
+    transferDoc
+  );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, id: created.$id });
 }

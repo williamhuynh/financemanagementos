@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 
 type ParsedRow = Record<string, string>;
@@ -34,6 +34,15 @@ type Preset = {
   id: string;
   label: string;
   headerMap: Record<string, MappingKey>;
+};
+
+type ImportHistoryItem = {
+  id: string;
+  source_name: string;
+  file_name?: string;
+  row_count: number;
+  status: string;
+  uploaded_at: string;
 };
 
 const presets: Preset[] = [
@@ -137,6 +146,12 @@ export default function ImportClient() {
   const [progressState, setProgressState] = useState<"idle" | "running" | "success" | "error">(
     "idle"
   );
+  const [importHistory, setImportHistory] = useState<ImportHistoryItem[]>([]);
+  const [historyStatus, setHistoryStatus] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deletingImportId, setDeletingImportId] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [accountOptions, setAccountOptions] = useState<string[]>([]);
 
   const mappedRows = useMemo(() => {
     if (rows.length === 0) return [];
@@ -160,10 +175,46 @@ export default function ImportClient() {
 
   const previewRows = mappedRows.slice(0, 8);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const loadImportHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryStatus("");
+    try {
+      const response = await fetch("/api/imports");
+      const payload = await response.json();
+      if (!response.ok) {
+        setHistoryStatus(payload?.detail ?? "Failed to load import history.");
+        setImportHistory([]);
+      } else {
+        setImportHistory(payload?.imports ?? []);
+      }
+    } catch (error) {
+      setHistoryStatus("Failed to load import history.");
+      setImportHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    loadImportHistory();
+  }, []);
+
+  useEffect(() => {
+    const loadAccounts = async () => {
+      try {
+        const response = await fetch("/api/accounts");
+        const payload = await response.json();
+        if (response.ok && Array.isArray(payload?.accounts)) {
+          setAccountOptions(payload.accounts);
+        }
+      } catch (error) {
+        setAccountOptions([]);
+      }
+    };
+    loadAccounts();
+  }, []);
+
+  const parseFile = (file: File) => {
     setFileName(file.name);
     setStatus("Parsing CSV...");
     Papa.parse<ParsedRow>(file, {
@@ -180,6 +231,20 @@ export default function ImportClient() {
         setStatus("Failed to parse CSV.");
       }
     });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    parseFile(file);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    parseFile(file);
   };
 
   const applyPreset = (nextPresetId: string, activeHeaders = headers) => {
@@ -225,6 +290,7 @@ export default function ImportClient() {
         setProgressState("success");
         setProgress(100);
         setStatus(`Import saved. Batch ${payload.importId}.`);
+        await loadImportHistory();
       }
     } catch (error) {
       setProgressState("error");
@@ -236,11 +302,52 @@ export default function ImportClient() {
     }
   };
 
+  const handleDeleteImport = async (importId: string) => {
+    if (deletingImportId) return;
+    const confirmed = window.confirm(
+      "Delete this import and all associated transactions?"
+    );
+    if (!confirmed) return;
+    setDeletingImportId(importId);
+    setHistoryStatus("");
+    try {
+      const response = await fetch(`/api/imports/${importId}`, {
+        method: "DELETE"
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setHistoryStatus(payload?.detail ?? "Failed to delete import.");
+      } else {
+        setHistoryStatus(`Deleted import ${importId}.`);
+        await loadImportHistory();
+      }
+    } catch (error) {
+      setHistoryStatus("Failed to delete import.");
+    } finally {
+      setDeletingImportId(null);
+    }
+  };
+
+  const formatDate = (value: string) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString();
+  };
+
   return (
     <div className="import-flow">
       <div className="import-panel">
         <div className="import-title">1. Upload CSV</div>
-        <label className="upload-area upload-input">
+        <label
+          className={`upload-area upload-input${isDragActive ? " drag-active" : ""}`}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragActive(true);
+          }}
+          onDragLeave={() => setIsDragActive(false)}
+          onDrop={handleDrop}
+        >
           <input type="file" accept=".csv" onChange={handleFileChange} />
           <span className="upload-icon">+</span>
           <span className="row-title">Drop or browse CSV</span>
@@ -248,7 +355,7 @@ export default function ImportClient() {
         </label>
         <div className="field">
           <label className="field-label" htmlFor="sourceAccount">
-            Source account (optional)
+            Source account
           </label>
           <input
             id="sourceAccount"
@@ -257,10 +364,13 @@ export default function ImportClient() {
             placeholder="Westpac Altitude Credit Card"
             value={sourceAccount}
             onChange={(event) => setSourceAccount(event.target.value)}
+            list="source-account-options"
           />
-          <div className="row-sub">
-            Used when the CSV does not include an account column.
-          </div>
+          <datalist id="source-account-options">
+            {accountOptions.map((account) => (
+              <option key={account} value={account} />
+            ))}
+          </datalist>
         </div>
         <div className="row-sub">{status}</div>
       </div>
@@ -353,6 +463,46 @@ export default function ImportClient() {
         >
           {isSubmitting ? "Saving..." : "Save Import"}
         </button>
+      </div>
+
+      <div className="import-panel import-history">
+        <div className="import-title">Import History</div>
+        {historyLoading ? (
+          <div className="row-sub">Loading imports...</div>
+        ) : importHistory.length === 0 ? (
+          <div className="row-sub">No imports yet.</div>
+        ) : (
+          <div className="history-table">
+            <div className="history-header">
+              <span>File</span>
+              <span>Source</span>
+              <span>Rows</span>
+              <span>Status</span>
+              <span>Uploaded</span>
+              <span>Action</span>
+            </div>
+            {importHistory.map((item) => (
+              <div key={item.id} className="history-row">
+                <span>{item.file_name || "Untitled CSV"}</span>
+                <span>{item.source_name}</span>
+                <span>{item.row_count}</span>
+                <span>{item.status}</span>
+                <span>{formatDate(item.uploaded_at)}</span>
+                <span>
+                  <button
+                    className="ghost-btn danger-btn"
+                    type="button"
+                    disabled={deletingImportId === item.id}
+                    onClick={() => handleDeleteImport(item.id)}
+                  >
+                    {deletingImportId === item.id ? "Deleting..." : "Delete"}
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {historyStatus ? <div className="row-sub">{historyStatus}</div> : null}
       </div>
     </div>
   );

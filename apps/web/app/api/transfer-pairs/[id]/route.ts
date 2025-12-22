@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { Client, Databases } from "node-appwrite";
 
-const DEFAULT_WORKSPACE_ID = "default";
-
-export async function PATCH(
+export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -22,38 +20,12 @@ export async function PATCH(
     );
   }
 
-  const body = (await request.json()) as {
-    category?: string;
-    is_transfer?: boolean;
-  };
-  const updates: Record<string, unknown> = {
-    workspace_id: DEFAULT_WORKSPACE_ID
-  };
-
-  if (body.category !== undefined) {
-    const category = body.category.trim() || "Uncategorised";
-    updates.category_name = category;
-    updates.needs_review = category === "Uncategorised";
-  }
-
-  if (body.is_transfer !== undefined) {
-    updates.is_transfer = body.is_transfer;
-  }
-
-  if (Object.keys(updates).length === 1) {
-    return NextResponse.json(
-      { detail: "No updates provided." },
-      { status: 400 }
-    );
-  }
-
+  const { id } = await params;
   const client = new Client();
   client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
   const databases = new Databases(client);
 
-  const { id } = await params;
-
-  await databases.updateDocument(databaseId, "transactions", id, updates);
+  await databases.deleteDocument(databaseId, "transfer_pairs", id);
 
   return NextResponse.json({ ok: true });
 }

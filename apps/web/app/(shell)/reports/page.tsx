@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, SectionHead } from "@financelab/ui";
 import { getReportStats } from "../../../lib/data";
 
@@ -21,6 +22,9 @@ export default async function ReportsPage() {
             <button className="pill" type="button">
               Export PDF
             </button>
+            <Link className="pill" href="/reports/expenses">
+              Expense detail
+            </Link>
           </>
         }
       />
