@@ -9,10 +9,8 @@ export const navItems: NavItem[] = [
   { id: "ledger", label: "Ledger", href: "/ledger" },
   { id: "review", label: "Review Queue", href: "/review" },
   { id: "assets", label: "Assets", href: "/assets" },
-  { id: "import", label: "Import Hub", href: "/import-hub" },
   { id: "reports", label: "Reports", href: "/reports" },
-  { id: "ui-showcase", label: "UI Showcase", href: "/ui-showcase" },
-  { id: "health", label: "Health", href: "/health" },
+  { id: "import", label: "Import Hub", href: "/import-hub" },
   { id: "settings", label: "Settings", href: "/settings" }
 ];
 

@@ -39,8 +39,12 @@ export function Topbar() {
   const options = buildMonthOptions();
   const currentMonth = getMonthKey(new Date());
   const selected = searchParams.get("month") ?? currentMonth;
+  const selectedIndex = options.findIndex((option) => option.value === selected);
+  const previousMonth =
+    selectedIndex >= 0 ? options[selectedIndex + 1] : undefined;
+  const nextMonth = selectedIndex > 0 ? options[selectedIndex - 1] : undefined;
 
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {       
     const month = event.target.value;
     const params = new URLSearchParams(searchParams.toString());
     if (month) {
@@ -52,32 +56,66 @@ export function Topbar() {
     router.push(query ? `${pathname}?${query}` : pathname);
   };
 
+  const handleImportClick = () => {
+    router.push("/import-hub");
+  };
+
   return (
     <header className="topbar">
       {hideMonthControl ? null : (
         <div className="month-control">
           <span className="label">Month</span>
-          <select
-            className="pill-select"
-            value={selected}
-            onChange={handleChange}
-          >
-            {options.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="pill-month-control">
+            <button
+              className="pill-month-btn"
+              type="button"
+              disabled={!previousMonth}
+              aria-label="Previous month"
+              onClick={() => {
+                if (!previousMonth) {
+                  return;
+                }
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("month", previousMonth.value);
+                const query = params.toString();
+                router.push(query ? `${pathname}?${query}` : pathname);
+              }}
+            >
+              {"<"}
+            </button>
+            <select
+              className="pill-select"
+              value={selected}
+              onChange={handleChange}
+            >
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="pill-month-btn"
+              type="button"
+              disabled={!nextMonth}
+              aria-label="Next month"
+              onClick={() => {
+                if (!nextMonth) {
+                  return;
+                }
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("month", nextMonth.value);
+                const query = params.toString();
+                router.push(query ? `${pathname}?${query}` : pathname);
+              }}
+            >
+              {">"}
+            </button>
+          </div>
         </div>
       )}
       <div className="topbar-actions">
-        <div className="search">
-          <input type="search" placeholder="Search merchants, categories, accounts" />
-        </div>
-        <button className="ghost-btn" type="button">
-          Export
-        </button>
-        <button className="primary-btn" type="button">
+        <button className="primary-btn" type="button" onClick={handleImportClick}>
           Import
         </button>
         <div className="user-chip">William + Peggy</div>

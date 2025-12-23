@@ -1,3 +1,4 @@
+import "./load-env.mjs";
 import { Client, Databases } from "node-appwrite";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
@@ -148,6 +149,42 @@ const collections = [
       { type: "string", key: "source", size: 40, required: false },
       { type: "string", key: "notes", size: 200, required: false },
       { type: "string", key: "deleted_at", size: 40, required: false }
+    ]
+  },
+  {
+    id: "monthly_closes",
+    name: "Monthly Closes",
+    attributes: [
+      { type: "string", key: "workspace_id", size: 64, required: true },
+      { type: "string", key: "month", size: 12, required: true },
+      { type: "string", key: "status", size: 20, required: true },
+      { type: "string", key: "closed_at", size: 40, required: false },
+      { type: "string", key: "closed_by", size: 80, required: false },
+      { type: "string", key: "reopened_at", size: 40, required: false },
+      { type: "string", key: "reopened_by", size: 80, required: false },
+      { type: "string", key: "notes", size: 200, required: false },
+      { type: "string", key: "snapshot_id", size: 64, required: false }
+    ]
+  },
+  {
+    id: "monthly_snapshots",
+    name: "Monthly Snapshots",
+    attributes: [
+      { type: "string", key: "month", size: 12, required: true },
+      { type: "string", key: "generated_at", size: 40, required: true },
+      { type: "string", key: "net_worth_total", size: 40, required: false },
+      { type: "string", key: "assets_total", size: 40, required: false },
+      { type: "string", key: "liabilities_total", size: 40, required: false },
+      { type: "string", key: "income_total", size: 40, required: false },
+      { type: "string", key: "expense_total", size: 40, required: false },
+      { type: "string", key: "transfer_outflow_total", size: 40, required: false },
+      { type: "string", key: "cash_total", size: 40, required: false },
+      { type: "string", key: "investments_total", size: 40, required: false },
+      { type: "string", key: "property_total", size: 40, required: false },
+      { type: "string", key: "other_assets_total", size: 40, required: false },
+      { type: "string", key: "category_totals", size: 2000, required: false },
+      { type: "string", key: "account_totals", size: 2000, required: false },
+      { type: "string", key: "asset_class_totals", size: 2000, required: false }
     ]
   }
 ];

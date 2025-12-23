@@ -231,6 +231,36 @@ h3,
   box-shadow: 0 0 0 2px rgba(242, 164, 59, 0.3);
 }
 
+.pill-month-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pill-month-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(26, 33, 46, 0.6);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.pill-month-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pill-month-btn:not(:disabled):hover {
+  border-color: rgba(242, 164, 59, 0.5);
+  color: var(--text-primary);
+}
+
 .pill.active,
 .pill:hover {
   border-color: rgba(242, 164, 59, 0.5);
@@ -311,6 +341,150 @@ h3,
 
 .charts .card.wide {
   grid-column: 1 / -1;
+}
+
+.monthly-close {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.monthly-close-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.monthly-close-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.month-title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.month-sub {
+  color: var(--text-secondary);
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid rgba(242, 164, 59, 0.4);
+  color: var(--text-primary);
+  font-size: 12px;
+  background: rgba(242, 164, 59, 0.15);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-pill.confirmed {
+  border-color: rgba(76, 195, 138, 0.6);
+  background: rgba(76, 195, 138, 0.15);
+  color: #9be7c0;
+}
+
+.monthly-close-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.monthly-close-checklist {
+  background: rgba(26, 33, 46, 0.78);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+
+.report-accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(20, 25, 35, 0.9);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.report-accordion-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  font-weight: 600;
+}
+
+.report-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-accordion-summary::marker {
+  content: "";
+}
+
+.report-accordion-meta {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.report-accordion-body {
+  border-top: 1px solid var(--border);
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.checklist {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.checklist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(20, 25, 35, 0.7);
+  font-size: 13px;
+}
+
+.checklist-item.complete {
+  border-color: rgba(76, 195, 138, 0.4);
+  color: #b0f4cf;
+}
+
+.checklist-item.attention {
+  border-color: rgba(242, 164, 59, 0.4);
+}
+
+.checklist-label {
+  font-weight: 600;
+}
+
+.checklist-detail {
+  color: var(--text-secondary);
 }
 
 .card {

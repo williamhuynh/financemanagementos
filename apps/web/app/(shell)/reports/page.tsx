@@ -1,9 +1,17 @@
-import Link from "next/link";
-import { Card, SectionHead } from "@financelab/ui";
-import { getReportStats } from "../../../lib/data";
+import { SectionHead } from "@financelab/ui";
+import { getExpenseBreakdown, getMonthlyCloseSummary } from "../../../lib/data";
+import MonthlyCloseClient from "./MonthlyCloseClient";
 
-export default async function ReportsPage() {
-  const reportStats = await getReportStats();
+type ReportsPageProps = {
+  searchParams?: Promise<{ month?: string }>;
+};
+
+export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const [summary, expenseBreakdown] = await Promise.all([
+    getMonthlyCloseSummary(resolvedSearchParams?.month),
+    getExpenseBreakdown(resolvedSearchParams?.month)
+  ]);
 
   return (
     <>
@@ -16,23 +24,10 @@ export default async function ReportsPage() {
         ]}
         actions={
           <>
-            <button className="pill" type="button">
-              Export CSV
-            </button>
-            <button className="pill" type="button">
-              Export PDF
-            </button>
-            <Link className="pill" href="/reports/expenses">
-              Expense detail
-            </Link>
           </>
         }
       />
-      <div className="grid cards">
-        {reportStats.map((stat) => (
-          <Card key={stat.title} title={stat.title} value={stat.value} sub={stat.sub} />
-        ))}
-      </div>
+      <MonthlyCloseClient summary={summary} expenseBreakdown={expenseBreakdown} />
     </>
   );
 }

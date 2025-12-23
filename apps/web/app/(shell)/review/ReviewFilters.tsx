@@ -67,6 +67,16 @@ export default function ReviewFilters() {
   const selectedMonth = searchParams.get("month") ?? "all";
   const selectedSort = searchParams.get("sort") ?? "asc";
   const monthOptions = useMemo(() => buildMonthOptions(), []);
+  const resolvedMonthIndex =
+    selectedMonth === "all"
+      ? -1
+      : monthOptions.findIndex((option) => option.value === selectedMonth);
+  const previousMonth =
+    resolvedMonthIndex >= -1
+      ? monthOptions[resolvedMonthIndex + 1]
+      : undefined;
+  const nextMonth =
+    resolvedMonthIndex > 0 ? monthOptions[resolvedMonthIndex - 1] : undefined;
 
   useEffect(() => {
     let isMounted = true;
@@ -94,26 +104,68 @@ export default function ReviewFilters() {
 
   return (
     <>
-      <select
-        className="pill-select"
-        value={selectedMonth}
-        onChange={(event) =>
-          updateFilter(
-            pathname,
-            new URLSearchParams(searchParams.toString()),
-            router,
-            "month",
-            event.target.value
-          )
-        }
-      >
-        <option value="all">Month: All</option>
-        {monthOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {`Month: ${option.label}`}
-          </option>
-        ))}
-      </select>
+      <div className="pill-month-control">
+        <button
+          className="pill-month-btn"
+          type="button"
+          disabled={!previousMonth}
+          aria-label="Previous month"
+          onClick={() => {
+            if (!previousMonth) {
+              return;
+            }
+            updateFilter(
+              pathname,
+              new URLSearchParams(searchParams.toString()),
+              router,
+              "month",
+              previousMonth.value
+            );
+          }}
+        >
+          {"<"}
+        </button>
+        <select
+          className="pill-select"
+          value={selectedMonth}
+          onChange={(event) =>
+            updateFilter(
+              pathname,
+              new URLSearchParams(searchParams.toString()),
+              router,
+              "month",
+              event.target.value
+            )
+          }
+        >
+          <option value="all">Month: All</option>
+          {monthOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {`Month: ${option.label}`}
+            </option>
+          ))}
+        </select>
+        <button
+          className="pill-month-btn"
+          type="button"
+          disabled={!nextMonth}
+          aria-label="Next month"
+          onClick={() => {
+            if (!nextMonth) {
+              return;
+            }
+            updateFilter(
+              pathname,
+              new URLSearchParams(searchParams.toString()),
+              router,
+              "month",
+              nextMonth.value
+            );
+          }}
+        >
+          {">"}
+        </button>
+      </div>
       <select
         className="pill-select"
         value={selectedAccount}

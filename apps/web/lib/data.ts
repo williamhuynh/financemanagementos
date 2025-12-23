@@ -244,6 +244,56 @@ export type MonthOption = {
   label: string;
 };
 
+export type MonthlyCloseStatus = "open" | "closed";
+
+export type MonthlyCloseChecklistItem = {
+  id: string;
+  label: string;
+  detail: string;
+  status: "complete" | "attention";
+};
+
+export type MonthlyCloseSummary = {
+  monthOptions: MonthOption[];
+  selectedMonth: string;
+  status: MonthlyCloseStatus;
+  closedAt?: string;
+  closedBy?: string;
+  reopenedAt?: string;
+  reopenedBy?: string;
+  checklist: MonthlyCloseChecklistItem[];
+  incomeTotal: number;
+  expenseTotal: number;
+  transferOutflowTotal: number;
+  netWorthTotal: number;
+  assetsTotal: number;
+  liabilitiesTotal: number;
+  formattedIncomeTotal: string;
+  formattedExpenseTotal: string;
+  formattedTransferOutflowTotal: string;
+  formattedNetWorthTotal: string;
+  formattedAssetsTotal: string;
+  formattedLiabilitiesTotal: string;
+};
+
+export type MonthlySnapshotPayload = {
+  month: string;
+  generated_at: string;
+  net_worth_total: string;
+  assets_total: string;
+  liabilities_total: string;
+  income_total: string;
+  expense_total: string;
+  transfer_outflow_total: string;
+  cash_total: string;
+  investments_total: string;
+  property_total: string;
+  other_assets_total: string;
+  category_totals: string;
+  account_totals: string;
+  asset_class_totals: string;
+};
+
 export type TransferTransaction = {
   id: string;
   description: string;
@@ -308,6 +358,14 @@ export type ExpenseCategoryBreakdown = {
   transactions: ExpenseTransaction[];
 };
 
+export type ExpenseBreakdown = {
+  monthOptions: MonthOption[];
+  selectedMonth: string;
+  totalAmount: number;
+  totalFormatted: string;
+  categories: ExpenseCategoryBreakdown[];
+};
+
 export type CashFlowTransaction = {
   id: string;
   title: string;
@@ -343,6 +401,19 @@ type ExpenseTransactionRaw = {
   currency: string;
   direction: string;
   category: string;
+};
+
+type MonthlyCloseTransaction = {
+  id: string;
+  description: string;
+  date: string;
+  accountName: string;
+  amount: string;
+  currency: string;
+  direction: string;
+  category: string;
+  needsReview: boolean;
+  isTransfer: boolean;
 };
 
 type PreparedExpenseTransaction = ExpenseTransactionRaw & {
@@ -683,6 +754,54 @@ function getMonthLabel(date: Date) {
   }).format(date);
 }
 
+function buildRollingMonthOptions(count = 12) {
+  const options: MonthOption[] = [];
+  const today = new Date();
+  for (let index = 0; index < count; index += 1) {
+    const date = new Date(today.getFullYear(), today.getMonth() - index, 1);
+    options.push({ value: getMonthKey(date), label: getMonthLabel(date) });
+  }
+  return options;
+}
+
+function buildMonthOptionsFromDates(dates: string[]) {
+  const monthMap = new Map<string, MonthOption>();
+  for (const value of dates) {
+    const parsed = parseDateValue(value);
+    if (!parsed) {
+      continue;
+    }
+    const key = getMonthKey(parsed);
+    if (!monthMap.has(key)) {
+      monthMap.set(key, { value: key, label: getMonthLabel(parsed) });
+    }
+  }
+  return Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+}
+
+function getMonthRange(monthKey: string) {
+  const match = monthKey.match(/^(\d{4})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex)) {
+    return null;
+  }
+  const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+  return { start, end };
+}
+
+function matchesMonthKey(value: string, monthKey: string) {
+  const parsed = parseDateValue(value);
+  if (!parsed) {
+    return false;
+  }
+  return getMonthKey(parsed) === monthKey;
+}
+
 function parseAmountValue(value: string) {
   const numeric = Number(value.replace(/,/g, ""));
   if (!Number.isFinite(numeric)) {
@@ -891,25 +1010,27 @@ function buildExpenseBreakdown(
     if (amountValue === null) {
       continue;
     }
-    const isDebit = txn.direction
-      ? txn.direction !== "credit"
-      : amountValue < 0;
-    if (!isDebit) {
+    const categoryName = txn.category.trim() || "Uncategorised";
+    if (isIncomeCategory(categoryName)) {
       continue;
     }
-
-    const categoryName = txn.category.trim() || "Uncategorised";
     if (isTransferCategory(categoryName)) {
       continue;
     }
 
-    const amount = Math.abs(amountValue);
-    if (amount === 0) {
+    const isCredit = txn.direction
+      ? txn.direction === "credit"
+      : amountValue > 0;
+    const signedAmount = isCredit ? Math.abs(amountValue) : -Math.abs(amountValue);
+    if (signedAmount === 0) {
       continue;
     }
 
-    totalSpend += amount;
-    const formattedAmount = formatCurrencyValue(-amount, txn.currency || "AUD");
+    totalSpend += signedAmount;
+    const formattedAmount = formatSignedCurrency(
+      signedAmount,
+      txn.currency || "AUD"
+    );
     const sub = [txn.date, txn.accountName].filter(Boolean).join(" - ");
     const transaction: ExpenseTransaction = {
       id: txn.id,
@@ -917,20 +1038,20 @@ function buildExpenseBreakdown(
       sub,
       amount: formattedAmount,
       category: categoryName,
-      tone: "negative",
+      tone: signedAmount >= 0 ? "positive" : "negative",
       dateValue: txn.dateValue
     };
 
     const existing = totals.get(categoryName);
     if (existing) {
-      existing.amount += amount;
+      existing.amount += signedAmount;
       existing.count += 1;
       existing.transactions.push(transaction);
     } else {
       totals.set(categoryName, {
         name: categoryName,
-        amount,
-        formattedAmount: formatCurrencyValue(amount, "AUD"),
+        amount: signedAmount,
+        formattedAmount: formatSignedCurrency(signedAmount, "AUD"),
         percent: 0,
         count: 1,
         transactions: [transaction]
@@ -938,21 +1059,24 @@ function buildExpenseBreakdown(
     }
   }
 
+  const totalSpendAbs = Math.abs(totalSpend);
   const categories = Array.from(totals.values()).map((category) => {
-    const percent = totalSpend ? Math.round((category.amount / totalSpend) * 100) : 0;
+    const percent = totalSpendAbs
+      ? Math.round((Math.abs(category.amount) / totalSpendAbs) * 100)
+      : 0;
     category.percent = percent;
-    category.formattedAmount = formatCurrencyValue(category.amount, "AUD");
+    category.formattedAmount = formatSignedCurrency(category.amount, "AUD");
     category.transactions.sort((a, b) => b.dateValue - a.dateValue);
     return category;
   });
 
-  categories.sort((a, b) => b.amount - a.amount);
+  categories.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
   return {
     monthOptions,
     selectedMonth: selected,
-    totalAmount: totalSpend,
-    totalFormatted: formatCurrencyValue(totalSpend, "AUD"),
+    totalAmount: totalSpendAbs,
+    totalFormatted: formatCurrencyValue(totalSpendAbs, "AUD"),
     categories
   };
 }
@@ -998,7 +1122,7 @@ function buildCashFlowWaterfall(
       title: txn.description || "Transaction",
       sub,
       amount: formatSignedCurrency(signedAmount, txn.currency || "AUD"),
-      tone: isCredit ? "positive" : "negative",
+      tone: isIncome ? "positive" : "negative",
       dateValue: txn.dateValue
     };
     if (isIncome) {
@@ -1582,6 +1706,279 @@ async function listAssets(
   return assets;
 }
 
+async function listTransactionsForMonth(
+  serverClient: ServerAppwriteClient,
+  monthKey: string
+): Promise<MonthlyCloseTransaction[]> {
+  const transactions: MonthlyCloseTransaction[] = [];
+  let offset = 0;
+  const limit = 200;
+
+  while (true) {
+    const response = await serverClient.databases.listDocuments(
+      serverClient.databaseId,
+      "transactions",
+      [
+        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.orderDesc("date"),
+        Query.limit(limit),
+        Query.offset(offset)
+      ]
+    );
+    const documents = response?.documents ?? [];
+    if (documents.length === 0) {
+      break;
+    }
+    for (const doc of documents) {
+      const dateValue = String(doc.date ?? "");
+      if (!matchesMonthKey(dateValue, monthKey)) {
+        continue;
+      }
+      transactions.push({
+        id: String(doc.$id ?? ""),
+        description: String(doc.description ?? "Transaction"),
+        date: dateValue,
+        accountName: String(doc.account_name ?? ""),
+        amount: String(doc.amount ?? ""),
+        currency: String(doc.currency ?? "AUD"),
+        direction: String(doc.direction ?? ""),
+        category: String(doc.category_name ?? "Uncategorised"),
+        needsReview: Boolean(doc.needs_review),
+        isTransfer: Boolean(doc.is_transfer)
+      });
+    }
+    offset += documents.length;
+    if (offset >= (response?.total ?? 0)) {
+      break;
+    }
+  }
+
+  return transactions;
+}
+
+async function listImportsForMonth(
+  serverClient: ServerAppwriteClient,
+  monthKey: string
+) {
+  let count = 0;
+  let offset = 0;
+  const limit = 200;
+
+  while (true) {
+    const response = await serverClient.databases.listDocuments(
+      serverClient.databaseId,
+      "imports",
+      [
+        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.orderDesc("uploaded_at"),
+        Query.limit(limit),
+        Query.offset(offset)
+      ]
+    );
+    const documents = response?.documents ?? [];
+    if (documents.length === 0) {
+      break;
+    }
+    for (const doc of documents) {
+      const uploadedAt = String(doc.uploaded_at ?? "");
+      if (matchesMonthKey(uploadedAt, monthKey)) {
+        count += 1;
+      }
+    }
+    offset += documents.length;
+    if (offset >= (response?.total ?? 0)) {
+      break;
+    }
+  }
+
+  return count;
+}
+
+async function getMonthlyCloseRecord(
+  serverClient: ServerAppwriteClient,
+  monthKey: string
+) {
+  const response = await serverClient.databases.listDocuments(
+    serverClient.databaseId,
+    "monthly_closes",
+    [
+      Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+      Query.equal("month", monthKey),
+      Query.limit(1)
+    ]
+  );
+  return response?.documents?.[0] ?? null;
+}
+
+async function getMonthlySnapshotById(
+  serverClient: ServerAppwriteClient,
+  snapshotId: string
+) {
+  if (!snapshotId) {
+    return null;
+  }
+  try {
+    return await serverClient.databases.getDocument(
+      serverClient.databaseId,
+      "monthly_snapshots",
+      snapshotId
+    );
+  } catch (error) {
+    return null;
+  }
+}
+
+function buildMonthlySnapshotFromRecords(
+  monthKey: string,
+  transactions: MonthlyCloseTransaction[],
+  transferPairIds: Set<string>,
+  assets: AssetEntityRecord[],
+  assetValues: AssetValueRecord[]
+) {
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+  let transferOutflowTotal = 0;
+  let needsReviewCount = 0;
+
+  const categoryTotals = new Map<string, number>();
+  const accountTotals = new Map<string, number>();
+
+  for (const txn of transactions) {
+    const amountValue = parseAmountValue(txn.amount);
+    if (amountValue === null) {
+      continue;
+    }
+    const isTransfer =
+      txn.isTransfer ||
+      transferPairIds.has(txn.id) ||
+      isTransferCategory(txn.category);
+    const isOutflow = txn.direction
+      ? txn.direction !== "credit"
+      : amountValue < 0;
+    const isCredit = txn.direction
+      ? txn.direction === "credit"
+      : amountValue > 0;
+
+    if (txn.needsReview || txn.category === "Uncategorised") {
+      needsReviewCount += 1;
+    }
+
+    if (isTransfer) {
+      if (isOutflow) {
+        transferOutflowTotal += Math.abs(amountValue);
+      }
+      continue;
+    }
+
+    const categoryName = txn.category.trim() || "Uncategorised";
+    const signedAmount = isCredit ? Math.abs(amountValue) : -Math.abs(amountValue);
+    if (isIncomeCategory(categoryName)) {
+      incomeTotal += signedAmount;
+    } else {
+      expenseTotal += signedAmount;
+      const existing = categoryTotals.get(categoryName) ?? 0;
+      categoryTotals.set(categoryName, existing + signedAmount);
+    }
+
+    const accountName = txn.accountName.trim() || "Unassigned";
+    const signedValue = isOutflow ? -Math.abs(amountValue) : Math.abs(amountValue);
+    const accountExisting = accountTotals.get(accountName) ?? 0;
+    accountTotals.set(accountName, accountExisting + signedValue);
+  }
+
+  const assetById = new Map<string, AssetEntityRecord>();
+  const assetByName = new Map<string, AssetEntityRecord>();
+  for (const asset of assets) {
+    assetById.set(asset.id, asset);
+    assetByName.set(normalizeAssetKey(asset.name), asset);
+  }
+
+  const latestByAsset = new Map<
+    string,
+    { valueAud: number; assetType: string; recordedAt: Date }
+  >();
+  for (const record of assetValues) {
+    const recordedAt = parseDateValue(record.recorded_at);
+    if (!recordedAt) {
+      continue;
+    }
+    const asset =
+      (record.asset_id && assetById.get(record.asset_id)) ||
+      assetByName.get(normalizeAssetKey(record.asset_name));
+    const assetKey = asset?.id ?? normalizeAssetKey(record.asset_name);
+    if (!assetKey) {
+      continue;
+    }
+    const valueAud =
+      parseAmountValue(record.value_aud ?? "") ??
+      parseAmountValue(record.value) ??
+      0;
+    const existing = latestByAsset.get(assetKey);
+    if (existing && existing.recordedAt >= recordedAt) {
+      continue;
+    }
+    latestByAsset.set(assetKey, {
+      valueAud,
+      assetType: asset?.type ?? record.asset_type ?? "",
+      recordedAt
+    });
+  }
+
+  let netWorthTotal = 0;
+  let assetsTotal = 0;
+  let liabilitiesTotal = 0;
+  const assetClassTotals = new Map<string, number>();
+
+  for (const entry of latestByAsset.values()) {
+    const signed = toSignedAssetValue(entry.valueAud, entry.assetType);
+    netWorthTotal += signed;
+    if (signed < 0) {
+      liabilitiesTotal += Math.abs(signed);
+    } else {
+      assetsTotal += signed;
+    }
+    const key = normalizeAssetKey(entry.assetType || "other");
+    const existing = assetClassTotals.get(key) ?? 0;
+    assetClassTotals.set(key, existing + signed);
+  }
+
+  const cashTotal = assetClassTotals.get("cash") ?? 0;
+  const investmentsTotal =
+    (assetClassTotals.get("shares") ?? 0) +
+    (assetClassTotals.get("managed_fund") ?? 0) +
+    (assetClassTotals.get("superannuation") ?? 0);
+  const propertyTotal = assetClassTotals.get("property") ?? 0;
+  const otherAssetsTotal = Array.from(assetClassTotals.entries()).reduce(
+    (sum, [key, value]) => {
+      if (["cash", "shares", "managed_fund", "superannuation", "property"].includes(key)) {
+        return sum;
+      }
+      if (value > 0) {
+        return sum + value;
+      }
+      return sum;
+    },
+    0
+  );
+
+  return {
+    incomeTotal,
+    expenseTotal,
+    transferOutflowTotal,
+    needsReviewCount,
+    categoryTotals,
+    accountTotals,
+    netWorthTotal,
+    assetsTotal,
+    liabilitiesTotal,
+    assetClassTotals,
+    cashTotal,
+    investmentsTotal,
+    propertyTotal,
+    otherAssetsTotal
+  };
+}
+
 type PreparedAssetRecord = {
   id: string;
   assetId: string;
@@ -2000,14 +2397,16 @@ export async function getSpendByCategory(
   }
   return breakdown.categories.map((category) => ({
     name: category.name,
-    amount: category.amount,
+    amount: Math.abs(category.amount),
     formattedAmount: category.formattedAmount,
     percent: category.percent,
     count: category.count
   }));
 }
 
-export async function getExpenseBreakdown(selectedMonth?: string) {
+export async function getExpenseBreakdown(
+  selectedMonth?: string
+): Promise<ExpenseBreakdown> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return buildExpenseBreakdown([], selectedMonth);
@@ -2095,4 +2494,240 @@ export async function getCashFlowWaterfall(
   } catch (error) {
     return buildEmptyCashFlowWaterfall(selectedMonth);
   }
+}
+
+function buildMonthlyCloseChecklist(
+  importCount: number,
+  reviewCount: number,
+  assetUpdateCount: number
+): MonthlyCloseChecklistItem[] {
+  return [
+    {
+      id: "imports",
+      label: "Imports complete",
+      detail: `${importCount} statement${importCount === 1 ? "" : "s"}`,
+      status: importCount > 0 ? "complete" : "attention"
+    },
+    {
+      id: "review",
+      label: "Review queue cleared",
+      detail:
+        reviewCount === 0
+          ? "No unresolved items"
+          : `${reviewCount} item${reviewCount === 1 ? "" : "s"} to review`,
+      status: reviewCount === 0 ? "complete" : "attention"
+    },
+    {
+      id: "assets",
+      label: "Assets updated",
+      detail: `${assetUpdateCount} update${assetUpdateCount === 1 ? "" : "s"} this month`,
+      status: assetUpdateCount > 0 ? "complete" : "attention"
+    }
+  ];
+}
+
+function parseSnapshotNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parseAmountValue(value);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+  return 0;
+}
+
+function parseSnapshotTotals(record: Record<string, unknown>) {
+  return {
+    incomeTotal: parseSnapshotNumber(record.income_total),
+    expenseTotal: parseSnapshotNumber(record.expense_total),
+    transferOutflowTotal: parseSnapshotNumber(record.transfer_outflow_total),
+    netWorthTotal: parseSnapshotNumber(record.net_worth_total),
+    assetsTotal: parseSnapshotNumber(record.assets_total),
+    liabilitiesTotal: parseSnapshotNumber(record.liabilities_total)
+  };
+}
+
+export async function getMonthlyCloseSummary(
+  selectedMonth?: string
+): Promise<MonthlyCloseSummary> {
+  const monthOptions = buildRollingMonthOptions(12);
+  const { options, selected } = resolveMonthSelection(monthOptions, selectedMonth);
+  const serverClient = getServerAppwrite();
+  if (!serverClient) {
+    return {
+      monthOptions: options,
+      selectedMonth: selected,
+      status: "open",
+      checklist: buildMonthlyCloseChecklist(0, 0, 0),
+      incomeTotal: 0,
+      expenseTotal: 0,
+      transferOutflowTotal: 0,
+      netWorthTotal: 0,
+      assetsTotal: 0,
+      liabilitiesTotal: 0,
+      formattedIncomeTotal: formatCurrencyValue(0, "AUD"),
+      formattedExpenseTotal: formatCurrencyValue(0, "AUD"),
+      formattedTransferOutflowTotal: formatCurrencyValue(0, "AUD"),
+      formattedNetWorthTotal: formatNetWorth(0, "AUD"),
+      formattedAssetsTotal: formatCurrencyValue(0, "AUD"),
+      formattedLiabilitiesTotal: formatNetWorth(0, "AUD")
+    };
+  }
+
+  try {
+    const transferPairIds = await listTransferPairIds(serverClient);
+    const [transactions, assets, assetValues, importCount, closeDoc] =
+      await Promise.all([
+        listTransactionsForMonth(serverClient, selected),
+        listAssets(serverClient),
+        listAssetValueRecords(serverClient),
+        listImportsForMonth(serverClient, selected),
+        getMonthlyCloseRecord(serverClient, selected)
+      ]);
+
+    const snapshot = buildMonthlySnapshotFromRecords(
+      selected,
+      transactions,
+      transferPairIds,
+      assets,
+      assetValues
+    );
+    const assetUpdateCount = assetValues.filter((record) =>
+      matchesMonthKey(record.recorded_at, selected)
+    ).length;
+
+    let totals = {
+      incomeTotal: snapshot.incomeTotal,
+      expenseTotal: snapshot.expenseTotal,
+      transferOutflowTotal: snapshot.transferOutflowTotal,
+      netWorthTotal: snapshot.netWorthTotal,
+      assetsTotal: snapshot.assetsTotal,
+      liabilitiesTotal: snapshot.liabilitiesTotal
+    };
+    let status: MonthlyCloseStatus = "open";
+    let closedAt: string | undefined;
+    let closedBy: string | undefined;
+    let reopenedAt: string | undefined;
+    let reopenedBy: string | undefined;
+
+    if (closeDoc) {
+      const closeStatus = String(closeDoc.status ?? "").toLowerCase();
+      if (closeStatus === "closed") {
+        status = "closed";
+      }
+      closedAt = closeDoc.closed_at ? String(closeDoc.closed_at) : undefined;
+      closedBy = closeDoc.closed_by ? String(closeDoc.closed_by) : undefined;
+      reopenedAt = closeDoc.reopened_at ? String(closeDoc.reopened_at) : undefined;
+      reopenedBy = closeDoc.reopened_by ? String(closeDoc.reopened_by) : undefined;
+
+      if (status === "closed" && closeDoc.snapshot_id) {
+        const snapshotDoc = await getMonthlySnapshotById(
+          serverClient,
+          String(closeDoc.snapshot_id)
+        );
+        if (snapshotDoc) {
+          totals = parseSnapshotTotals(snapshotDoc);
+        }
+      }
+    }
+
+    return {
+      monthOptions: options,
+      selectedMonth: selected,
+      status,
+      closedAt,
+      closedBy,
+      reopenedAt,
+      reopenedBy,
+      checklist: buildMonthlyCloseChecklist(
+        importCount,
+        snapshot.needsReviewCount,
+        assetUpdateCount
+      ),
+      incomeTotal: totals.incomeTotal,
+      expenseTotal: totals.expenseTotal,
+      transferOutflowTotal: totals.transferOutflowTotal,
+      netWorthTotal: totals.netWorthTotal,
+      assetsTotal: totals.assetsTotal,
+      liabilitiesTotal: totals.liabilitiesTotal,
+      formattedIncomeTotal: formatCurrencyValue(totals.incomeTotal, "AUD"),
+      formattedExpenseTotal: formatCurrencyValue(totals.expenseTotal, "AUD"),
+      formattedTransferOutflowTotal: formatCurrencyValue(
+        totals.transferOutflowTotal,
+        "AUD"
+      ),
+      formattedNetWorthTotal: formatNetWorth(totals.netWorthTotal, "AUD"),
+      formattedAssetsTotal: formatCurrencyValue(totals.assetsTotal, "AUD"),
+      formattedLiabilitiesTotal: formatNetWorth(-totals.liabilitiesTotal, "AUD")
+    };
+  } catch (error) {
+    return {
+      monthOptions: options,
+      selectedMonth: selected,
+      status: "open",
+      checklist: buildMonthlyCloseChecklist(0, 0, 0),
+      incomeTotal: 0,
+      expenseTotal: 0,
+      transferOutflowTotal: 0,
+      netWorthTotal: 0,
+      assetsTotal: 0,
+      liabilitiesTotal: 0,
+      formattedIncomeTotal: formatCurrencyValue(0, "AUD"),
+      formattedExpenseTotal: formatCurrencyValue(0, "AUD"),
+      formattedTransferOutflowTotal: formatCurrencyValue(0, "AUD"),
+      formattedNetWorthTotal: formatNetWorth(0, "AUD"),
+      formattedAssetsTotal: formatCurrencyValue(0, "AUD"),
+      formattedLiabilitiesTotal: formatNetWorth(0, "AUD")
+    };
+  }
+}
+
+export async function buildMonthlySnapshotPayload(
+  monthKey: string
+): Promise<MonthlySnapshotPayload | null> {
+  const serverClient = getServerAppwrite();
+  if (!serverClient) {
+    return null;
+  }
+
+  const transferPairIds = await listTransferPairIds(serverClient);
+  const [transactions, assets, assetValues] = await Promise.all([
+    listTransactionsForMonth(serverClient, monthKey),
+    listAssets(serverClient),
+    listAssetValueRecords(serverClient)
+  ]);
+  const snapshot = buildMonthlySnapshotFromRecords(
+    monthKey,
+    transactions,
+    transferPairIds,
+    assets,
+    assetValues
+  );
+
+  const categoryTotals = Object.fromEntries(snapshot.categoryTotals.entries());
+  const accountTotals = Object.fromEntries(snapshot.accountTotals.entries());
+  const assetClassTotals = Object.fromEntries(
+    snapshot.assetClassTotals.entries()
+  );
+
+  return {
+    month: monthKey,
+    generated_at: new Date().toISOString(),
+    net_worth_total: String(snapshot.netWorthTotal),
+    assets_total: String(snapshot.assetsTotal),
+    liabilities_total: String(snapshot.liabilitiesTotal),
+    income_total: String(snapshot.incomeTotal),
+    expense_total: String(snapshot.expenseTotal),
+    transfer_outflow_total: String(snapshot.transferOutflowTotal),
+    cash_total: String(snapshot.cashTotal),
+    investments_total: String(snapshot.investmentsTotal),
+    property_total: String(snapshot.propertyTotal),
+    other_assets_total: String(snapshot.otherAssetsTotal),
+    category_totals: JSON.stringify(categoryTotals),
+    account_totals: JSON.stringify(accountTotals),
+    asset_class_totals: JSON.stringify(assetClassTotals)
+  };
 }

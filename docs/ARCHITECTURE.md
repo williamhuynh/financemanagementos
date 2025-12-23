@@ -14,7 +14,7 @@
 ## Background Jobs
 - Import parsing and normalization.
 - Categorization and transfer matching.
-- Monthly snapshot generation for reports.
+- Monthly snapshot generation for reports (on close, with optional re-run on reopen).
 
 ## Observability
 - Import logs per batch.

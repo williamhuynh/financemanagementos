@@ -13,9 +13,12 @@
 - TransferMatch
 - Asset
 - AssetValuation
+- MonthlyClose
+- MonthlySnapshot
 
 ## Relationships
 - Workspace has many Accounts, Categories, Assets, and ImportBatches.
+- Workspace has many MonthlyCloses and MonthlySnapshots.
 - ImportBatch has many RawTransactions.
 - RawTransaction maps to a LedgerTransaction (or flagged for review).
 - LedgerTransaction may link to a TransferMatch (paired with another txn).
@@ -36,3 +39,14 @@
 
 ## Valuation Fields
 - asset_id, date, value, source (manual/import), notes
+
+## Monthly Close Fields
+- workspace_id, month (YYYY-MM), status (open/closed)
+- closed_at, closed_by, reopened_at, reopened_by
+- notes, snapshot_id
+
+## Monthly Snapshot Fields
+- workspace_id, month (YYYY-MM), generated_at
+- net_worth_total, assets_total, liabilities_total
+- cash_total, investments_total, property_total, other_assets_total
+- category_totals (json), account_totals (json), asset_class_totals (json)

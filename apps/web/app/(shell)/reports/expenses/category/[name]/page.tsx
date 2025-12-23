@@ -20,8 +20,8 @@ export default async function CategoryExpensePage({
     (item) => item.name.toLowerCase() === categoryName.toLowerCase()
   );
   const backLink = breakdown.selectedMonth
-    ? `/reports/expenses?month=${encodeURIComponent(breakdown.selectedMonth)}`
-    : "/reports/expenses";
+    ? `/reports?month=${encodeURIComponent(breakdown.selectedMonth)}`
+    : "/reports";
   const totalShare = category ? `${category.percent}% of spend` : "No data";
 
   return (
@@ -32,13 +32,13 @@ export default async function CategoryExpensePage({
         breadcrumbs={[
           { label: "Home", href: "/dashboard" },
           { label: "Reports", href: "/reports" },
-          { label: "Expenses", href: "/reports/expenses" },
+          { label: "Expenses", href: "/reports" },
           { label: categoryName }
         ]}
         actions={
           <>
             <Link className="pill" href={backLink}>
-              Back to expenses
+              Back to reports
             </Link>
             <MonthSelector
               options={breakdown.monthOptions}

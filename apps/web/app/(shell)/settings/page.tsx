@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, SectionHead } from "@financelab/ui";
 
 export default function SettingsPage() {
@@ -10,16 +11,6 @@ export default function SettingsPage() {
           { label: "Home", href: "/dashboard" },
           { label: "Settings" }
         ]}
-        actions={
-          <>
-            <button className="pill" type="button">
-              Invite member
-            </button>
-            <button className="pill" type="button">
-              Billing
-            </button>
-          </>
-        }
       />
       <Card title="Members">
         <div className="list-row">
@@ -39,6 +30,17 @@ export default function SettingsPage() {
           <button className="ghost-btn" type="button">
             Manage
           </button>
+        </div>
+      </Card>
+      <Card title="System">
+        <div className="list-row">
+          <div>
+            <div className="row-title">Health</div>
+            <div className="row-sub">Connectivity and service checks</div>
+          </div>
+          <Link className="ghost-btn" href="/health">
+            View
+          </Link>
         </div>
       </Card>
     </>

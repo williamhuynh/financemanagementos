@@ -17,6 +17,10 @@ export default function MonthSelector({
 }: MonthSelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const selectedIndex = options.findIndex((option) => option.value === selected);
+  const previousMonth =
+    selectedIndex >= 0 ? options[selectedIndex + 1] : undefined;
+  const nextMonth = selectedIndex > 0 ? options[selectedIndex - 1] : undefined;
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const month = event.target.value;
@@ -31,15 +35,55 @@ export default function MonthSelector({
   };
 
   return (
-    <label className="month-picker">
+    <div className="month-picker">
       <span className="field-label">Month</span>
-      <select className="category-select" value={selected} onChange={handleChange}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+      <div className="pill-month-control">
+        <button
+          className="pill-month-btn"
+          type="button"
+          disabled={!previousMonth}
+          aria-label="Previous month"
+          onClick={() => {
+            if (!previousMonth) {
+              return;
+            }
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("month", previousMonth.value);
+            const query = params.toString();
+            router.push(query ? `${basePath}?${query}` : basePath);
+          }}
+        >
+          {"<"}
+        </button>
+        <select
+          className="category-select"
+          value={selected}
+          onChange={handleChange}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          className="pill-month-btn"
+          type="button"
+          disabled={!nextMonth}
+          aria-label="Next month"
+          onClick={() => {
+            if (!nextMonth) {
+              return;
+            }
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("month", nextMonth.value);
+            const query = params.toString();
+            router.push(query ? `${basePath}?${query}` : basePath);
+          }}
+        >
+          {">"}
+        </button>
+      </div>
+    </div>
   );
 }

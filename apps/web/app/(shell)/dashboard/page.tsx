@@ -86,16 +86,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const breakdown = await getExpenseBreakdown(resolvedSearchParams?.month);
   const cashFlow = await getCashFlowWaterfall(resolvedSearchParams?.month);
   const spendByCategory = breakdown.categories;
-  const spendTotal = spendByCategory.reduce((sum, item) => sum + item.amount, 0);
+  const spendTotal = spendByCategory.reduce(
+    (sum, item) => sum + Math.abs(item.amount),
+    0
+  );
   const topCategories = spendByCategory.slice(0, 3);
   const otherTotal = spendByCategory
     .slice(3)
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
   const segmentClasses = ["seg-a", "seg-b", "seg-c"];
   const dotClasses = ["a", "b", "c"];
   const spendSegments = topCategories.map((item, index) => ({
     className: segmentClasses[index],
-    value: item.amount
+    value: Math.abs(item.amount)
   }));
   const spendLegend = topCategories.map((item, index) => ({
     label: `${item.name} ${item.percent}%`,
@@ -124,16 +127,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           { label: "Home", href: "/dashboard" },
           { label: "Overview" }
         ]}
-        actions={
-          <>
-            <button className="pill" type="button">
-              Snapshot
-            </button>
-            <button className="pill" type="button">
-              Add note
-            </button>
-          </>
-        }
       />
       <div className="hero">
         <div>

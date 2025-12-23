@@ -1,3 +1,4 @@
+import "./load-env.mjs";
 import { Client, Databases, Query } from "node-appwrite";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
