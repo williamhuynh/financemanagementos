@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { LedgerRow } from "../../../lib/data";
 
 type LedgerClientProps = {
@@ -10,31 +11,20 @@ type LedgerClientProps = {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 const TRANSFER_CATEGORY = "Transfer";
+const PAGE_SIZE = 50;
 
 export default function LedgerClient({ rows, categories }: LedgerClientProps) {
-  const [categoryMap, setCategoryMap] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    rows.forEach((row) => {
-      initial[row.id] = row.category;
-    });
-    return initial;
-  });
+  const searchParams = useSearchParams();
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [items, setItems] = useState<LedgerRow[]>(rows);
+  const [offset, setOffset] = useState(rows.length);
+  const [hasMore, setHasMore] = useState(rows.length >= PAGE_SIZE);
+  const [isLoading, setIsLoading] = useState(false);
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
-  const [transferMap, setTransferMap] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    rows.forEach((row) => {
-      initial[row.id] = row.isTransfer;
-    });
-    return initial;
-  });
+  const [transferMap, setTransferMap] = useState<Record<string, boolean>>({});
   const [lastCategoryMap, setLastCategoryMap] = useState<Record<string, string>>(
-    () => {
-      const initial: Record<string, string> = {};
-      rows.forEach((row) => {
-        initial[row.id] = row.category;
-      });
-      return initial;
-    }
+    {}
   );
   const [transferState, setTransferState] = useState<Record<string, SaveState>>(
     {}
@@ -43,6 +33,130 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const sortedCategories = useMemo(() => {
     return [...categories].sort((a, b) => a.localeCompare(b));
   }, [categories]);
+
+  const filters = useMemo(() => {
+    return {
+      account: searchParams.get("account") ?? "all",
+      category: searchParams.get("category") ?? "all",
+      amount: searchParams.get("amount") ?? "any",
+      month: searchParams.get("month") ?? "all",
+      sort: searchParams.get("sort") ?? "asc"
+    };
+  }, [searchParams]);
+
+  const mergeRowState = useCallback((rowsToMerge: LedgerRow[]) => {
+    setCategoryMap((prev) => {
+      const next = { ...prev };
+      rowsToMerge.forEach((row) => {
+        if (!(row.id in next)) {
+          next[row.id] = row.category;
+        }
+      });
+      return next;
+    });
+    setTransferMap((prev) => {
+      const next = { ...prev };
+      rowsToMerge.forEach((row) => {
+        if (!(row.id in next)) {
+          next[row.id] = row.isTransfer;
+        }
+      });
+      return next;
+    });
+    setLastCategoryMap((prev) => {
+      const next = { ...prev };
+      rowsToMerge.forEach((row) => {
+        if (!(row.id in next)) {
+          next[row.id] = row.category;
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const nextCategoryMap: Record<string, string> = {};
+    const nextTransferMap: Record<string, boolean> = {};
+    const nextLastCategoryMap: Record<string, string> = {};
+    rows.forEach((row) => {
+      nextCategoryMap[row.id] = row.category;
+      nextTransferMap[row.id] = row.isTransfer;
+      nextLastCategoryMap[row.id] = row.category;
+    });
+    setItems(rows);
+    setOffset(rows.length);
+    setHasMore(rows.length >= PAGE_SIZE);
+    setIsLoading(false);
+    setSaveState({});
+    setTransferState({});
+    setCategoryMap(nextCategoryMap);
+    setTransferMap(nextTransferMap);
+    setLastCategoryMap(nextLastCategoryMap);
+  }, [rows]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoading || !hasMore) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("offset", String(offset));
+      params.set("limit", String(PAGE_SIZE));
+      if (filters.account !== "all") {
+        params.set("account", filters.account);
+      }
+      if (filters.category !== "all") {
+        params.set("category", filters.category);
+      }
+      if (filters.amount !== "any") {
+        params.set("amount", filters.amount);
+      }
+      if (filters.month !== "all") {
+        params.set("month", filters.month);
+      }
+      if (filters.sort) {
+        params.set("sort", filters.sort);
+      }
+      const response = await fetch(`/api/ledger?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("Failed to load ledger rows.");
+      }
+      const payload = (await response.json()) as {
+        items?: LedgerRow[];
+        hasMore?: boolean;
+      };
+      const nextRows = payload.items ?? [];
+      setItems((prev) =>
+        offset === 0 ? nextRows : [...prev, ...nextRows]
+      );
+      setOffset((prev) => prev + nextRows.length);
+      setHasMore(Boolean(payload.hasMore));
+      mergeRowState(nextRows);
+    } catch (error) {
+      setHasMore(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters, hasMore, isLoading, mergeRowState, offset]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMore();
+        }
+      },
+      { rootMargin: "240px" }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadMore]);
 
   const handleSave = async (id: string) => {
     setSaveState((prev) => ({ ...prev, [id]: "saving" }));
@@ -100,13 +214,13 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     }
   };
 
-  if (rows.length === 0) {
+  if (items.length === 0 && !isLoading) {
     return <div className="empty-state">No ledger transactions yet.</div>;
   }
 
   return (
     <div className="list">
-      {rows.map((row) => {
+      {items.map((row) => {
         const currentState = saveState[row.id] ?? "idle";
         const transferCurrentState = transferState[row.id] ?? "idle";
         const isTransfer = transferMap[row.id] ?? false;
@@ -186,6 +300,10 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
           </div>
         );
       })}
+      {isLoading ? (
+        <div className="empty-state">Loading more transactions...</div>
+      ) : null}
+      <div ref={loadMoreRef} />
     </div>
   );
 }

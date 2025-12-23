@@ -79,11 +79,13 @@ export const reviewItems = [
 ];
 
 export const assetCards = [
-  { title: "Property", value: "$2,053,240", sub: "Last update: Mar 2025" },
+  { title: "Property", value: "$2,053,240", sub: "Last update: Mar 2025" },     
   { title: "Stocks", value: "$277,247", sub: "CMC Markets" },
   { title: "Managed Funds", value: "$42,360", sub: "Vanguard" },
-  { title: "Superannuation", value: "$226,926", sub: "AustralianSuper" }
+  { title: "Superannuation", value: "$226,926", sub: "AustralianSuper" }        
 ];
+
+
 
 export const reportStats = [
   { title: "Income", value: "$19,398", sub: "Primary + secondary" },

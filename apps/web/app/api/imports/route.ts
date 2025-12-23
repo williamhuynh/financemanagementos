@@ -260,6 +260,7 @@ export async function POST(request: Request) {
     fileName?: string;
     rows?: ImportRow[];
     sourceAccount?: string;
+    sourceOwner?: string;
   };
 
   const rows = body.rows ?? [];
@@ -276,6 +277,7 @@ export async function POST(request: Request) {
     workspace_id: DEFAULT_WORKSPACE_ID,
     source_name: body.sourceName ?? "CSV",
     source_account: body.sourceAccount ?? "",
+    source_owner: body.sourceOwner ?? "",
     file_name: body.fileName ?? "",
     row_count: rows.length,
     status: "imported",
@@ -307,6 +309,7 @@ export async function POST(request: Request) {
       currency: row.currency ?? "AUD",
       account_name: row.account ?? body.sourceAccount ?? "Unassigned",
       source_account: body.sourceAccount ?? "",
+      source_owner: body.sourceOwner ?? "",
       category_name: category,
       direction,
       notes: "",
@@ -479,6 +482,7 @@ export async function GET() {
   const imports = response.documents.map((doc) => ({
     id: doc.$id,
     source_name: doc.source_name,
+    source_owner: doc.source_owner,
     file_name: doc.file_name,
     row_count: doc.row_count,
     status: doc.status,

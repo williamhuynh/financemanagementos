@@ -1,14 +1,19 @@
+"use client";
+
 type WaterfallStep = {
   label: string;
   value: number;
   formattedValue?: string;
   kind?: "income" | "expense" | "net";
+  transactions?: unknown[];
 };
 
 type WaterfallChartProps = {
   title?: string;
   steps?: WaterfallStep[];
   height?: number;
+  activeStepLabel?: string | null;
+  onStepClick?: (step: WaterfallStep) => void;
 };
 
 const defaultSteps: WaterfallStep[] = [
@@ -33,7 +38,9 @@ const defaultSteps: WaterfallStep[] = [
 export function WaterfallChart({
   title = "Cash Flow Waterfall",
   steps = defaultSteps,
-  height = 150
+  height = 150,
+  activeStepLabel = null,
+  onStepClick
 }: WaterfallChartProps) {
   let cumulative = 0;
   const series = steps.map((step) => {
@@ -52,6 +59,7 @@ export function WaterfallChart({
   const range = maxValue - minValue || 1;
   const scale = (value: number) => ((value - minValue) / range) * height;
   const zeroOffset = scale(0);
+  const isInteractive = Boolean(onStepClick);
 
   return (
     <article className="card chart wide">
@@ -74,18 +82,26 @@ export function WaterfallChart({
           const barLabel =
             step.kind === "net" ? `Net ${displayValue}` : displayValue;
           const titleText = `${step.label} ${displayValue}`;
+          const isActive = activeStepLabel === step.label;
+          const isRefund = step.kind === "expense" && step.value > 0;
 
           return (
             <div key={`${step.label}-${index}`} className="waterfall-col">
               <div className="waterfall-stack">
-                <div
-                  className={`waterfall-bar ${step.kind ?? "expense"}`}
+                <button
+                  className={`waterfall-bar ${step.kind ?? "expense"}${
+                    isRefund ? " refund" : ""
+                  }${isActive ? " active" : ""}`}
                   style={{ height: `${barHeight}px`, bottom: `${barOffset}px` }}
                   title={titleText}
                   aria-label={titleText}
+                  aria-pressed={isActive}
+                  type="button"
+                  onClick={() => onStepClick?.(step)}
+                  disabled={!isInteractive}
                 >
                   <span className="waterfall-value">{barLabel}</span>
-                </div>
+                </button>
               </div>
               <span className="waterfall-label" title={step.label}>
                 {step.label}

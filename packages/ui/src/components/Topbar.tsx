@@ -34,6 +34,8 @@ export function Topbar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const hideMonthControl =
+    pathname.startsWith("/ledger") || pathname.startsWith("/review");
   const options = buildMonthOptions();
   const currentMonth = getMonthKey(new Date());
   const selected = searchParams.get("month") ?? currentMonth;
@@ -52,16 +54,22 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="month-control">
-        <span className="label">Month</span>
-        <select className="pill-select" value={selected} onChange={handleChange}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      {hideMonthControl ? null : (
+        <div className="month-control">
+          <span className="label">Month</span>
+          <select
+            className="pill-select"
+            value={selected}
+            onChange={handleChange}
+          >
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="topbar-actions">
         <div className="search">
           <input type="search" placeholder="Search merchants, categories, accounts" />

@@ -1,9 +1,33 @@
 import { SectionHead } from "@financelab/ui";
 import LedgerClient from "./LedgerClient";
-import { getCategories, getLedgerRows } from "../../../lib/data";
+import LedgerFilters from "./LedgerFilters";
+import {
+  getCategories,
+  getLedgerRows,
+  type LedgerFilterParams
+} from "../../../lib/data";
 
-export default async function LedgerPage() {
-  const ledgerRows = await getLedgerRows();
+type LedgerSearchParams = {
+  account?: string;
+  category?: string;
+  amount?: string;
+  month?: string;
+  sort?: string;
+};
+
+type LedgerPageProps = {
+  searchParams?: Promise<LedgerSearchParams>;
+};
+
+export default async function LedgerPage({ searchParams }: LedgerPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const ledgerRows = await getLedgerRows({
+    account: resolvedSearchParams?.account,
+    category: resolvedSearchParams?.category,
+    amount: resolvedSearchParams?.amount as LedgerFilterParams["amount"],
+    month: resolvedSearchParams?.month,
+    sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
+  });
   const categories = await getCategories();
 
   return (
@@ -15,19 +39,7 @@ export default async function LedgerPage() {
           { label: "Home", href: "/dashboard" },
           { label: "Ledger" }
         ]}
-        actions={
-          <>
-            <button className="pill" type="button">
-              Account: All
-            </button>
-            <button className="pill" type="button">
-              Category: All
-            </button>
-            <button className="pill" type="button">
-              Amount: Any
-            </button>
-          </>
-        }
+        actions={<LedgerFilters categories={categories} />}
       />
       <LedgerClient rows={ledgerRows} categories={categories} />
     </>

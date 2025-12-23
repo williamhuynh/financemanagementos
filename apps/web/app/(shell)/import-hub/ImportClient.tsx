@@ -39,6 +39,7 @@ type Preset = {
 type ImportHistoryItem = {
   id: string;
   source_name: string;
+  source_owner?: string;
   file_name?: string;
   row_count: number;
   status: string;
@@ -67,6 +68,29 @@ const presets: Preset[] = [
   }
 ];
 
+const ownerOptions = ["William", "Peggy", "Joint"];
+const headerOptions = [
+  { value: "yes", label: "Yes, first row is headers" },
+  { value: "no", label: "No, data starts immediately" }
+];
+const headerKeywords = [
+  "date",
+  "description",
+  "amount",
+  "debit",
+  "credit",
+  "account",
+  "category",
+  "currency",
+  "narrative",
+  "memo",
+  "details",
+  "balance",
+  "merchant",
+  "payee",
+  "transaction"
+];
+
 function inferMapping(header: string): MappingKey {
   const normalized = header.toLowerCase();
 
@@ -92,6 +116,60 @@ function inferMapping(header: string): MappingKey {
   if (normalized.includes("category")) return "category";
   if (normalized.includes("currency")) return "currency";
   return "ignore";
+}
+
+function buildColumnHeaders(columnCount: number) {
+  return Array.from({ length: columnCount }, (_, index) => `Column ${index + 1}`);
+}
+
+function looksLikeHeaderLabel(value: string) {
+  const normalized = value.toLowerCase();
+  return headerKeywords.some((keyword) => normalized.includes(keyword));
+}
+
+function isDateLike(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmed)) return true;
+  if (/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/.test(trimmed)) return true;
+  return false;
+}
+
+function isAmountLike(value: string) {
+  const trimmed = value.trim().replace(/,/g, "");
+  if (!trimmed) return false;
+  return /^-?\d+(\.\d{1,4})?$/.test(trimmed);
+}
+
+function isTextLike(value: string) {
+  return /[a-zA-Z]/.test(value.trim());
+}
+
+function guessHasHeader(firstRow: string[], secondRow: string[]) {
+  if (firstRow.length === 0) return true;
+  const headerHits = firstRow.filter(looksLikeHeaderLabel).length;
+  if (headerHits > 0) return true;
+
+  const dataLikeFirst = firstRow.filter(
+    (value) => isDateLike(value) || isAmountLike(value)
+  ).length;
+  const dataLikeSecond = secondRow.filter(
+    (value) => isDateLike(value) || isAmountLike(value)
+  ).length;
+  const textLikeFirst = firstRow.filter(isTextLike).length;
+
+  const firstCount = Math.max(firstRow.length, 1);
+  const secondCount = Math.max(secondRow.length, 1);
+
+  if (dataLikeFirst / firstCount >= 0.6 && dataLikeSecond / secondCount >= 0.4) {
+    return false;
+  }
+
+  if (textLikeFirst / firstCount >= 0.6 && dataLikeSecond / secondCount >= 0.3) {
+    return true;
+  }
+
+  return true;
 }
 
 function normalizeAmount(value: string) {
@@ -135,7 +213,11 @@ function resolveAmount(
 
 export default function ImportClient() {
   const [fileName, setFileName] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [hasHeader, setHasHeader] = useState(true);
+  const [headerMode, setHeaderMode] = useState<"auto" | "manual">("auto");
   const [sourceAccount, setSourceAccount] = useState<string>("");
+  const [sourceOwner, setSourceOwner] = useState<string>("Joint");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [mapping, setMapping] = useState<Record<string, MappingKey>>({});
@@ -152,6 +234,9 @@ export default function ImportClient() {
   const [deletingImportId, setDeletingImportId] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [accountOptions, setAccountOptions] = useState<string[]>([]);
+  const [headerSamples, setHeaderSamples] = useState<Record<string, string>>(
+    {}
+  );
 
   const mappedRows = useMemo(() => {
     if (rows.length === 0) return [];
@@ -171,7 +256,8 @@ export default function ImportClient() {
 
   const canSubmit =
     requiredFields.every((field) => mappedRows.some((row) => row[field])) &&
-    mappedRows.some((row) => row.amount);
+    mappedRows.some((row) => row.amount) &&
+    Boolean(sourceOwner);
 
   const previewRows = mappedRows.slice(0, 8);
 
@@ -200,6 +286,11 @@ export default function ImportClient() {
   }, []);
 
   useEffect(() => {
+    if (!selectedFile) return;
+    parseFile(selectedFile, hasHeader);
+  }, [hasHeader, selectedFile]);
+
+  useEffect(() => {
     const loadAccounts = async () => {
       try {
         const response = await fetch("/api/accounts");
@@ -214,18 +305,73 @@ export default function ImportClient() {
     loadAccounts();
   }, []);
 
-  const parseFile = (file: File) => {
+  const parseFile = async (file: File, includeHeader: boolean) => {
     setFileName(file.name);
     setStatus("Parsing CSV...");
-    Papa.parse<ParsedRow>(file, {
-      header: true,
+    if (headerMode === "auto") {
+      const detected = await new Promise<boolean>((resolve) => {
+        Papa.parse<string[]>(file, {
+          header: false,
+          skipEmptyLines: true,
+          preview: 2,
+          complete: (result) => {
+            const rows = result.data as string[][];
+            const firstRow = rows[0] ?? [];
+            const secondRow = rows[1] ?? [];
+            resolve(guessHasHeader(firstRow, secondRow));
+          },
+          error: () => resolve(true)
+        });
+      });
+
+      if (detected !== includeHeader) {
+        setHasHeader(detected);
+        return;
+      }
+    }
+
+    Papa.parse<ParsedRow | string[]>(file, {
+      header: includeHeader,
       skipEmptyLines: true,
       complete: (result) => {
-        const fileHeaders = result.meta.fields?.filter(Boolean) ?? [];
+        if (includeHeader) {
+          const fileHeaders = result.meta.fields?.filter(Boolean) ?? [];
+          setHeaders(fileHeaders);
+          setRows(result.data as ParsedRow[]);
+          setHeaderSamples({});
+          applyPreset("auto", fileHeaders);
+          setStatus(`Parsed ${result.data.length} rows.`);
+          return;
+        }
+
+        const dataRows = (result.data as string[][]).filter(
+          (row) => Array.isArray(row) && row.some((cell) => String(cell).trim())
+        );
+        const maxColumns = dataRows.reduce(
+          (max, row) => Math.max(max, row.length),
+          0
+        );
+        const fileHeaders = buildColumnHeaders(maxColumns);
+        const sampleRow = dataRows[0] ?? [];
+        const normalizedRows = dataRows.map((row) => {
+          const mapped: ParsedRow = {};
+          fileHeaders.forEach((header, index) => {
+            mapped[header] = row[index] ?? "";
+          });
+          return mapped;
+        });
+        const samples: Record<string, string> = {};
+        fileHeaders.forEach((header, index) => {
+          const value = sampleRow[index];
+          if (value !== undefined && String(value).trim()) {
+            samples[header] = String(value).trim();
+          }
+        });
         setHeaders(fileHeaders);
-        setRows(result.data as ParsedRow[]);
+        setRows(normalizedRows);
+        setHeaderSamples(samples);
         applyPreset("auto", fileHeaders);
-        setStatus(`Parsed ${result.data.length} rows.`);
+        setStatus(`Parsed ${normalizedRows.length} rows.`);
       },
       error: () => {
         setStatus("Failed to parse CSV.");
@@ -236,7 +382,9 @@ export default function ImportClient() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    parseFile(file);
+    setSelectedFile(file);
+    setHeaderMode("auto");
+    parseFile(file, hasHeader);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
@@ -244,7 +392,9 @@ export default function ImportClient() {
     setIsDragActive(false);
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
-    parseFile(file);
+    setSelectedFile(file);
+    setHeaderMode("auto");
+    parseFile(file, hasHeader);
   };
 
   const applyPreset = (nextPresetId: string, activeHeaders = headers) => {
@@ -278,7 +428,8 @@ export default function ImportClient() {
           sourceName: "CSV",
           fileName,
           rows: mappedRows,
-          sourceAccount
+          sourceAccount,
+          sourceOwner
         })
       });
       const payload = await response.json();
@@ -372,6 +523,23 @@ export default function ImportClient() {
             ))}
           </datalist>
         </div>
+        <div className="field">
+          <label className="field-label" htmlFor="sourceOwner">
+            Account owner
+          </label>
+          <select
+            id="sourceOwner"
+            className="field-input"
+            value={sourceOwner}
+            onChange={(event) => setSourceOwner(event.target.value)}
+          >
+            {ownerOptions.map((owner) => (
+              <option key={owner} value={owner}>
+                {owner}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="row-sub">{status}</div>
       </div>
 
@@ -381,6 +549,29 @@ export default function ImportClient() {
           <div className="row-sub">Upload a CSV to map columns.</div>
         ) : (
           <>
+            <div className="preset-row">
+              <span className="row-title">CSV headers</span>
+              <select
+                className="mapping-select"
+                value={hasHeader ? "yes" : "no"}
+                onChange={(event) => {
+                  setHeaderMode("manual");
+                  setHasHeader(event.target.value === "yes");
+                }}
+              >
+                {headerOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!hasHeader ? (
+              <div className="row-sub">
+                No headers detected. Columns are labeled Column 1, Column 2, etc.
+                with a sample value to help mapping.
+              </div>
+            ) : null}
             <div className="preset-row">
               <span className="row-title">Preset</span>
               <select
@@ -398,7 +589,14 @@ export default function ImportClient() {
             <div className="mapping-grid">
               {headers.map((header) => (
                 <div key={header} className="mapping-row">
-                  <div className="row-title">{header}</div>
+                  <div className="row-title">
+                    {header}
+                    {headerSamples[header] ? (
+                      <span className="row-sub">
+                        e.g. {headerSamples[header]}
+                      </span>
+                    ) : null}
+                  </div>
                   <select
                     className="mapping-select"
                     value={mapping[header] ?? "ignore"}
@@ -476,6 +674,7 @@ export default function ImportClient() {
             <div className="history-header">
               <span>File</span>
               <span>Source</span>
+              <span>Owner</span>
               <span>Rows</span>
               <span>Status</span>
               <span>Uploaded</span>
@@ -485,6 +684,7 @@ export default function ImportClient() {
               <div key={item.id} className="history-row">
                 <span>{item.file_name || "Untitled CSV"}</span>
                 <span>{item.source_name}</span>
+                <span>{item.source_owner || "-"}</span>
                 <span>{item.row_count}</span>
                 <span>{item.status}</span>
                 <span>{formatDate(item.uploaded_at)}</span>

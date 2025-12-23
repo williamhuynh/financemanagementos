@@ -78,6 +78,7 @@ const collections = [
       { type: "string", key: "workspace_id", size: 64, required: true },
       { type: "string", key: "source_name", size: 80, required: true },
       { type: "string", key: "source_account", size: 120, required: false },
+      { type: "string", key: "source_owner", size: 40, required: false },
       { type: "string", key: "file_name", size: 160, required: false },
       { type: "integer", key: "row_count", required: true },
       { type: "string", key: "status", size: 40, required: true },
@@ -96,6 +97,7 @@ const collections = [
       { type: "string", key: "currency", size: 8, required: false },
       { type: "string", key: "account_name", size: 120, required: false },
       { type: "string", key: "source_account", size: 120, required: false },
+      { type: "string", key: "source_owner", size: 40, required: false },
       { type: "string", key: "category_name", size: 80, required: false },
       { type: "string", key: "direction", size: 12, required: false },
       { type: "string", key: "notes", size: 200, required: false },
@@ -114,16 +116,38 @@ const collections = [
     ]
   },
   {
+    id: "assets",
+    name: "Assets",
+    attributes: [
+      { type: "string", key: "workspace_id", size: 64, required: true },
+      { type: "string", key: "name", size: 120, required: true },
+      { type: "string", key: "type", size: 60, required: true },
+      { type: "string", key: "owner", size: 40, required: true },
+      { type: "string", key: "status", size: 20, required: true },
+      { type: "string", key: "currency", size: 8, required: false },
+      { type: "string", key: "disposed_at", size: 40, required: false },
+      { type: "string", key: "deleted_at", size: 40, required: false }
+    ]
+  },
+  {
     id: "asset_values",
     name: "Asset Values",
     attributes: [
       { type: "string", key: "workspace_id", size: 64, required: true },
+      { type: "string", key: "asset_id", size: 64, required: false },
       { type: "string", key: "asset_name", size: 120, required: true },
       { type: "string", key: "asset_type", size: 60, required: false },
       { type: "string", key: "value", size: 60, required: true },
       { type: "string", key: "currency", size: 8, required: false },
+      { type: "string", key: "original_value", size: 60, required: false },
+      { type: "string", key: "original_currency", size: 8, required: false },
+      { type: "string", key: "value_aud", size: 60, required: false },
+      { type: "string", key: "fx_rate", size: 40, required: false },
+      { type: "string", key: "fx_source", size: 60, required: false },
       { type: "string", key: "recorded_at", size: 40, required: true },
-      { type: "string", key: "notes", size: 200, required: false }
+      { type: "string", key: "source", size: 40, required: false },
+      { type: "string", key: "notes", size: 200, required: false },
+      { type: "string", key: "deleted_at", size: 40, required: false }
     ]
   }
 ];

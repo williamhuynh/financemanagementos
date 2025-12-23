@@ -1,10 +1,31 @@
 import { Card, SectionHead } from "@financelab/ui";
 import ReviewClient from "./ReviewClient";
+import ReviewFilters from "./ReviewFilters";
 import TransferMatchClient from "./TransferMatchClient";
-import { getCategories, getReviewItems, getTransferReviewData } from "../../../lib/data";
+import {
+  getCategories,
+  getReviewItems,
+  getTransferReviewData,
+  type ReviewFilterParams
+} from "../../../lib/data";
 
-export default async function ReviewPage() {
-  const reviewItems = await getReviewItems();
+type ReviewSearchParams = {
+  account?: string;
+  month?: string;
+  sort?: string;
+};
+
+type ReviewPageProps = {
+  searchParams?: Promise<ReviewSearchParams>;
+};
+
+export default async function ReviewPage({ searchParams }: ReviewPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const reviewItems = await getReviewItems({
+    account: resolvedSearchParams?.account,
+    month: resolvedSearchParams?.month,
+    sort: resolvedSearchParams?.sort as ReviewFilterParams["sort"]
+  });
   const categories = await getCategories();
   const transferReviewData = await getTransferReviewData();
 
@@ -17,19 +38,7 @@ export default async function ReviewPage() {
           { label: "Home", href: "/dashboard" },
           { label: "Review Queue" }
         ]}
-        actions={
-          <>
-            <button className="pill active" type="button">
-              Unknowns
-            </button>
-            <button className="pill" type="button">
-              Transfers
-            </button>
-            <button className="pill" type="button">
-              Duplicates
-            </button>
-          </>
-        }
+        actions={<ReviewFilters />}
       />
       <div className="review-stack">
         <ReviewClient items={reviewItems} categories={categories} />
