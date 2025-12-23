@@ -66,10 +66,12 @@ export function WaterfallChart({
       <div className="card-title">{title}</div>
       <div
         className="chart-body waterfall"
-        style={{
-          ["--waterfall-height" as const]: `${height}px`,
-          ["--waterfall-zero" as const]: `${zeroOffset}px`
-        }}
+        style={
+          {
+            ["--waterfall-height" as any]: `${height}px`,
+            ["--waterfall-zero" as any]: `${zeroOffset}px`
+          } as any
+        }
       >
         {series.map((step, index) => {
           const barStart = Math.min(step.start, step.end);

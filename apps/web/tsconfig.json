@@ -20,6 +20,15 @@
     "types": [
       "node"
     ],
+    "baseUrl": ".",
+    "paths": {
+      "next": [
+        "node_modules/next"
+      ],
+      "next/*": [
+        "node_modules/next/*"
+      ]
+    },
     "plugins": [
       {
         "name": "next"

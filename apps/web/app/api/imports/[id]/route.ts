@@ -3,6 +3,11 @@ import { Client, Databases, Query } from "node-appwrite";
 
 const DEFAULT_WORKSPACE_ID = "default";
 
+function isNotFoundError(error: unknown): error is { code: number } {
+  if (typeof error !== "object" || error === null) return false;
+  return "code" in error && (error as { code?: number }).code === 404;
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -89,7 +94,7 @@ export async function DELETE(
   try {
     await databases.deleteDocument(databaseId, "imports", id);
   } catch (error) {
-    if (error?.code !== 404) {
+    if (!isNotFoundError(error)) {
       throw error;
     }
   }

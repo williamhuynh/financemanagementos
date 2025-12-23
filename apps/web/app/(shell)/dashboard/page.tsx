@@ -12,6 +12,7 @@ import {
 import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 
+import { Suspense } from "react";
 import type { NetWorthPoint, AssetCategorySummary } from "../../../lib/data";
 
 type DashboardPageProps = {
@@ -175,11 +176,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <DonutChart
             title="Spend by Category"
             actions={
-              <MonthSelector
-                options={breakdown.monthOptions}
-                selected={breakdown.selectedMonth}
-                basePath="/dashboard"
-              />
+              <Suspense fallback={<span className="pill">Loading...</span>}>
+                <MonthSelector
+                  options={breakdown.monthOptions}
+                  selected={breakdown.selectedMonth}
+                  basePath="/dashboard"
+                />
+              </Suspense>
             }
             segments={spendSegments}
             legend={spendLegend}

@@ -345,7 +345,7 @@ export type ExpenseTransaction = {
   sub: string;
   amount: string;
   category: string;
-  tone: "negative";
+  tone: "positive" | "negative";
   dateValue: number;
 };
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { Sidebar, Topbar } from "@financelab/ui";
 import { getNavItems } from "../../lib/data";
@@ -13,7 +14,9 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     <div className="app-shell">
       <Sidebar navItems={navItems} />
       <main className="main">
-        <Topbar />
+        <Suspense fallback={<div className="topbar" />}>
+          <Topbar />
+        </Suspense>
         {children}
       </main>
     </div>
