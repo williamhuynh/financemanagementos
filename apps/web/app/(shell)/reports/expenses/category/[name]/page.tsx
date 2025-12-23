@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, ListRow, SectionHead } from "@financelab/ui";
-import { getExpenseBreakdown } from "../../../../../lib/data";
+import { getExpenseBreakdown } from "../../../../../../lib/data";
 import MonthSelector from "../../MonthSelector";
 
 type CategoryExpensePageProps = {
