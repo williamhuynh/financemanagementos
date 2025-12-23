@@ -1,0 +1,14 @@
+{
+  "name": "financelab",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "packages/ui"
+  ],
+  "scripts": {
+    "dev": "npm run -w apps/web dev",
+    "build": "npm run -w apps/web build",
+    "start": "npm run -w apps/web start",
+    "lint": "npm run -w apps/web lint"
+  }
+}
