@@ -1,6 +1,6 @@
 "use client";
 
-type WaterfallStep = {
+export type WaterfallStep = {
   label: string;
   value: number;
   formattedValue?: string;

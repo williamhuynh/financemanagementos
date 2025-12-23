@@ -8,3 +8,4 @@ export { Sidebar } from "./components/Sidebar";
 export { Topbar } from "./components/Topbar";
 export { TrendChart } from "./components/TrendChart";
 export { WaterfallChart } from "./components/WaterfallChart";
+export type { WaterfallStep } from "./components/WaterfallChart";

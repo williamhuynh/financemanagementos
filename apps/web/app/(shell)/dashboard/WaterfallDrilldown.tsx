@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { WaterfallChart } from "@financelab/ui";
-import type { CashFlowWaterfall, CashFlowStep, CashFlowTransaction } from "../../../lib/data";
+import { WaterfallChart, type WaterfallStep } from "@financelab/ui";
+import type { CashFlowWaterfall, CashFlowTransaction } from "../../../lib/data";
 
 type WaterfallDrilldownProps = {
   cashFlow: CashFlowWaterfall;
@@ -24,7 +24,7 @@ export default function WaterfallDrilldown({ cashFlow }: WaterfallDrilldownProps
     return [...items].sort((a, b) => b.dateValue - a.dateValue);
   }, [activeStep]);
 
-  const handleStepClick = (step: CashFlowStep) => {
+  const handleStepClick = (step: WaterfallStep) => {
     setActiveLabel((prev) => (prev === step.label ? null : step.label));
   };
 
