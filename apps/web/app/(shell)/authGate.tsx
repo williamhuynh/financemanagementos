@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Account } from "appwrite";
 import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
+import { isAllowedEmail } from "../../lib/auth";
 
 type AuthGateProps = {
   children: ReactNode;
@@ -39,7 +40,19 @@ export default function AuthGate({ children }: AuthGateProps) {
     const account = new Account(appwrite.client);
     account
       .get()
-      .then(() => setAuthState("authed"))
+      .then((user) => {
+        if (!isAllowedEmail(user.email)) {
+          setAuthState("guest");
+          account
+            .deleteSession("current")
+            .catch(() => null)
+            .finally(() => {
+              router.replace("/login?error=unauthorized");
+            });
+          return;
+        }
+        setAuthState("authed");
+      })
       .catch(() => {
         setAuthState("guest");
         router.replace(`/login?next=${encodeURIComponent(nextPath)}`);

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Account, ID } from "appwrite";
 import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
+import { isAllowedEmail } from "../../lib/auth";
 
 type FormState = "idle" | "sending" | "sent" | "error";
 
@@ -23,6 +24,12 @@ export default function LoginClient() {
   }, [searchParams]);
 
   useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "unauthorized") {
+      setFormState("error");
+      setStatusMessage("This account is not allowed to access FinanceLab.");
+    }
+
     if (!appwriteEnabled) {
       setFormState("error");
       setStatusMessage("Appwrite auth is not configured yet.");
@@ -50,6 +57,11 @@ export default function LoginClient() {
     if (!email) {
       setFormState("error");
       setStatusMessage("Enter the email you want to sign in with.");
+      return;
+    }
+    if (!isAllowedEmail(email)) {
+      setFormState("error");
+      setStatusMessage("This email is not authorized for this app.");
       return;
     }
 

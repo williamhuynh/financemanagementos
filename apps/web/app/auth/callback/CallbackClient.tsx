@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Account } from "appwrite";
 import { appwriteEnabled, getAppwriteClient } from "../../../lib/appwriteClient";
+import { isAllowedEmail } from "../../../lib/auth";
 
 type CallbackState = "loading" | "success" | "error";
 
@@ -47,7 +48,14 @@ export default function CallbackClient() {
     const account = new Account(appwrite.client);
     account
       .updateMagicURLSession(userId, secret)
-      .then(() => {
+      .then(() => account.get())
+      .then((user) => {
+        if (!isAllowedEmail(user.email)) {
+          return account.deleteSession("current").finally(() => {
+            setState("error");
+            setMessage("This account is not allowed to access FinanceLab.");
+          });
+        }
         setState("success");
         setMessage("Signed in. Redirecting...");
         router.replace(nextPath);
