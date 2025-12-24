@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, SectionHead } from "@financelab/ui";
+import SessionActions from "./sessionActions";
 
 export default function SettingsPage() {
   return (
@@ -36,13 +37,14 @@ export default function SettingsPage() {
         <div className="list-row">
           <div>
             <div className="row-title">Health</div>
-            <div className="row-sub">Connectivity and service checks</div>
+            <div className="row-sub">Connectivity and service checks</div>      
           </div>
           <Link className="ghost-btn" href="/health">
             View
           </Link>
         </div>
       </Card>
+      <SessionActions />
     </>
   );
 }

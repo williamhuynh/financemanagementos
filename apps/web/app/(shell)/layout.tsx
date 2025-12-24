@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import type { ReactNode } from "react";
-import { Sidebar, Topbar } from "@financelab/ui";
+import { Sidebar } from "@financelab/ui";
 import { getNavItems } from "../../lib/data";
+import AuthGate from "./authGate";
+import TopbarWithUser from "./TopbarWithUser";
 
 type ShellLayoutProps = {
   children: ReactNode;
@@ -15,9 +17,9 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
       <Sidebar navItems={navItems} />
       <main className="main">
         <Suspense fallback={<div className="topbar" />}>
-          <Topbar />
+          <TopbarWithUser />
         </Suspense>
-        {children}
+        <AuthGate>{children}</AuthGate>
       </main>
     </div>
   );

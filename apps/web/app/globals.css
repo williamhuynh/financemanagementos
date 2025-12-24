@@ -47,6 +47,53 @@ h3,
   min-height: 100vh;
 }
 
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 20px;
+}
+
+.auth-card {
+  width: min(420px, 92vw);
+}
+
+.auth-title {
+  margin: 8px 0 6px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.auth-sub {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.auth-hint {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.auth-error {
+  color: #f28b7d;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.auth-success {
+  color: #8ce7b8;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.auth-loading {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+}
+
 .rail {
   background: linear-gradient(180deg, rgba(26, 33, 46, 0.9), rgba(10, 13, 18, 0.95));
   border-right: 1px solid var(--border);

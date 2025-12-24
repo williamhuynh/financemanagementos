@@ -30,7 +30,11 @@ function buildMonthOptions(count = 12): MonthOption[] {
   return options;
 }
 
-export function Topbar() {
+type TopbarProps = {
+  userLabel?: string;
+};
+
+export function Topbar({ userLabel }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -118,7 +122,7 @@ export function Topbar() {
         <button className="primary-btn" type="button" onClick={handleImportClick}>
           Import
         </button>
-        <div className="user-chip">William + Peggy</div>
+        <div className="user-chip">{userLabel ?? "Signed in"}</div>
       </div>
     </header>
   );
