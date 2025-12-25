@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Manrope } from "next/font/google";
+import PwaRegister from "./pwa";
 import "./globals.css";
 
 const displayFont = Bricolage_Grotesque({
@@ -14,9 +16,29 @@ const bodyFont = Manrope({
   display: "swap"
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "FinanceLab",
-  description: "Family finance and wealth management"
+  description: "Family finance and wealth management",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#121417",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    shortcut: ["/icons/icon-192.png"]
+  },
+  appleWebApp: {
+    capable: true,
+    title: "FinanceLab",
+    statusBarStyle: "black-translucent"
+  }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#121417",
+  colorScheme: "dark"
 };
 
 type RootLayoutProps = {
@@ -27,6 +49,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className={`${displayFont.variable} ${bodyFont.variable}`}>
+        <PwaRegister />
         {children}
       </body>
     </html>
