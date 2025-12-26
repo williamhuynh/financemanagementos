@@ -52,7 +52,51 @@ function buildTrendPoints(series: NetWorthPoint[]) {
 }
 
 function buildPortfolioSegments(categories: AssetCategorySummary[]) {
-  const eligible = categories
+  const byType = new Map(categories.map((category) => [category.type, category]));
+  const valueFor = (type: string) => byType.get(type)?.totalValue ?? 0;
+  const netProperty =
+    valueFor("property") + valueFor("liability") + valueFor("mortgage");
+  const netCash = valueFor("cash") + valueFor("other_liability");
+  const netCategories: AssetCategorySummary[] = [];
+
+  if (netProperty !== 0) {
+    netCategories.push({
+      type: "property_net",
+      label: "Property (net)",
+      totalValue: netProperty,
+      formattedValue: "",
+      subLabel: "",
+      tone: "glow"
+    });
+  }
+
+  if (netCash !== 0) {
+    netCategories.push({
+      type: "cash_net",
+      label: "Cash (net)",
+      totalValue: netCash,
+      formattedValue: "",
+      subLabel: "",
+      tone: "glow"
+    });
+  }
+
+  const excludedTypes = new Set([
+    "property",
+    "liability",
+    "mortgage",
+    "other_liability",
+    "cash"
+  ]);
+
+  for (const category of categories) {
+    if (excludedTypes.has(category.type)) {
+      continue;
+    }
+    netCategories.push(category);
+  }
+
+  const eligible = netCategories
     .filter((category) => (category.totalValue ?? 0) > 0)
     .sort((a, b) => (b.totalValue ?? 0) - (a.totalValue ?? 0));
   const total = eligible.reduce((sum, item) => sum + (item.totalValue ?? 0), 0);
