@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, ID, Query } from "node-appwrite";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_WORKSPACE_ID = "default";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_CATEGORIES = [
@@ -489,5 +492,12 @@ export async function GET() {
     uploaded_at: doc.uploaded_at
   }));
 
-  return NextResponse.json({ imports });
+  return NextResponse.json(
+    { imports },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0"
+      }
+    }
+  );
 }

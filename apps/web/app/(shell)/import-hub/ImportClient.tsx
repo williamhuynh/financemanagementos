@@ -265,7 +265,7 @@ export default function ImportClient() {
     setHistoryLoading(true);
     setHistoryStatus("");
     try {
-      const response = await fetch("/api/imports");
+      const response = await fetch("/api/imports", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) {
         setHistoryStatus(payload?.detail ?? "Failed to load import history.");
@@ -430,7 +430,8 @@ export default function ImportClient() {
           rows: mappedRows,
           sourceAccount,
           sourceOwner
-        })
+        }),
+        cache: "no-store"
       });
       const payload = await response.json();
       if (!response.ok) {
