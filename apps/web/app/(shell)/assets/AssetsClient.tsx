@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, SectionHead } from "@financelab/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 
@@ -108,7 +107,7 @@ function buildOwnerLabel(owner: string) {
 }
 
 export default function AssetsClient({ overview }: AssetsClientProps) {
-  const router = useRouter();
+  const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
     categories,
     assets,
@@ -118,7 +117,7 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
     assetSeries,
     netWorthFormatted,
     lastUpdatedLabel
-  } = overview;
+  } = overviewState;
 
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null);
   const [recordedAt, setRecordedAt] = useState(() => formatLocalDateTime(new Date()));
@@ -147,10 +146,15 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
   const [assetState, setAssetState] = useState<SaveState>("idle");
   const [assetError, setAssetError] = useState<string>("");
   const [deleteState, setDeleteState] = useState<SaveState>("idle");
+  const [refreshState, setRefreshState] = useState<SaveState>("idle");
   const [activeHistoryCategory, setActiveHistoryCategory] = useState<string | null>(
     null
   );
   const [historyExpanded, setHistoryExpanded] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setOverviewState(overview);
+  }, [overview]);
 
   useEffect(() => {
     setValueMap(() => {
@@ -170,6 +174,25 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
       }
     }
   }, [assets, activeEditor]);
+
+  const refreshOverview = async () => {
+    setRefreshState("saving");
+    try {
+      const response = await fetch("/api/assets/overview", {
+        cache: "no-store"
+      });
+      if (!response.ok) {
+        throw new Error("Refresh failed");
+      }
+      const data = (await response.json()) as AssetOverview;
+      setOverviewState(data);
+      setRefreshState("saved");
+      return true;
+    } catch (error) {
+      setRefreshState("error");
+      return false;
+    }
+  };
 
 
   const trendData = useMemo(() => {
@@ -313,7 +336,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
         throw new Error("Dispose failed");
       }
       setAssetState("saved");
-      router.refresh();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setAssetState("error");
+        setAssetError("Asset updated, but refresh failed.");
+      }
     } catch (error) {
       setAssetState("error");
       setAssetError("Unable to dispose asset. Try again.");
@@ -337,7 +364,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
       }
       setDeleteState("saved");
       setActiveEditor(null);
-      router.refresh();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setDeleteState("error");
+        setAssetError("Asset deleted, but refresh failed.");
+      }
     } catch (error) {
       setDeleteState("error");
       setAssetError("Unable to delete asset. Try again.");
@@ -360,7 +391,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
         throw new Error("Delete failed");
       }
       setDeleteState("saved");
-      router.refresh();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setDeleteState("error");
+        setAssetError("Entry deleted, but refresh failed.");
+      }
     } catch (error) {
       setDeleteState("error");
       setAssetError("Unable to delete value entry. Try again.");
@@ -404,7 +439,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
       setAssetState("saved");
       setActiveEditor(null);
       resetAssetForm(assetForm.type);
-      router.refresh();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setAssetState("error");
+        setAssetError("Asset saved, but refresh failed.");
+      }
     } catch (error) {
       setAssetState("error");
       setAssetError("Unable to save asset. Try again.");
@@ -467,7 +506,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
       }
       setValueState("saved");
       setActiveEditor(null);
-      router.refresh();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setValueState("error");
+        setValueError("Values saved, but refresh failed.");
+      }
     } catch (err) {
       setValueState("error");
       setValueError("Unable to save asset values. Try again.");
@@ -491,9 +534,12 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
           <div className="hero-value">{netWorthFormatted}</div>
           <div className="hero-sub">{heroSub}</div>
         </div>
-        <div className="hero-meta">
-          <div className="meta-pill">{history.length} recent updates</div>
-        </div>
+      <div className="hero-meta">
+        <div className="meta-pill">{history.length} recent updates</div>
+        {refreshState === "saving" ? (
+          <div className="meta-pill">Syncing updates...</div>
+        ) : null}
+      </div>
       </div>
 
       <div className="grid cards">
