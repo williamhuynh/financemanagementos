@@ -12,11 +12,16 @@ import {
 import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 
+import SpendByCategoryControls from "./SpendByCategoryControls";
 import { Suspense } from "react";
 import type { NetWorthPoint, AssetCategorySummary } from "../../../lib/data";
 
 type DashboardPageProps = {
-  searchParams?: Promise<{ month?: string }>;
+  searchParams?: Promise<{
+    month?: string;
+    spendTop?: string;
+    spendCategories?: string;
+  }>;
 };
 
 type DonutSegment = { className: string; value: number };
@@ -87,22 +92,48 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const breakdown = await getExpenseBreakdown(resolvedSearchParams?.month);
   const cashFlow = await getCashFlowWaterfall(resolvedSearchParams?.month);
   const spendByCategory = breakdown.categories;
-  const spendTotal = spendByCategory.reduce(
+  const availableCategories = spendByCategory.map((category) => category.name);
+  const defaultSpendCategories = availableCategories.filter(
+    (category) => category !== "Work Expenses - Primary"
+  );
+  const parsedSpendCategories = resolvedSearchParams?.spendCategories
+    ? resolvedSearchParams.spendCategories
+        .split(",")
+        .map((category) => category.trim())
+        .filter((category) => availableCategories.includes(category))
+    : [];
+  const selectedSpendCategories = parsedSpendCategories.length
+    ? parsedSpendCategories
+    : defaultSpendCategories;
+  const spendTopRaw = Number(resolvedSearchParams?.spendTop ?? 3);
+  const spendTop =
+    Number.isFinite(spendTopRaw) && spendTopRaw > 0
+      ? Math.min(Math.round(spendTopRaw), 6)
+      : 3;
+  const filteredSpend = spendByCategory.filter((category) =>
+    selectedSpendCategories.includes(category.name)
+  );
+  const sortedSpend = [...filteredSpend].sort(
+    (a, b) => Math.abs(b.amount) - Math.abs(a.amount)
+  );
+  const spendTotal = filteredSpend.reduce(
     (sum, item) => sum + Math.abs(item.amount),
     0
   );
-  const topCategories = spendByCategory.slice(0, 3);
-  const otherTotal = spendByCategory
-    .slice(3)
+  const topCategories = sortedSpend.slice(0, spendTop);
+  const otherTotal = sortedSpend
+    .slice(spendTop)
     .reduce((sum, item) => sum + Math.abs(item.amount), 0);
-  const segmentClasses = ["seg-a", "seg-b", "seg-c"];
-  const dotClasses = ["a", "b", "c"];
+  const segmentClasses = ["seg-a", "seg-b", "seg-c", "seg-d", "seg-e", "seg-f"];
+  const dotClasses = ["a", "b", "c", "d", "e", "f"];
   const spendSegments = topCategories.map((item, index) => ({
     className: segmentClasses[index],
     value: Math.abs(item.amount)
   }));
   const spendLegend = topCategories.map((item, index) => ({
-    label: `${item.name} ${item.percent}%`,
+    label: `${item.name} ${
+      spendTotal ? Math.round((Math.abs(item.amount) / spendTotal) * 100) : 0
+    }%`,
     dot: dotClasses[index]
   }));
   const portfolioSplit = buildPortfolioSegments(assetOverview.categories);
@@ -115,8 +146,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   if (otherTotal > 0 && spendTotal > 0) {
     const otherPercent = Math.round((otherTotal / spendTotal) * 100);
-    spendSegments.push({ className: "seg-d", value: otherTotal });
-    spendLegend.push({ label: `Other ${otherPercent}%`, dot: "d" });
+    spendSegments.push({ className: "seg-g", value: otherTotal });
+    spendLegend.push({ label: `Other ${otherPercent}%`, dot: "g" });
   }
 
   return (
@@ -176,13 +207,20 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <DonutChart
             title="Spend by Category"
             actions={
-              <Suspense fallback={<span className="pill">Loading...</span>}>
-                <MonthSelector
-                  options={breakdown.monthOptions}
-                  selected={breakdown.selectedMonth}
-                  basePath="/dashboard"
+              <>
+                <Suspense fallback={<span className="pill">Loading...</span>}>
+                  <MonthSelector
+                    options={breakdown.monthOptions}
+                    selected={breakdown.selectedMonth}
+                    basePath="/dashboard"
+                  />
+                </Suspense>
+                <SpendByCategoryControls
+                  categories={availableCategories}
+                  selectedCategories={selectedSpendCategories}
+                  topCount={spendTop}
                 />
-              </Suspense>
+              </>
             }
             segments={spendSegments}
             legend={spendLegend}
