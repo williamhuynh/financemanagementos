@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, Query } from "node-appwrite";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_WORKSPACE_ID = "default";
 
 export async function GET() {
@@ -46,7 +49,14 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({
-    accounts: Array.from(names).sort((a, b) => a.localeCompare(b))
-  });
+  return NextResponse.json(
+    {
+      accounts: Array.from(names).sort((a, b) => a.localeCompare(b))
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0"
+      }
+    }
+  );
 }
