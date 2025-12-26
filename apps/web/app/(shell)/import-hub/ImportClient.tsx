@@ -177,6 +177,14 @@ function normalizeAmount(value: string) {
   return value.replace(/[^0-9.-]/g, "").trim();
 }
 
+function applyAmountSign(value: string, invert: boolean) {
+  if (!invert) return value;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return value;
+  if (numeric === 0) return "0";
+  return (-numeric).toString();
+}
+
 function resolveAmount(
   row: ParsedRow,
   mapping: Record<string, MappingKey>
@@ -216,6 +224,7 @@ export default function ImportClient() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hasHeader, setHasHeader] = useState(true);
   const [headerMode, setHeaderMode] = useState<"auto" | "manual">("auto");
+  const [invertAmount, setInvertAmount] = useState(false);
   const [sourceAccount, setSourceAccount] = useState<string>("");
   const [sourceOwner, setSourceOwner] = useState<string>("Joint");
   const [headers, setHeaders] = useState<string[]>([]);
@@ -249,10 +258,10 @@ export default function ImportClient() {
         const rawValue = row[header] ?? "";
         mapped[key] = key === "amount" ? normalizeAmount(String(rawValue)) : String(rawValue);
       });
-      mapped.amount = resolveAmount(row, mapping);
+      mapped.amount = applyAmountSign(resolveAmount(row, mapping), invertAmount);
       return mapped;
     });
-  }, [rows, mapping]);
+  }, [rows, mapping, invertAmount]);
 
   const canSubmit =
     requiredFields.every((field) => mappedRows.some((row) => row[field])) &&
@@ -586,6 +595,20 @@ export default function ImportClient() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="preset-row">
+              <span className="row-title">Amount sign</span>
+              <button
+                className="pill"
+                type="button"
+                aria-pressed={invertAmount}
+                onClick={() => setInvertAmount((prev) => !prev)}
+              >
+                {invertAmount ? "Reverse: On" : "Reverse: Off"}
+              </button>
+            </div>
+            <div className="row-sub">
+              Toggle if your statement exports debits as positive numbers (e.g. Amex).
             </div>
             <div className="mapping-grid">
               {headers.map((header) => (
