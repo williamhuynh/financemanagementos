@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type SpendByCategoryControlsProps = {
@@ -17,6 +17,7 @@ export default function SpendByCategoryControls({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isOpen, setIsOpen] = useState(false);
 
   const sortedCategories = useMemo(
     () => [...categories].sort((a, b) => a.localeCompare(b)),
@@ -57,43 +58,79 @@ export default function SpendByCategoryControls({
     updateSearch(selectedCategories, Number.isFinite(nextTop) ? nextTop : 3);
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
   return (
-    <details className="spend-filter">
-      <summary className="pill">Spend filters</summary>
-      <div className="spend-filter-panel">
-        <div className="field">
-          <label className="field-label" htmlFor="spend-top-count">
-            Top categories
-          </label>
-          <select
-            id="spend-top-count"
-            className="field-input"
-            value={normalizedTop}
-            onChange={handleTopChange}
-          >
-            {topOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <div className="field-label">Include categories</div>
-          <div className="spend-filter-grid">
-            {sortedCategories.map((category) => (
-              <label key={category} className="spend-filter-option">
-                <input
-                  type="checkbox"
-                  checked={selectedSet.has(category)}
-                  onChange={() => handleToggleCategory(category)}
-                />
-                <span>{category}</span>
+    <>
+      <button className="pill" type="button" onClick={() => setIsOpen(true)}>
+        Spend filters
+      </button>
+      {isOpen ? (
+        <div className="spend-filter-modal" role="dialog" aria-modal="true">
+          <button
+            className="spend-filter-backdrop"
+            type="button"
+            aria-label="Close spend filters"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="spend-filter-panel">
+            <div className="spend-filter-head">
+              <div>
+                <div className="card-title">Spend filters</div>
+                <div className="card-sub">Choose categories and top count.</div>
+              </div>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => setIsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="spend-top-count">
+                Top categories
               </label>
-            ))}
+              <select
+                id="spend-top-count"
+                className="field-input"
+                value={normalizedTop}
+                onChange={handleTopChange}
+              >
+                {topOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <div className="field-label">Include categories</div>
+              <div className="spend-filter-grid">
+                {sortedCategories.map((category) => (
+                  <label key={category} className="spend-filter-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedSet.has(category)}
+                      onChange={() => handleToggleCategory(category)}
+                    />
+                    <span>{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </details>
+      ) : null}
+    </>
   );
 }
