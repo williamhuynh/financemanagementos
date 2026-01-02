@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Card, SectionHead } from "@financelab/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 
@@ -106,6 +107,20 @@ function buildOwnerLabel(owner: string) {
   return owner || "Joint";
 }
 
+function formatCurrencyInput(value: string) {
+  if (!value) return "";
+  const numericValue = value.replace(/[^0-9.]/g, "");
+  if (!numericValue) return "";
+  const parts = numericValue.split(".");
+  const dollars = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const cents = parts[1] !== undefined ? "." + parts[1].slice(0, 2) : "";
+  return "$" + dollars + cents;
+}
+
+function parseCurrencyInput(value: string) {
+  return value.replace(/[^0-9.]/g, "");
+}
+
 export default function AssetsClient({ overview }: AssetsClientProps) {
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
@@ -120,6 +135,7 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
   } = overviewState;
 
   const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const [recordedAt, setRecordedAt] = useState(() => formatLocalDateTime(new Date()));
   const [useMonthEnd, setUseMonthEnd] = useState(false);
   const [source, setSource] = useState("manual");
@@ -155,6 +171,21 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
   useEffect(() => {
     setOverviewState(overview);
   }, [overview]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (activeEditor?.mode !== "update") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setActiveEditor(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeEditor]);
 
   useEffect(() => {
     setValueMap(() => {
@@ -934,138 +965,6 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                             </form>
                           </div>
                         ) : null}
-                        {showUpdate ? (
-                          <div className="asset-inline-form">
-                            <div className="asset-inline-head">
-                              <div className="card-title">Update value</div>
-                              <button
-                                className="ghost-btn"
-                                type="button"
-                                onClick={() => setActiveEditor(null)}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                            <form onSubmit={handleSubmitValues}>
-                              <div className="field">
-                                <label
-                                  className="field-label"
-                                  htmlFor={`recorded-at-${asset.id}`}
-                                >
-                                  Recorded at
-                                </label>
-                                <input
-                                  id={`recorded-at-${asset.id}`}
-                                  className="field-input"
-                                  type="datetime-local"
-                                  value={recordedAt}
-                                  onChange={(event) =>
-                                    handleRecordedAtChange(event.target.value)
-                                  }
-                                />
-                              </div>
-                              <div className="field asset-toggle">
-                                <label
-                                  className="field-label"
-                                  htmlFor={`month-end-${asset.id}`}
-                                >
-                                  Use month-end
-                                </label>
-                                <label className="toggle">
-                                  <input
-                                    id={`month-end-${asset.id}`}
-                                    type="checkbox"
-                                    checked={useMonthEnd}
-                                    onChange={(event) =>
-                                      handleMonthEndToggle(event.target.checked)
-                                    }
-                                  />
-                                  <span>Snap to the last day of the month</span>
-                                </label>
-                              </div>
-                              <div className="field">
-                                <label
-                                  className="field-label"
-                                  htmlFor={`source-${asset.id}`}
-                                >
-                                  Source
-                                </label>
-                                <input
-                                  id={`source-${asset.id}`}
-                                  className="field-input"
-                                  type="text"
-                                  value={source}
-                                  onChange={(event) => setSource(event.target.value)}
-                                  placeholder="manual"
-                                />
-                              </div>
-                              <div className="asset-update-table">
-                                <div className="asset-update-header">
-                                  <span>Asset</span>
-                                  <span>Owner</span>
-                                  <span>Value</span>
-                                  <span>Notes</span>
-                                </div>
-                                {editableAssets.map((editable) => (
-                                  <div key={editable.id} className="asset-update-row">
-                                    <span>{editable.name}</span>
-                                    <span>{buildOwnerLabel(editable.owner)}</span>
-                                    <input
-                                      className="field-input"
-                                      type="number"
-                                      inputMode="decimal"
-                                      step="0.01"
-                                      value={valueMap[editable.id] ?? ""}
-                                      onChange={(event) =>
-                                        setValueMap((prev) => ({
-                                          ...prev,
-                                          [editable.id]: event.target.value
-                                        }))
-                                      }
-                                      placeholder="0.00"
-                                    />
-                                    <input
-                                      className="field-input"
-                                      type="text"
-                                      value={noteMap[editable.id] ?? ""}
-                                      onChange={(event) =>
-                                        setNoteMap((prev) => ({
-                                          ...prev,
-                                          [editable.id]: event.target.value
-                                        }))
-                                      }
-                                      placeholder="Optional note"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="asset-note">
-                                Liabilities are entered as positive values and displayed
-                                as negative.
-                              </div>
-                              <div className="review-actions">
-                                <button
-                                  className="primary-btn"
-                                  type="submit"
-                                  disabled={valueState === "saving"}
-                                >
-                                  {valueState === "saving"
-                                    ? "Saving..."
-                                    : "Save snapshot"}
-                                </button>
-                                {valueState === "saved" ? (
-                                  <span className="chip">Saved</span>
-                                ) : null}
-                                {valueState === "error" ? (
-                                  <span className="chip warn">Check values</span>
-                                ) : null}
-                                {valueError ? (
-                                  <span className="asset-note">{valueError}</span>
-                                ) : null}
-                              </div>
-                            </form>
-                          </div>
-                        ) : null}
                       </div>
                     );
                   })}
@@ -1249,6 +1148,147 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
           </div>
         </article>
       ) : null}
+
+      {activeEditor?.mode === "update" && isMounted
+        ? createPortal(
+            <div className="spend-filter-modal" role="dialog" aria-modal="true">
+              <button
+                className="spend-filter-backdrop"
+                type="button"
+                aria-label="Close update value form"
+                onClick={() => setActiveEditor(null)}
+              />
+              <div className="spend-filter-panel">
+                <div className="spend-filter-head">
+                  <div>
+                    <div className="card-title">Update value</div>
+                    <div className="card-sub">
+                      Update asset value and add notes
+                    </div>
+                  </div>
+                  <button
+                    className="ghost-btn"
+                    type="button"
+                    onClick={() => setActiveEditor(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <form onSubmit={handleSubmitValues}>
+                  <div className="field">
+                    <label className="field-label" htmlFor="modal-recorded-at">
+                      Recorded at
+                    </label>
+                    <input
+                      id="modal-recorded-at"
+                      className="field-input"
+                      type="datetime-local"
+                      value={recordedAt}
+                      onChange={(event) =>
+                        handleRecordedAtChange(event.target.value)
+                      }
+                      onFocus={(event) => event.target.select()}
+                    />
+                  </div>
+                  <div className="field asset-toggle">
+                    <label className="field-label" htmlFor="modal-month-end">
+                      Use month-end
+                    </label>
+                    <label className="toggle">
+                      <input
+                        id="modal-month-end"
+                        type="checkbox"
+                        checked={useMonthEnd}
+                        onChange={(event) =>
+                          handleMonthEndToggle(event.target.checked)
+                        }
+                      />
+                      <span>Snap to the last day of the month</span>
+                    </label>
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="modal-source">
+                      Source
+                    </label>
+                    <input
+                      id="modal-source"
+                      className="field-input"
+                      type="text"
+                      value={source}
+                      onChange={(event) => setSource(event.target.value)}
+                      onFocus={(event) => event.target.select()}
+                      placeholder="manual"
+                    />
+                  </div>
+                  <div className="asset-update-table">
+                    <div className="asset-update-header">
+                      <span>Asset</span>
+                      <span>Owner</span>
+                      <span>Value</span>
+                      <span>Notes</span>
+                    </div>
+                    {editableAssets.map((editable) => (
+                      <div key={editable.id} className="asset-update-row">
+                        <span>{editable.name}</span>
+                        <span>{buildOwnerLabel(editable.owner)}</span>
+                        <input
+                          className="field-input"
+                          type="text"
+                          inputMode="decimal"
+                          value={formatCurrencyInput(valueMap[editable.id] ?? "")}
+                          onChange={(event) =>
+                            setValueMap((prev) => ({
+                              ...prev,
+                              [editable.id]: parseCurrencyInput(event.target.value)
+                            }))
+                          }
+                          onFocus={(event) => event.target.select()}
+                          placeholder="$0.00"
+                        />
+                        <input
+                          className="field-input"
+                          type="text"
+                          value={noteMap[editable.id] ?? ""}
+                          onChange={(event) =>
+                            setNoteMap((prev) => ({
+                              ...prev,
+                              [editable.id]: event.target.value
+                            }))
+                          }
+                          onFocus={(event) => event.target.select()}
+                          placeholder="Optional note"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="asset-note">
+                    Liabilities are entered as positive values and displayed as
+                    negative.
+                  </div>
+                  <div className="review-actions">
+                    <button
+                      className="primary-btn"
+                      type="submit"
+                      disabled={valueState === "saving"}
+                    >
+                      {valueState === "saving" ? "Saving..." : "Save snapshot"}
+                    </button>
+                    {valueState === "saved" ? (
+                      <span className="chip">Saved</span>
+                    ) : null}
+                    {valueState === "error" ? (
+                      <span className="chip warn">Check values</span>
+                    ) : null}
+                    {valueError ? (
+                      <span className="asset-note">{valueError}</span>
+                    ) : null}
+                  </div>
+                </form>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }

@@ -5,6 +5,9 @@ import { getNavItems } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type ShellLayoutProps = {
   children: ReactNode;
 };

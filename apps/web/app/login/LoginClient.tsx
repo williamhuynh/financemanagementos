@@ -6,12 +6,13 @@ import { Account, ID } from "appwrite";
 import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
 import { isAllowedEmail } from "../../lib/auth";
 
-type FormState = "idle" | "sending" | "sent" | "error";
+type FormState = "idle" | "sending" | "error";
 
 export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [formState, setFormState] = useState<FormState>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -59,6 +60,11 @@ export default function LoginClient() {
       setStatusMessage("Enter the email you want to sign in with.");
       return;
     }
+    if (!password) {
+      setFormState("error");
+      setStatusMessage("Enter your password.");
+      return;
+    }
     if (!isAllowedEmail(email)) {
       setFormState("error");
       setStatusMessage("This email is not authorized for this app.");
@@ -83,13 +89,12 @@ export default function LoginClient() {
 
     try {
       const account = new Account(appwrite.client);
-      const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
-      await account.createMagicURLToken(ID.unique(), email, callbackUrl);
-      setFormState("sent");
-      setStatusMessage("Check your email for the sign-in link.");
+      await account.createEmailPasswordSession(email, password);
+      // Session created successfully, redirect
+      router.replace(nextPath);
     } catch (error) {
       setFormState("error");
-      setStatusMessage("We could not send the magic link. Please try again.");
+      setStatusMessage("Email or password is incorrect. Please try again.");
     }
   };
 
@@ -98,7 +103,7 @@ export default function LoginClient() {
       <div className="card auth-card">
         <div className="eyebrow">FinanceLab</div>
         <h1 className="auth-title">Sign in</h1>
-        <p className="auth-sub">We will email you a secure magic link.</p>
+        <p className="auth-sub">Enter your email and password to sign in.</p>
         <form onSubmit={handleSubmit}>
           <label className="field">
             <span className="field-label">Email address</span>
@@ -112,18 +117,26 @@ export default function LoginClient() {
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
+          <label className="field">
+            <span className="field-label">Password</span>
+            <input
+              className="field-input"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
           <button className="primary-btn" type="submit" disabled={formState === "sending"}>
-            {formState === "sending" ? "Sending link..." : "Send magic link"}
+            {formState === "sending" ? "Signing in..." : "Sign in"}
           </button>
         </form>
         {statusMessage ? (
-          <p className={formState === "sent" ? "auth-success" : "auth-error"}>
-            {statusMessage}
-          </p>
+          <p className="auth-error">{statusMessage}</p>
         ) : null}
-        <p className="auth-hint">
-          Use your registered email. The link stays valid for a short time.
-        </p>
+        <p className="auth-hint">Use your registered email and password.</p>
       </div>
     </div>
   );

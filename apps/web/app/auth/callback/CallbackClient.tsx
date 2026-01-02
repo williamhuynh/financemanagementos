@@ -23,48 +23,11 @@ export default function CallbackClient() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!appwriteEnabled) {
-      setState("error");
-      setMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      setState("error");
-      setMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const userId = searchParams.get("userId");
-    const secret = searchParams.get("secret");
-
-    if (!userId || !secret) {
-      setState("error");
-      setMessage("The magic link is missing details. Please request a new link.");
-      return;
-    }
-
-    const account = new Account(appwrite.client);
-    account
-      .updateMagicURLSession(userId, secret)
-      .then(() => account.get())
-      .then((user) => {
-        if (!isAllowedEmail(user.email)) {
-          return account.deleteSession("current").finally(() => {
-            setState("error");
-            setMessage("This account is not allowed to access FinanceLab.");
-          });
-        }
-        setState("success");
-        setMessage("Signed in. Redirecting...");
-        router.replace(nextPath);
-      })
-      .catch(() => {
-        setState("error");
-        setMessage("We could not validate the magic link. Please request a new one.");
-      });
-  }, [router, searchParams, nextPath]);
+    setState("error");
+    setMessage(
+      "Magic link login is no longer supported. Please sign in with your email and password."
+    );
+  }, []);
 
   return (
     <div className="auth-page">
