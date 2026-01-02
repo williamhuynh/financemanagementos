@@ -2550,6 +2550,34 @@ function parseSnapshotTotals(record: Record<string, unknown>) {
   };
 }
 
+export async function getEarliestUnclosedMonth(): Promise<string | null> {
+  const serverClient = getServerAppwrite();
+  if (!serverClient) {
+    return null;
+  }
+
+  const monthOptions = buildRollingMonthOptions(12);
+
+  // Check months from oldest to newest to find the first unclosed month
+  for (let i = monthOptions.length - 1; i >= 0; i--) {
+    const monthKey = monthOptions[i].value;
+    try {
+      const closeDoc = await getMonthlyCloseRecord(serverClient, monthKey);
+
+      // If no close document exists or status is "open", this month is unclosed
+      if (!closeDoc || closeDoc.status !== "closed") {
+        return monthKey;
+      }
+    } catch (error) {
+      // If there's an error checking the month, consider it unclosed
+      return monthKey;
+    }
+  }
+
+  // If all months are closed, return the most recent month
+  return monthOptions[0]?.value ?? null;
+}
+
 export async function getMonthlyCloseSummary(
   selectedMonth?: string
 ): Promise<MonthlyCloseSummary> {
