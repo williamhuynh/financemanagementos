@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID, Query } from "node-appwrite";
+import { ID, Query } from "node-appwrite";
+import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "../../../lib/appwrite-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const DEFAULT_WORKSPACE_ID = "default";
 
 type CashLogInput = {
   text: string;
@@ -12,28 +11,19 @@ type CashLogInput = {
   isIncome?: boolean;
 };
 
-function getServerAppwrite() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return null;
-  }
-
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  return { databases: new Databases(client), databaseId };
-}
-
 function getMonthKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function safeParseParsedItems(json: string): unknown[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: Request) {
@@ -79,7 +69,7 @@ export async function GET(request: Request) {
       status: doc.status ?? "draft",
       source: doc.source ?? "text",
       isIncome: doc.is_income ?? false,
-      parsedItems: doc.parsed_items ? JSON.parse(doc.parsed_items) : null,
+      parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
       createdAt: doc.$createdAt
     }));
 

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { Client, Databases } from "node-appwrite";
+import { getServerAppwrite } from "../../../../lib/appwrite-server";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_WORKSPACE_ID = "default";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 type ParsedItem = {
@@ -17,24 +16,6 @@ type ProcessInput = {
   logIds: string[];
   categories: string[];
 };
-
-function getServerAppwrite() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return null;
-  }
-
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  return { databases: new Databases(client), databaseId };
-}
 
 function extractJsonArray(text: string): unknown[] | null {
   const match = text.match(/\[[\s\S]*\]/);
@@ -80,12 +61,13 @@ Available categories: ${categories.join(", ")}
 
 Return JSON array of parsed items.`;
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const response = await fetch(OPENROUTER_ENDPOINT, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:3000",
+      "HTTP-Referer": appUrl,
       "X-Title": "Finance Mgmt Tool - Cash Log"
     },
     body: JSON.stringify({

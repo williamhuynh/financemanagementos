@@ -99,26 +99,6 @@ export default function CashLogClient({
   >([]);
   const [isCommitting, setIsCommitting] = useState(false);
 
-  // Check online status
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-    setOfflineQueue(getOfflineQueue());
-
-    const handleOnline = () => {
-      setIsOnline(true);
-      syncOfflineQueue();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
   // Sync offline queue when back online
   const syncOfflineQueue = useCallback(async () => {
     const queue = getOfflineQueue();
@@ -147,6 +127,26 @@ export default function CashLogClient({
     }
     setOfflineQueue(getOfflineQueue());
   }, []);
+
+  // Check online status and sync when back online
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    setOfflineQueue(getOfflineQueue());
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncOfflineQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [syncOfflineQueue]);
 
   const handleMonthChange = (newMonth: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -353,7 +353,6 @@ export default function CashLogClient({
   };
 
   const draftLogs = logs.filter((log) => log.status === "draft");
-  const processedLogs = logs.filter((log) => log.status === "processed");
   const committedLogs = logs.filter((log) => log.status === "committed");
 
   // Calculate estimated total for draft logs

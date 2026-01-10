@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID } from "node-appwrite";
+import { ID } from "node-appwrite";
+import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "../../../../lib/appwrite-server";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_WORKSPACE_ID = "default";
 const CASH_ACCOUNT_NAME = "Cash";
 
 type ParsedItem = {
@@ -21,24 +21,6 @@ type ProcessedGroup = {
 type CommitInput = {
   processed: ProcessedGroup[];
 };
-
-function getServerAppwrite() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return null;
-  }
-
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  return { databases: new Databases(client), databaseId };
-}
 
 function isIncomeCategory(category: string): boolean {
   const lower = category.toLowerCase();

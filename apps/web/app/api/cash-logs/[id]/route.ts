@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Client, Databases } from "node-appwrite";
+import { getServerAppwrite } from "../../../../lib/appwrite-server";
 
 export const dynamic = "force-dynamic";
 
@@ -7,22 +7,13 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-function getServerAppwrite() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+function safeParseParsedItems(json: string): unknown[] | null {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
     return null;
   }
-
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  return { databases: new Databases(client), databaseId };
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -93,7 +84,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       status: doc.status ?? "draft",
       source: doc.source ?? "text",
       isIncome: doc.is_income ?? false,
-      parsedItems: doc.parsed_items ? JSON.parse(doc.parsed_items) : null,
+      parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
       createdAt: doc.$createdAt
     });
   } catch (error) {
@@ -105,7 +96,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+export async function DELETE(_request: Request, context: RouteContext) {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return NextResponse.json(
