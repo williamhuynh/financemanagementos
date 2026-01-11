@@ -268,7 +268,7 @@ export async function POST(request: Request) {
         );
 
         const logText = String(doc.text ?? "");
-        const isIncome = Boolean(doc.is_income);
+        const isIncome = Boolean(doc.isIncome);
 
         let items: ParsedItem[];
 

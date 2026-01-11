@@ -51,7 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (body.isIncome !== undefined) {
-      updates.is_income = body.isIncome;
+      updates.isIncome = body.isIncome;
     }
 
     if (body.status !== undefined) {
@@ -83,7 +83,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       month: doc.month ?? "",
       status: doc.status ?? "draft",
       source: doc.source ?? "text",
-      isIncome: doc.is_income ?? false,
+      isIncome: doc.isIncome ?? false,
       parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
       createdAt: doc.$createdAt
     });

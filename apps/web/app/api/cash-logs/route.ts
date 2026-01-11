@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       month: doc.month ?? "",
       status: doc.status ?? "draft",
       source: doc.source ?? "text",
-      isIncome: doc.is_income ?? false,
+      isIncome: doc.isIncome ?? false,
       parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
       createdAt: doc.$createdAt
     }));
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       month,
       status: "draft",
       source: "text",
-      is_income: body.isIncome ?? false,
+      isIncome: body.isIncome ?? false,
       parsed_items: null,
       created_at: new Date().toISOString()
     };
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       month: logDoc.month,
       status: logDoc.status,
       source: logDoc.source,
-      isIncome: logDoc.is_income,
+      isIncome: logDoc.isIncome,
       parsedItems: null,
       createdAt: logDoc.created_at
     });

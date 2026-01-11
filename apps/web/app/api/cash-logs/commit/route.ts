@@ -61,7 +61,7 @@ export async function POST(request: Request) {
           group.logId
         );
         logDate = String(logDoc.date ?? new Date().toISOString().split("T")[0]);
-        logIsIncome = Boolean(logDoc.is_income);
+        logIsIncome = Boolean(logDoc.isIncome);
       } catch {
         // If log doesn't exist, use today's date
         logDate = new Date().toISOString().split("T")[0];
