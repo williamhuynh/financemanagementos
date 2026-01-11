@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       status: "draft",
       source: "text",
       isIncome: body.isIncome ?? false,
-      parsed_items: null,
+      parsed_items: "[]",
       created_at: new Date().toISOString()
     };
 

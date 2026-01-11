@@ -78,6 +78,7 @@ export async function POST(request: Request) {
         const transactionId = ID.unique();
         const transactionDoc = {
           workspace_id: DEFAULT_WORKSPACE_ID,
+          import_id: "",
           date: logDate,
           description: item.description,
           amount,
