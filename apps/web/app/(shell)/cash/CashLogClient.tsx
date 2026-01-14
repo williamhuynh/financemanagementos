@@ -98,6 +98,7 @@ export default function CashLogClient({
     Array<{ logId: string; items: ParsedItem[] }>
   >([]);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Sync offline queue when back online
   const syncOfflineQueue = useCallback(async () => {
@@ -181,6 +182,7 @@ export default function CashLogClient({
     }
 
     setIsSubmitting(true);
+    setError(null);
     try {
       const response = await fetch("/api/cash-logs", {
         method: "POST",
@@ -195,8 +197,14 @@ export default function CashLogClient({
       if (response.ok) {
         const newLog = await response.json();
         setLogs((prev) => [newLog, ...prev]);
+      } else {
+        // Handle API error - show error message to user
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `Failed to add entry (${response.status})`;
+        setError(errorMessage);
+        console.error("Failed to add cash log:", errorMessage);
       }
-    } catch {
+    } catch (err) {
       // Store offline on network error
       const offlineEntry: OfflineEntry = {
         id: `offline-${Date.now()}`,
@@ -208,6 +216,7 @@ export default function CashLogClient({
       };
       addToOfflineQueue(offlineEntry);
       setOfflineQueue(getOfflineQueue());
+      console.error("Network error, saved to offline queue:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -231,9 +240,13 @@ export default function CashLogClient({
 
       if (response.ok) {
         setLogs((prev) => prev.filter((log) => log.id !== id));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.detail || `Failed to delete entry (${response.status})`);
       }
-    } catch {
-      // Handle error silently
+    } catch (err) {
+      setError("Network error while deleting entry");
+      console.error("Delete error:", err);
     }
   };
 
@@ -254,9 +267,13 @@ export default function CashLogClient({
         );
         setEditingId(null);
         setEditText("");
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.detail || `Failed to edit entry (${response.status})`);
       }
-    } catch {
-      // Handle error silently
+    } catch (err) {
+      setError("Network error while editing entry");
+      console.error("Edit error:", err);
     }
   };
 
@@ -266,6 +283,7 @@ export default function CashLogClient({
 
     setIsProcessing(true);
     setShowProcess(true);
+    setError(null);
 
     try {
       const response = await fetch("/api/cash-logs/process", {
@@ -296,9 +314,15 @@ export default function CashLogClient({
             return log;
           })
         );
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.detail || `Failed to process entries (${response.status})`);
+        setShowProcess(false);
       }
-    } catch {
-      // Handle error silently
+    } catch (err) {
+      setError("Network error while processing entries");
+      setShowProcess(false);
+      console.error("Process error:", err);
     } finally {
       setIsProcessing(false);
     }
@@ -325,6 +349,7 @@ export default function CashLogClient({
     if (processedItems.length === 0) return;
 
     setIsCommitting(true);
+    setError(null);
     try {
       const response = await fetch("/api/cash-logs/commit", {
         method: "POST",
@@ -344,9 +369,13 @@ export default function CashLogClient({
         );
         setShowProcess(false);
         setProcessedItems([]);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.detail || `Failed to commit entries (${response.status})`);
       }
-    } catch {
-      // Handle error silently
+    } catch (err) {
+      setError("Network error while committing entries");
+      console.error("Commit error:", err);
     } finally {
       setIsCommitting(false);
     }
@@ -762,7 +791,37 @@ export default function CashLogClient({
           display: grid;
           gap: 10px;
         }
+
+        .error-banner {
+          background: rgba(226, 106, 90, 0.15);
+          border: 1px solid rgba(226, 106, 90, 0.4);
+          border-radius: var(--radius-md);
+          padding: 12px 14px;
+          font-size: 13px;
+          color: #f28b7d;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .error-dismiss {
+          background: transparent;
+          border: none;
+          color: #f28b7d;
+          cursor: pointer;
+          font-size: 18px;
+          padding: 0 4px;
+        }
       `}</style>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="error-banner">
+          <span>{error}</span>
+          <button className="error-dismiss" onClick={() => setError(null)}>×</button>
+        </div>
+      )}
 
       {/* Offline Banner */}
       {!isOnline && (
