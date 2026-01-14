@@ -44,10 +44,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (body.date !== undefined) {
       updates.date = body.date;
-      const parsedDate = new Date(body.date);
-      const year = parsedDate.getFullYear();
-      const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
-      updates.month = `${year}-${month}`;
+      // Extract YYYY-MM directly from YYYY-MM-DD to avoid timezone issues
+      updates.month = body.date.substring(0, 7);
     }
 
     if (body.isIncome !== undefined) {
