@@ -115,11 +115,10 @@ export async function POST(request: Request) {
       status: "draft",
       source: "text",
       isIncome: body.isIncome ?? false,
-      parsed_items: "[]",
-      created_at: new Date().toISOString()
+      parsed_items: "[]"
     };
 
-    await serverClient.databases.createDocument(
+    const created = await serverClient.databases.createDocument(
       serverClient.databaseId,
       "cash_logs",
       logId,
@@ -135,7 +134,7 @@ export async function POST(request: Request) {
       source: logDoc.source,
       isIncome: logDoc.isIncome,
       parsedItems: null,
-      createdAt: logDoc.created_at
+      createdAt: created.$createdAt
     });
   } catch (error) {
     console.error("Failed to create cash log:", error);
