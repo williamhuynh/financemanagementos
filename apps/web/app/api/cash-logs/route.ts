@@ -11,10 +11,9 @@ type CashLogInput = {
   isIncome?: boolean;
 };
 
-function getMonthKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
+function getMonthKey(dateString: string) {
+  // Extract YYYY-MM directly from YYYY-MM-DD to avoid timezone issues
+  return dateString.substring(0, 7);
 }
 
 function safeParseParsedItems(json: string): unknown[] | null {
@@ -103,8 +102,7 @@ export async function POST(request: Request) {
     }
 
     const date = body.date || new Date().toISOString().split("T")[0];
-    const parsedDate = new Date(date);
-    const month = getMonthKey(parsedDate);
+    const month = getMonthKey(date);
 
     const logId = ID.unique();
     const logDoc = {
