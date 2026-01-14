@@ -31,8 +31,8 @@ const collection = {
     { type: "string", key: "status", size: 20, required: true },
     { type: "string", key: "source", size: 40, required: true },
     { type: "boolean", key: "isIncome", required: true },
-    { type: "string", key: "parsed_items", size: 10000, required: true },
-    { type: "string", key: "created_at", size: 40, required: true }
+    { type: "string", key: "parsed_items", size: 10000, required: true }
+    // Note: We use Appwrite's built-in $createdAt instead of a custom created_at field
   ]
 };
 
