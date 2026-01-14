@@ -42,24 +42,40 @@ async function getCategories() {
 }
 
 function getCurrentMonth() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
+  // Use ISO date string to avoid timezone issues
+  const isoDate = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+  return isoDate.substring(0, 7); // "YYYY-MM"
 }
 
 function buildMonthOptions(count = 6) {
   const options: { value: string; label: string }[] = [];
-  const today = new Date();
+  // Get current month in YYYY-MM format
+  const currentMonth = getCurrentMonth();
+  const [year, month] = currentMonth.split("-").map(Number);
+
   for (let i = 0; i < count; i++) {
-    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
+    // Calculate year and month offset
+    let targetYear = year;
+    let targetMonth = month - i;
+
+    // Handle year rollover
+    while (targetMonth < 1) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+
+    const monthStr = String(targetMonth).padStart(2, "0");
+    const value = `${targetYear}-${monthStr}`;
+
+    // Create date for formatting label (using UTC to avoid timezone issues)
+    const date = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
     const label = date.toLocaleDateString("en-AU", {
       month: "short",
-      year: "numeric"
+      year: "numeric",
+      timeZone: "UTC"
     });
-    options.push({ value: `${year}-${month}`, label });
+
+    options.push({ value, label });
   }
   return options;
 }
