@@ -1,5 +1,5 @@
 import { Client, Account, Databases, Query } from "node-appwrite";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 export interface ApiConfig {
   endpoint: string;
@@ -41,22 +41,35 @@ export function getServerConfig(): ApiConfig | null {
 }
 
 /**
- * Get the current authenticated user from session cookies.
+ * Get the current authenticated user from session cookies or Authorization header.
  */
 export async function getCurrentUser(
   config: ApiConfig
 ): Promise<AuthenticatedUser | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
+  // Try to get session from Authorization header first (for Appwrite Cloud)
+  let sessionToken: string | null = null;
 
-  if (!sessionCookie?.value) {
+  const headerStore = await headers();
+  const authHeader = headerStore.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    sessionToken = authHeader.substring(7);
+  }
+
+  // Fall back to cookie-based session (for self-hosted Appwrite)
+  if (!sessionToken) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
+    sessionToken = sessionCookie?.value ?? null;
+  }
+
+  if (!sessionToken) {
     return null;
   }
 
   try {
     const client = new Client();
     client.setEndpoint(config.endpoint).setProject(config.projectId);
-    client.setSession(sessionCookie.value);
+    client.setSession(sessionToken);
 
     const account = new Account(client);
     const user = await account.get();
