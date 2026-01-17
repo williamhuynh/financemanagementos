@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID } from "node-appwrite";
-
-const DEFAULT_WORKSPACE_ID = "default";
+import { ID } from "node-appwrite";
+import { getApiContext } from "../../../lib/api-auth";
 
 export async function POST(request: Request) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as {
     fromId?: string;
@@ -30,19 +24,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
   const transferDoc = {
-    workspace_id: DEFAULT_WORKSPACE_ID,
+    workspace_id: workspaceId,
     from_transaction_id: body.fromId,
     to_transaction_id: body.toId,
     matched_at: new Date().toISOString()
   };
 
   const created = await databases.createDocument(
-    databaseId,
+    config.databaseId,
     "transfer_pairs",
     ID.unique(),
     transferDoc

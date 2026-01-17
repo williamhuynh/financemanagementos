@@ -1,31 +1,20 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID, Query } from "node-appwrite";
+import { Databases, ID, Query } from "node-appwrite";
 import { buildMonthlySnapshotPayload, getMonthlyCloseSummary } from "../../../lib/data";
-
-const DEFAULT_WORKSPACE_ID = "default";
-
-function getServerConfig() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return null;
-  }
-  return { endpoint, projectId, databaseId, apiKey };
-}
+import { getApiContext } from "../../../lib/api-auth";
 
 function isValidMonth(value: string) {
   return /^\d{4}-\d{2}$/.test(value);
 }
 
-async function getCloseDocument(databases: Databases, databaseId: string, month: string) {
+async function getCloseDocument(
+  databases: Databases,
+  databaseId: string,
+  workspaceId: string,
+  month: string
+) {
   const response = await databases.listDocuments(databaseId, "monthly_closes", [
-    Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+    Query.equal("workspace_id", workspaceId),
     Query.equal("month", month),
     Query.limit(1)
   ]);
@@ -61,7 +50,7 @@ async function listCollectionAttributes(
       status: attr.status,
       type: attr.type
     }));
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -77,13 +66,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const config = getServerConfig();
-  if (!config) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as { month?: string; notes?: string };
   const month = body.month?.trim() ?? "";
@@ -99,15 +90,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-  const databases = new Databases(client);
-
   let snapshot;
   try {
-    console.log("Monthly close snapshot payload keys", {
-      keys: Object.keys(snapshotPayload)
-    });
     snapshot = await createMonthlySnapshot(
       databases,
       config.databaseId,
@@ -141,9 +125,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await getCloseDocument(databases, config.databaseId, month);
+  const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
   const updatePayload = {
-    workspace_id: DEFAULT_WORKSPACE_ID,
+    workspace_id: workspaceId,
     month,
     status: "closed",
     closed_at: new Date().toISOString(),
@@ -172,13 +156,15 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const config = getServerConfig();
-  if (!config) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as { month?: string; notes?: string };
   const month = body.month?.trim() ?? "";
@@ -186,14 +172,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
   }
 
-  const client = new Client();
-  client.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-  const databases = new Databases(client);
-
-  const existing = await getCloseDocument(databases, config.databaseId, month);
+  const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
   if (!existing) {
     await databases.createDocument(config.databaseId, "monthly_closes", ID.unique(), {
-      workspace_id: DEFAULT_WORKSPACE_ID,
+      workspace_id: workspaceId,
       month,
       status: "open",
       reopened_at: new Date().toISOString(),

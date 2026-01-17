@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID } from "node-appwrite";
-
-const DEFAULT_WORKSPACE_ID = "default";
+import { ID } from "node-appwrite";
+import { getApiContext } from "../../../../lib/api-auth";
 
 type AssetValuePayload = {
   assetId?: string;
@@ -62,20 +61,15 @@ async function fetchAudRate(currency: string) {
 }
 
 export async function POST(request: Request) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as {
     recordedAt?: string;
@@ -91,10 +85,6 @@ export async function POST(request: Request) {
   }
 
   const recordedAt = body.recordedAt?.trim() || new Date().toISOString();
-
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
 
   let created = 0;
   const rateCache = new Map<string, { rate: number; source: string }>();
@@ -121,8 +111,8 @@ export async function POST(request: Request) {
       rateCache.set(currency, rate);
     }
     const audValue = item.value * rate.rate;
-    await databases.createDocument(databaseId, "asset_values", ID.unique(), {
-      workspace_id: DEFAULT_WORKSPACE_ID,
+    await databases.createDocument(config.databaseId, "asset_values", ID.unique(), {
+      workspace_id: workspaceId,
       asset_id: item.assetId ?? "",
       asset_name: item.assetName,
       asset_type: item.assetType,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
-import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "../../../lib/appwrite-server";
+import { getApiContext } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -29,17 +29,20 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export async function GET() {
-  const serverClient = getServerAppwrite();
+  const ctx = await getApiContext();
 
-  if (!serverClient) {
+  // Fall back to default categories if not authenticated
+  if (!ctx) {
     return NextResponse.json({ categories: DEFAULT_CATEGORIES });
   }
 
+  const { databases, config, workspaceId } = ctx;
+
   try {
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
+    const response = await databases.listDocuments(
+      config.databaseId,
       "categories",
-      [Query.equal("workspace_id", DEFAULT_WORKSPACE_ID), Query.orderAsc("name")]
+      [Query.equal("workspace_id", workspaceId), Query.orderAsc("name")]
     );
 
     const names = (response?.documents ?? [])

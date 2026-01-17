@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerAppwrite } from "../../../../lib/appwrite-server";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -219,13 +219,15 @@ function guessCategory(description: string, isIncome: boolean): string {
 }
 
 export async function POST(request: Request) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config } = ctx;
 
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
@@ -261,8 +263,8 @@ export async function POST(request: Request) {
     for (const logId of body.logIds) {
       try {
         // Fetch the log
-        const doc = await serverClient.databases.getDocument(
-          serverClient.databaseId,
+        const doc = await databases.getDocument(
+          config.databaseId,
           "cash_logs",
           logId
         );
@@ -306,8 +308,8 @@ export async function POST(request: Request) {
         }
 
         // Update the log with parsed items
-        await serverClient.databases.updateDocument(
-          serverClient.databaseId,
+        await databases.updateDocument(
+          config.databaseId,
           "cash_logs",
           logId,
           {
@@ -321,8 +323,8 @@ export async function POST(request: Request) {
         console.error(`Failed to process log ${logId}:`, error);
         // Even if database update fails, try to provide a processable item
         try {
-          const doc = await serverClient.databases.getDocument(
-            serverClient.databaseId,
+          const doc = await databases.getDocument(
+            config.databaseId,
             "cash_logs",
             logId
           );

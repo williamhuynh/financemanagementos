@@ -1,23 +1,17 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID } from "node-appwrite";
-
-const DEFAULT_WORKSPACE_ID = "default";
+import { ID } from "node-appwrite";
+import { getApiContext } from "../../../lib/api-auth";
 
 export async function POST(request: Request) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as {
     name?: string;
@@ -38,12 +32,8 @@ export async function POST(request: Request) {
   const owner = body.owner?.trim() || "Joint";
   const currency = body.currency?.trim() || "AUD";
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
-  await databases.createDocument(databaseId, "assets", ID.unique(), {
-    workspace_id: DEFAULT_WORKSPACE_ID,
+  await databases.createDocument(config.databaseId, "assets", ID.unique(), {
+    workspace_id: workspaceId,
     name,
     type,
     owner,

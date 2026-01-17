@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerAppwrite } from "../../../../lib/appwrite-server";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +17,15 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
 
+  const { databases, config } = ctx;
   const { id } = await context.params;
 
   try {
@@ -67,8 +68,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const doc = await serverClient.databases.updateDocument(
-      serverClient.databaseId,
+    const doc = await databases.updateDocument(
+      config.databaseId,
       "cash_logs",
       id,
       updates
@@ -95,19 +96,20 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
 
+  const { databases, config } = ctx;
   const { id } = await context.params;
 
   try {
-    await serverClient.databases.deleteDocument(
-      serverClient.databaseId,
+    await databases.deleteDocument(
+      config.databaseId,
       "cash_logs",
       id
     );

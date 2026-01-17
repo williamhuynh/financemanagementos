@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Account, ID } from "appwrite";
+import { Account } from "appwrite";
 import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
-import { isAllowedEmail } from "../../lib/auth";
 
 type FormState = "idle" | "sending" | "error";
 
@@ -25,12 +25,6 @@ export default function LoginClient() {
   }, [searchParams]);
 
   useEffect(() => {
-    const errorParam = searchParams.get("error");
-    if (errorParam === "unauthorized") {
-      setFormState("error");
-      setStatusMessage("This account is not allowed to access FinanceLab.");
-    }
-
     if (!appwriteEnabled) {
       setFormState("error");
       setStatusMessage("Appwrite auth is not configured yet.");
@@ -63,11 +57,6 @@ export default function LoginClient() {
     if (!password) {
       setFormState("error");
       setStatusMessage("Enter your password.");
-      return;
-    }
-    if (!isAllowedEmail(email)) {
-      setFormState("error");
-      setStatusMessage("This email is not authorized for this app.");
       return;
     }
 
@@ -136,7 +125,12 @@ export default function LoginClient() {
         {statusMessage ? (
           <p className="auth-error">{statusMessage}</p>
         ) : null}
-        <p className="auth-hint">Use your registered email and password.</p>
+        <p className="auth-hint">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="auth-link">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

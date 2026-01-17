@@ -1,12 +1,10 @@
-const allowedEmails = new Set(
-  ["william.huynh12@gmail.com", "ppkw18@gmail.com"].map((email) =>
-    email.trim().toLowerCase()
-  )
-);
-
+/**
+ * Email whitelist removed - now open registration.
+ * This function is kept for backward compatibility but always returns true
+ * for any valid email. Will be removed in future cleanup.
+ * @deprecated Open registration enabled - this check is no longer needed
+ */
 export function isAllowedEmail(email?: string | null): boolean {
-  if (!email) {
-    return false;
-  }
-  return allowedEmails.has(email.trim().toLowerCase());
+  // Open registration: any valid email is allowed
+  return Boolean(email && email.includes("@"));
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ID, Query } from "node-appwrite";
-import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "../../../lib/appwrite-server";
+import { getApiContext } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,23 +26,22 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function GET(request: Request) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
 
+  const { databases, config, workspaceId } = ctx;
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month");
   const status = searchParams.get("status");
 
-  console.log("[CASH-LOGS-API] GET request - month:", month, "status:", status);
-
   try {
     const queries = [
-      Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+      Query.equal("workspace_id", workspaceId),
       Query.orderDesc("date"),
       Query.orderDesc("$createdAt"),
       Query.limit(100)
@@ -56,18 +55,11 @@ export async function GET(request: Request) {
       queries.push(Query.equal("status", status));
     }
 
-    console.log("[CASH-LOGS-API] Querying with:", queries.map(q => q.toString()));
-
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
+    const response = await databases.listDocuments(
+      config.databaseId,
       "cash_logs",
       queries
     );
-
-    console.log("[CASH-LOGS-API] Found", response.documents.length, "documents");
-    response.documents.forEach((doc, i) => {
-      console.log(`  [${i}] id=${doc.$id}, date=${doc.date}, month=${doc.month}, status=${doc.status}, text="${doc.text?.substring(0, 30)}..."`);
-    });
 
     const logs = response.documents.map((doc) => ({
       id: doc.$id,
@@ -81,7 +73,6 @@ export async function GET(request: Request) {
       createdAt: doc.$createdAt
     }));
 
-    console.log("[CASH-LOGS-API] Returning", logs.length, "logs");
     return NextResponse.json({ logs });
   } catch (error) {
     console.error("Failed to fetch cash logs:", error);
@@ -93,13 +84,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   try {
     const body = (await request.json()) as CashLogInput;
@@ -116,7 +109,7 @@ export async function POST(request: Request) {
 
     const logId = ID.unique();
     const logDoc = {
-      workspace_id: DEFAULT_WORKSPACE_ID,
+      workspace_id: workspaceId,
       text: body.text.trim(),
       date,
       month,
@@ -126,8 +119,8 @@ export async function POST(request: Request) {
       parsed_items: "[]"
     };
 
-    const created = await serverClient.databases.createDocument(
-      serverClient.databaseId,
+    const created = await databases.createDocument(
+      config.databaseId,
       "cash_logs",
       logId,
       logDoc
