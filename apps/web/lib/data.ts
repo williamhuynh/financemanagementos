@@ -2586,8 +2586,8 @@ export async function getEarliestUnclosedMonth(): Promise<string | null> {
 
   const monthOptions = buildRollingMonthOptions(12);
 
-  // Check months from oldest to newest to find the first unclosed month
-  for (let i = monthOptions.length - 1; i >= 0; i--) {
+  // Check months from newest to oldest to find the most recent unclosed month
+  for (let i = 0; i < monthOptions.length; i++) {
     const monthKey = monthOptions[i].value;
     try {
       const closeDoc = await getMonthlyCloseRecord(serverClient, monthKey);
