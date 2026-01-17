@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +26,30 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  const { databases, config } = ctx;
+  const { databases, config, workspaceId } = ctx;
   const { id } = await context.params;
+
+  // Verify the cash log exists and belongs to the user's workspace
+  try {
+    const existingLogs = await databases.listDocuments(
+      config.databaseId,
+      "cash_logs",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingLogs.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Cash log not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying cash log ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying cash log ownership." },
+      { status: 500 }
+    );
+  }
 
   try {
     const body = (await request.json()) as {
@@ -104,8 +127,30 @@ export async function DELETE(_request: Request, context: RouteContext) {
     );
   }
 
-  const { databases, config } = ctx;
+  const { databases, config, workspaceId } = ctx;
   const { id } = await context.params;
+
+  // Verify the cash log exists and belongs to the user's workspace
+  try {
+    const existingLogs = await databases.listDocuments(
+      config.databaseId,
+      "cash_logs",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingLogs.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Cash log not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying cash log ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying cash log ownership." },
+      { status: 500 }
+    );
+  }
 
   try {
     await databases.deleteDocument(

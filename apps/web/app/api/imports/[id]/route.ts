@@ -22,6 +22,28 @@ export async function DELETE(
   const { databases, config, workspaceId } = ctx;
   const { id } = await params;
 
+  // Verify the import exists and belongs to the user's workspace before deleting its associated data
+  try {
+    const existingImports = await databases.listDocuments(
+      config.databaseId,
+      "imports",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingImports.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Import not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying import ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying import ownership." },
+      { status: 500 }
+    );
+  }
+
   let deletedTransactions = 0;
   let deletedTransferPairs = 0;
   while (true) {

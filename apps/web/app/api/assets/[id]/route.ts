@@ -57,6 +57,28 @@ export async function PATCH(
 
   const { id } = await params;
 
+  // Verify the asset exists and belongs to the user's workspace
+  try {
+    const existingAssets = await databases.listDocuments(
+      config.databaseId,
+      "assets",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingAssets.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Asset not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying asset ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying asset ownership." },
+      { status: 500 }
+    );
+  }
+
   await databases.updateDocument(config.databaseId, "assets", id, updates);
 
   return NextResponse.json({ ok: true });
@@ -76,6 +98,29 @@ export async function DELETE(
 
   const { databases, config, workspaceId } = ctx;
   const { id } = await params;
+
+  // Verify the asset exists and belongs to the user's workspace
+  try {
+    const existingAssets = await databases.listDocuments(
+      config.databaseId,
+      "assets",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingAssets.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Asset not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying asset ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying asset ownership." },
+      { status: 500 }
+    );
+  }
+
   const deletedAt = new Date().toISOString();
 
   let offset = 0;
