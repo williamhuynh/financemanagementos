@@ -272,16 +272,37 @@ export async function POST(request: Request) {
 
         let items: ParsedItem[];
 
-        if (openRouterKey) {
-          items = await parseAndCategorize(
-            logText,
-            isIncome,
-            categories,
-            openRouterKey,
-            openRouterModel
-          );
-        } else {
-          items = fallbackParse(logText, isIncome);
+        try {
+          if (openRouterKey) {
+            items = await parseAndCategorize(
+              logText,
+              isIncome,
+              categories,
+              openRouterKey,
+              openRouterModel
+            );
+          } else {
+            items = fallbackParse(logText, isIncome);
+          }
+
+          // If no items were parsed, create a default editable item
+          if (items.length === 0) {
+            items = [{
+              description: logText.substring(0, 50) + (logText.length > 50 ? "..." : ""),
+              amount: 0,
+              category: isIncome ? "Income - Secondary" : "Uncategorised",
+              confidence: 0
+            }];
+          }
+        } catch (parseError) {
+          console.error(`AI/parsing error for log ${logId}:`, parseError);
+          // Create a default editable item if parsing completely fails
+          items = [{
+            description: logText.substring(0, 50) + (logText.length > 50 ? "..." : ""),
+            amount: 0,
+            category: isIncome ? "Income - Secondary" : "Uncategorised",
+            confidence: 0
+          }];
         }
 
         // Update the log with parsed items
@@ -298,7 +319,29 @@ export async function POST(request: Request) {
         processed.push({ logId, items });
       } catch (error) {
         console.error(`Failed to process log ${logId}:`, error);
-        // Continue with other logs
+        // Even if database update fails, try to provide a processable item
+        try {
+          const doc = await serverClient.databases.getDocument(
+            serverClient.databaseId,
+            "cash_logs",
+            logId
+          );
+          const logText = String(doc.text ?? "");
+          const isIncome = Boolean(doc.isIncome);
+
+          // Provide a default item that can be manually edited
+          processed.push({
+            logId,
+            items: [{
+              description: logText.substring(0, 50) + (logText.length > 50 ? "..." : ""),
+              amount: 0,
+              category: isIncome ? "Income - Secondary" : "Uncategorised",
+              confidence: 0
+            }]
+          });
+        } catch {
+          // Skip this log entirely if we can't even fetch it
+        }
       }
     }
 

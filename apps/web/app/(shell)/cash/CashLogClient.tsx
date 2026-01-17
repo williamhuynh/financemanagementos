@@ -345,6 +345,24 @@ export default function CashLogClient({
     );
   };
 
+  const handleUpdateItem = (
+    logId: string,
+    itemIndex: number,
+    field: 'description' | 'amount',
+    value: string | number
+  ) => {
+    setProcessedItems((prev) =>
+      prev.map((p) => {
+        if (p.logId === logId) {
+          const newItems = [...p.items];
+          newItems[itemIndex] = { ...newItems[itemIndex], [field]: value };
+          return { ...p, items: newItems };
+        }
+        return p;
+      })
+    );
+  };
+
   const handleCommit = async () => {
     if (processedItems.length === 0) return;
 
@@ -379,6 +397,41 @@ export default function CashLogClient({
     } finally {
       setIsCommitting(false);
     }
+  };
+
+  const handleCancelProcess = async () => {
+    if (processedItems.length === 0) {
+      setShowProcess(false);
+      return;
+    }
+
+    // Revert all processed logs back to draft status
+    const revertPromises = processedItems.map(({ logId }) =>
+      fetch(`/api/cash-logs/${logId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "draft" })
+      })
+    );
+
+    try {
+      await Promise.all(revertPromises);
+      // Update local state to reflect draft status
+      setLogs((prev) =>
+        prev.map((log) => {
+          if (processedItems.some((p) => p.logId === log.id)) {
+            return { ...log, status: "draft" as const, parsedItems: null };
+          }
+          return log;
+        })
+      );
+    } catch (err) {
+      console.error("Error reverting logs to draft:", err);
+      setError("Failed to revert some entries. Please try again.");
+    }
+
+    setShowProcess(false);
+    setProcessedItems([]);
   };
 
   const draftLogs = logs.filter((log) => log.status === "draft");
@@ -722,6 +775,9 @@ export default function CashLogClient({
 
         .item-info {
           flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
 
         .item-desc {
@@ -734,6 +790,39 @@ export default function CashLogClient({
           margin-top: 2px;
         }
 
+        .item-desc-input {
+          width: 100%;
+          padding: 8px 12px;
+          background: rgba(20, 25, 35, 0.9);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 14px;
+          font-weight: 500;
+        }
+
+        .item-desc-input:focus {
+          outline: none;
+          border-color: rgba(242, 164, 59, 0.5);
+          box-shadow: 0 0 0 2px rgba(242, 164, 59, 0.1);
+        }
+
+        .item-amount-input {
+          width: 100%;
+          padding: 6px 12px;
+          background: rgba(20, 25, 35, 0.9);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--text-secondary);
+          font-size: 13px;
+        }
+
+        .item-amount-input:focus {
+          outline: none;
+          border-color: rgba(242, 164, 59, 0.5);
+          box-shadow: 0 0 0 2px rgba(242, 164, 59, 0.1);
+        }
+
         .item-category {
           background: rgba(20, 25, 35, 0.9);
           border: 1px solid var(--border);
@@ -741,6 +830,7 @@ export default function CashLogClient({
           padding: 6px 12px;
           color: var(--text-primary);
           font-size: 12px;
+          flex-shrink: 0;
         }
 
         .process-total {
@@ -1077,14 +1167,14 @@ export default function CashLogClient({
         <div className="process-modal">
           <div
             className="process-backdrop"
-            onClick={() => !isProcessing && setShowProcess(false)}
+            onClick={() => !isProcessing && handleCancelProcess()}
           />
           <div className="process-panel">
             <div className="process-head">
               <span className="process-title">Review Transactions</span>
               <button
                 className="close-btn"
-                onClick={() => setShowProcess(false)}
+                onClick={handleCancelProcess}
                 disabled={isProcessing}
               >
                 ×
@@ -1105,10 +1195,36 @@ export default function CashLogClient({
                       {group.items.map((item, index) => (
                         <div key={index} className="processed-item">
                           <div className="item-info">
-                            <div className="item-desc">{item.description}</div>
-                            <div className="item-amount">
-                              ${item.amount.toFixed(2)}
-                            </div>
+                            <input
+                              type="text"
+                              className="item-desc-input"
+                              value={item.description}
+                              onChange={(e) =>
+                                handleUpdateItem(
+                                  group.logId,
+                                  index,
+                                  'description',
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Description"
+                            />
+                            <input
+                              type="number"
+                              className="item-amount-input"
+                              value={item.amount}
+                              onChange={(e) =>
+                                handleUpdateItem(
+                                  group.logId,
+                                  index,
+                                  'amount',
+                                  parseFloat(e.target.value) || 0
+                                )
+                              }
+                              placeholder="Amount"
+                              step="0.01"
+                              min="0"
+                            />
                           </div>
                           <select
                             className="item-category"
@@ -1154,7 +1270,7 @@ export default function CashLogClient({
                 <div className="process-actions">
                   <button
                     className="ghost-btn"
-                    onClick={() => setShowProcess(false)}
+                    onClick={handleCancelProcess}
                   >
                     Cancel
                   </button>
