@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { Sidebar } from "@financelab/ui";
-import { getNavItems } from "../../lib/data";
+import { getNavItems, getSidebarMonthlyCloseStatus } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 import { AuthProvider } from "../../lib/auth-context";
@@ -16,14 +16,17 @@ type ShellLayoutProps = {
 };
 
 export default async function ShellLayout({ children }: ShellLayoutProps) {
-  const navItems = await getNavItems();
+  const [navItems, monthlyCloseStatus] = await Promise.all([
+    getNavItems(),
+    getSidebarMonthlyCloseStatus()
+  ]);
 
   return (
     <AuthProvider>
       <WorkspaceProvider>
         <NumberVisibilityProvider>
           <div className="app-shell">
-            <Sidebar navItems={navItems} />
+            <Sidebar navItems={navItems} monthlyCloseData={monthlyCloseStatus} />
             <main className="main">
               <Suspense fallback={<div className="topbar" />}>
                 <TopbarWithUser />

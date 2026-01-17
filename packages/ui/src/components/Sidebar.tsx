@@ -11,9 +11,13 @@ type NavItem = {
 
 type SidebarProps = {
   navItems: NavItem[];
+  monthlyCloseData?: {
+    unresolvedCount: number;
+    monthKey: string;
+  } | null;
 };
 
-export function Sidebar({ navItems }: SidebarProps) {
+export function Sidebar({ navItems, monthlyCloseData }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -36,13 +40,21 @@ export function Sidebar({ navItems }: SidebarProps) {
           </Link>
         ))}
       </nav>
-      <div className="rail-card">
-        <div className="rail-card-title">Monthly Close</div>
-        <div className="rail-card-body">3 unresolved items</div>
-        <button className="ghost-btn" type="button">
-          Open checklist
-        </button>
-      </div>
+      {monthlyCloseData && (
+        <div className="rail-card">
+          <div className="rail-card-title">Monthly Close</div>
+          <div className="rail-card-body">
+            {monthlyCloseData.unresolvedCount > 0
+              ? `${monthlyCloseData.unresolvedCount} unresolved item${monthlyCloseData.unresolvedCount === 1 ? "" : "s"}`
+              : "Ready to close month"}
+          </div>
+          <Link className="ghost-btn" href="/reports">
+            {monthlyCloseData.unresolvedCount > 0
+              ? "Open checklist"
+              : "Close Month"}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
