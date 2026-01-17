@@ -2787,3 +2787,32 @@ export async function buildMonthlySnapshotPayload(
     asset_class_totals: JSON.stringify(assetClassTotals)
   };
 }
+
+export async function getSidebarMonthlyCloseStatus(): Promise<{
+  unresolvedCount: number;
+  monthKey: string;
+} | null> {
+  try {
+    // Get the earliest unclosed month
+    const monthKey = await getEarliestUnclosedMonth();
+    if (!monthKey) {
+      return null;
+    }
+
+    // Get the monthly close summary for that month
+    const summary = await getMonthlyCloseSummary(monthKey);
+
+    // Count items with "attention" status
+    const unresolvedCount = summary.checklist.filter(
+      (item) => item.status === "attention"
+    ).length;
+
+    return {
+      unresolvedCount,
+      monthKey
+    };
+  } catch (error) {
+    // Return null on error to prevent layout crash
+    return null;
+  }
+}
