@@ -5,6 +5,7 @@ import { getNavItems } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 import { AuthProvider } from "../../lib/auth-context";
+import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,15 +19,17 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
 
   return (
     <AuthProvider>
-      <div className="app-shell">
-        <Sidebar navItems={navItems} />
-        <main className="main">
-          <Suspense fallback={<div className="topbar" />}>
-            <TopbarWithUser />
-          </Suspense>
-          <AuthGate>{children}</AuthGate>
-        </main>
-      </div>
+      <NumberVisibilityProvider>
+        <div className="app-shell">
+          <Sidebar navItems={navItems} />
+          <main className="main">
+            <Suspense fallback={<div className="topbar" />}>
+              <TopbarWithUser />
+            </Suspense>
+            <AuthGate>{children}</AuthGate>
+          </main>
+        </div>
+      </NumberVisibilityProvider>
     </AuthProvider>
   );
 }

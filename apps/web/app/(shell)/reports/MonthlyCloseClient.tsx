@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Card, DonutChart, ListRow } from "@financelab/ui";
 import ExpenseCategoryList from "./expenses/ExpenseCategoryList";
 import type { ExpenseBreakdown, MonthlyCloseSummary } from "../../../lib/data";
+import { useNumberVisibility } from "../../../lib/number-visibility-context";
+import { maskCurrencyValue } from "../../../lib/data";
 
 type MonthlyCloseClientProps = {
   summary: MonthlyCloseSummary;
@@ -34,6 +36,7 @@ export default function MonthlyCloseClient({
   summary,
   expenseBreakdown
 }: MonthlyCloseClientProps) {
+  const { isVisible } = useNumberVisibility();
   const router = useRouter();
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [error, setError] = useState<string>("");
@@ -135,19 +138,19 @@ export default function MonthlyCloseClient({
       </div>
 
       <div className="grid cards">
-        <Card title="Income" value={summary.formattedIncomeTotal} sub="Month total" />
-        <Card title="Expenses" value={summary.formattedExpenseTotal} sub="Month total" />
+        <Card title="Income" value={maskCurrencyValue(summary.formattedIncomeTotal, isVisible)} sub="Month total" />
+        <Card title="Expenses" value={maskCurrencyValue(summary.formattedExpenseTotal, isVisible)} sub="Month total" />
         <Card
           title="Transfers Excluded"
-          value={summary.formattedTransferOutflowTotal}
+          value={maskCurrencyValue(summary.formattedTransferOutflowTotal, isVisible)}
           sub="Outflows only"
         />
-        <Card title="Net Worth" value={summary.formattedNetWorthTotal} sub="Month-end" />
+        <Card title="Net Worth" value={maskCurrencyValue(summary.formattedNetWorthTotal, isVisible)} sub="Month-end" />
       </div>
 
       <div className="monthly-close-meta">
-        <div className="meta-pill">Assets {summary.formattedAssetsTotal}</div>
-        <div className="meta-pill">Liabilities {summary.formattedLiabilitiesTotal}</div>
+        <div className="meta-pill">Assets {maskCurrencyValue(summary.formattedAssetsTotal, isVisible)}</div>
+        <div className="meta-pill">Liabilities {maskCurrencyValue(summary.formattedLiabilitiesTotal, isVisible)}</div>
         <div className="meta-pill">Assets use latest recorded values</div>
       </div>
 
@@ -166,7 +169,7 @@ export default function MonthlyCloseClient({
       <details className="report-accordion">
         <summary className="report-accordion-summary">
           <span>Expense detail</span>
-          <span className="report-accordion-meta">{totalFormatted} total</span>
+          <span className="report-accordion-meta">{maskCurrencyValue(totalFormatted, isVisible)} total</span>
         </summary>
         <div className="report-accordion-body">
           {spendByCategory.length > 0 ? (
@@ -174,7 +177,7 @@ export default function MonthlyCloseClient({
               <div className="grid cards">
                 <Card
                   title="Total expenses"
-                  value={totalFormatted}
+                  value={maskCurrencyValue(totalFormatted, isVisible)}
                   sub="Recent activity"
                 />
                 <Card
@@ -207,7 +210,7 @@ export default function MonthlyCloseClient({
                         title={item.name}
                         sub={`${item.count} transactions - ${item.percent}% of spend`}
                         category={`${item.percent}% share`}
-                        amount={item.formattedAmount}
+                        amount={maskCurrencyValue(item.formattedAmount, isVisible)}
                         tone={item.amount >= 0 ? "positive" : "negative"}
                       />
                     ))}

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Card, SectionHead } from "@financelab/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
+import { useNumberVisibility } from "../../../lib/number-visibility-context";
+import { maskCurrencyValue } from "../../../lib/data";
 
 type AssetsClientProps = {
   overview: AssetOverview;
@@ -103,6 +105,20 @@ function formatValueWithAud(value: string, audValue: string, currency: string) {
   return `${value} (${audValue})`;
 }
 
+function formatValueWithAudMasked(
+  value: string,
+  audValue: string,
+  currency: string,
+  isVisible: boolean
+) {
+  const maskedValue = maskCurrencyValue(value, isVisible);
+  if (!currency || currency.toUpperCase() === "AUD") {
+    return maskedValue;
+  }
+  const maskedAudValue = maskCurrencyValue(audValue, isVisible);
+  return `${maskedValue} (${maskedAudValue})`;
+}
+
 function buildOwnerLabel(owner: string) {
   return owner || "Joint";
 }
@@ -122,6 +138,7 @@ function parseCurrencyInput(value: string) {
 }
 
 export default function AssetsClient({ overview }: AssetsClientProps) {
+  const { isVisible } = useNumberVisibility();
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
     categories,
@@ -562,7 +579,7 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
       <div className="hero">
         <div>
           <div className="eyebrow">Net Worth</div>
-          <div className="hero-value">{netWorthFormatted}</div>
+          <div className="hero-value">{maskCurrencyValue(netWorthFormatted, isVisible)}</div>
           <div className="hero-sub">{heroSub}</div>
         </div>
       <div className="hero-meta">
@@ -578,7 +595,7 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
           <Card
             key={category.type}
             title={category.label}
-            value={category.formattedValue}
+            value={maskCurrencyValue(category.formattedValue, isVisible)}
             sub={category.subLabel}
             tone={category.tone}
           />
@@ -786,10 +803,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                           <span>{asset.name}</span>
                       <span>{buildOwnerLabel(asset.owner)}</span>
                       <span>
-                        {formatValueWithAud(
+                        {formatValueWithAudMasked(
                           asset.formattedValue,
                           asset.formattedAudValue,
-                          asset.currency
+                          asset.currency,
+                          isVisible
                         )}
                       </span>
                           <span>{asset.lastUpdatedLabel}</span>
@@ -1066,10 +1084,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                                     <span>{entry.name}</span>
                                     <span>{entry.typeLabel}</span>
                                     <span>
-                                      {formatValueWithAud(
+                                      {formatValueWithAudMasked(
                                         entry.formattedValue,
                                         entry.formattedAudValue,
-                                        entry.currency
+                                        entry.currency,
+                                        isVisible
                                       )}
                                     </span>
                                     <span>{entry.recordedLabel}</span>
@@ -1125,10 +1144,11 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                 <span>{asset.typeLabel}</span>
                 <span>{buildOwnerLabel(asset.owner)}</span>
                 <span>
-                  {formatValueWithAud(
+                  {formatValueWithAudMasked(
                     asset.formattedValue,
                     asset.formattedAudValue,
-                    asset.currency
+                    asset.currency,
+                    isVisible
                   )}
                 </span>
                 <span>{asset.lastUpdatedLabel}</span>

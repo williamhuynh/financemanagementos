@@ -32,9 +32,11 @@ function buildMonthOptions(count = 12): MonthOption[] {
 
 type TopbarProps = {
   userLabel?: string;
+  onToggleNumberVisibility?: () => void;
+  numbersVisible?: boolean;
 };
 
-export function Topbar({ userLabel }: TopbarProps) {
+export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -119,6 +121,16 @@ export function Topbar({ userLabel }: TopbarProps) {
         </div>
       )}
       <div className="topbar-actions">
+        {onToggleNumberVisibility && (
+          <button
+            className="secondary-btn"
+            type="button"
+            onClick={onToggleNumberVisibility}
+            aria-label={numbersVisible ? "Hide numbers" : "Show numbers"}
+          >
+            {numbersVisible ? "👁️ Hide" : "👁️‍🗨️ Show"}
+          </button>
+        )}
         <button className="primary-btn" type="button" onClick={handleImportClick}>
           Import
         </button>
