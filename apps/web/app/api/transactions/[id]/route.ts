@@ -1,33 +1,27 @@
 import { NextResponse } from "next/server";
-import { Client, Databases } from "node-appwrite";
-
-const DEFAULT_WORKSPACE_ID = "default";
+import { Query } from "node-appwrite";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as {
     category?: string;
     is_transfer?: boolean;
   };
   const updates: Record<string, unknown> = {
-    workspace_id: DEFAULT_WORKSPACE_ID
+    workspace_id: workspaceId
   };
 
   if (body.category !== undefined) {
@@ -47,13 +41,31 @@ export async function PATCH(
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
   const { id } = await params;
 
-  await databases.updateDocument(databaseId, "transactions", id, updates);
+  // Verify the transaction exists and belongs to the user's workspace
+  try {
+    const existingTransactions = await databases.listDocuments(
+      config.databaseId,
+      "transactions",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingTransactions.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Transaction not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying transaction ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying transaction ownership." },
+      { status: 500 }
+    );
+  }
+
+  await databases.updateDocument(config.databaseId, "transactions", id, updates);
 
   return NextResponse.json({ ok: true });
 }

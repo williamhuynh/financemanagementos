@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
-import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "../../../../lib/appwrite-server";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,13 +28,15 @@ function isIncomeCategory(category: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   try {
     const body = (await request.json()) as CommitInput;
@@ -55,8 +57,8 @@ export async function POST(request: Request) {
       let logIsIncome = false;
 
       try {
-        const logDoc = await serverClient.databases.getDocument(
-          serverClient.databaseId,
+        const logDoc = await databases.getDocument(
+          config.databaseId,
           "cash_logs",
           group.logId
         );
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
 
         const transactionId = ID.unique();
         const transactionDoc = {
-          workspace_id: DEFAULT_WORKSPACE_ID,
+          workspace_id: workspaceId,
           import_id: "",
           date: logDate,
           description: item.description,
@@ -93,8 +95,8 @@ export async function POST(request: Request) {
         };
 
         try {
-          await serverClient.databases.createDocument(
-            serverClient.databaseId,
+          await databases.createDocument(
+            config.databaseId,
             "transactions",
             transactionId,
             transactionDoc
@@ -107,8 +109,8 @@ export async function POST(request: Request) {
 
       // Update the log status to committed
       try {
-        await serverClient.databases.updateDocument(
-          serverClient.databaseId,
+        await databases.updateDocument(
+          config.databaseId,
           "cash_logs",
           group.logId,
           { status: "committed" }

@@ -3,21 +3,21 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Account } from "appwrite";
-import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
-import { isAllowedEmail } from "../../lib/auth";
+import { appwriteEnabled } from "../../lib/appwriteClient";
 import { useAuth } from "../../lib/auth-context";
+import { useWorkspace } from "../../lib/workspace-context";
 
 type AuthGateProps = {
   children: ReactNode;
 };
 
-type AuthState = "loading" | "authed" | "guest";
+type AuthState = "loading" | "authed" | "guest" | "needs-onboarding";
 
 export default function AuthGate({ children }: AuthGateProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { needsOnboarding, loading: workspaceLoading } = useWorkspace();
   const [authState, setAuthState] = useState<AuthState>("loading");
 
   const nextPath = useMemo(() => {
@@ -28,7 +28,7 @@ export default function AuthGate({ children }: AuthGateProps) {
   }, [pathname]);
 
   useEffect(() => {
-    if (loading) {
+    if (authLoading || workspaceLoading) {
       setAuthState("loading");
       return;
     }
@@ -44,25 +44,33 @@ export default function AuthGate({ children }: AuthGateProps) {
       return;
     }
 
-    if (!isAllowedEmail(user.email)) {
-      setAuthState("guest");
-      const appwrite = getAppwriteClient();
-      if (appwrite) {
-        const account = new Account(appwrite.client);
-        account
-          .deleteSession("current")
-          .catch(() => null)
-          .finally(() => {
-            router.replace("/login?error=unauthorized");
-          });
-      } else {
-        router.replace("/login?error=unauthorized");
-      }
+    // Check if user needs onboarding (no workspace)
+    if (needsOnboarding) {
+      setAuthState("needs-onboarding");
+      router.replace("/onboarding");
       return;
     }
 
+    // Authenticated user with workspace
     setAuthState("authed");
-  }, [user, loading, router, nextPath]);
+  }, [user, authLoading, workspaceLoading, needsOnboarding, router, nextPath]);
+
+  if (authState === "loading" || authState === "needs-onboarding") {
+    return (
+      <div className="auth-loading">
+        <div className="card">
+          <div className="card-title">
+            {authState === "needs-onboarding" ? "Setting up" : "Authenticating"}
+          </div>
+          <div className="card-sub">
+            {authState === "needs-onboarding"
+              ? "Preparing your workspace..."
+              : "Checking your session..."}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (authState !== "authed") {
     return (

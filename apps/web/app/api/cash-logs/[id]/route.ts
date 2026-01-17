@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerAppwrite } from "../../../../lib/appwrite-server";
+import { Query } from "node-appwrite";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +18,38 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
 
+  const { databases, config, workspaceId } = ctx;
   const { id } = await context.params;
+
+  // Verify the cash log exists and belongs to the user's workspace
+  try {
+    const existingLogs = await databases.listDocuments(
+      config.databaseId,
+      "cash_logs",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingLogs.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Cash log not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying cash log ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying cash log ownership." },
+      { status: 500 }
+    );
+  }
 
   try {
     const body = (await request.json()) as {
@@ -67,8 +91,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const doc = await serverClient.databases.updateDocument(
-      serverClient.databaseId,
+    const doc = await databases.updateDocument(
+      config.databaseId,
       "cash_logs",
       id,
       updates
@@ -95,19 +119,42 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
+    );
+  }
+
+  const { databases, config, workspaceId } = ctx;
+  const { id } = await context.params;
+
+  // Verify the cash log exists and belongs to the user's workspace
+  try {
+    const existingLogs = await databases.listDocuments(
+      config.databaseId,
+      "cash_logs",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingLogs.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Cash log not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying cash log ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying cash log ownership." },
       { status: 500 }
     );
   }
 
-  const { id } = await context.params;
-
   try {
-    await serverClient.databases.deleteDocument(
-      serverClient.databaseId,
+    await databases.deleteDocument(
+      config.databaseId,
       "cash_logs",
       id
     );

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, ID, Query } from "node-appwrite";
+import { Databases, ID, Query } from "node-appwrite";
+import { getApiContext } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DEFAULT_WORKSPACE_ID = "default";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_CATEGORIES = [
   "Income - Primary",
@@ -66,11 +66,12 @@ type HistoryMatch = {
 
 async function loadWorkspaceCategories(
   databases: Databases,
-  databaseId: string
+  databaseId: string,
+  workspaceId: string
 ): Promise<string[]> {
   try {
     const response = await databases.listDocuments(databaseId, "categories", [
-      Query.equal("workspace_id", DEFAULT_WORKSPACE_ID)
+      Query.equal("workspace_id", workspaceId)
     ]);
     const names = response.documents
       .map((doc) => String(doc.name ?? "").trim())
@@ -243,20 +244,18 @@ async function fetchHistoryMatches(
 }
 
 export async function POST(request: Request) {
-  const endpoint = process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId = process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId = process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
+  const ctx = await getApiContext();
+  if (!ctx) {
+    return NextResponse.json(
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
+    );
+  }
+
+  const { databases, config, workspaceId } = ctx;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const openRouterModel =
     process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
-    );
-  }
 
   const body = (await request.json()) as {
     sourceName?: string;
@@ -271,13 +270,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "No rows provided." }, { status: 400 });
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
   const importId = ID.unique();
   const importDoc = {
-    workspace_id: DEFAULT_WORKSPACE_ID,
+    workspace_id: workspaceId,
     source_name: body.sourceName ?? "CSV",
     source_account: body.sourceAccount ?? "",
     source_owner: body.sourceOwner ?? "",
@@ -287,7 +282,7 @@ export async function POST(request: Request) {
     uploaded_at: new Date().toISOString()
   };
 
-  await databases.createDocument(databaseId, "imports", importId, importDoc);
+  await databases.createDocument(config.databaseId, "imports", importId, importDoc);
 
   const createdTransactions: CategorizationInput[] = [];
 
@@ -304,7 +299,7 @@ export async function POST(request: Request) {
         : rawCategory;
     const transactionId = ID.unique();
     const transactionDoc = {
-      workspace_id: DEFAULT_WORKSPACE_ID,
+      workspace_id: workspaceId,
       import_id: importId,
       date: row.date ?? "",
       description: row.description ?? "",
@@ -321,7 +316,7 @@ export async function POST(request: Request) {
     };
 
     await databases.createDocument(
-      databaseId,
+      config.databaseId,
       "transactions",
       transactionId,
       transactionDoc
@@ -345,17 +340,17 @@ export async function POST(request: Request) {
 
   if (shouldAutoCategorize && openRouterKey) {
     try {
-      const categories = await loadWorkspaceCategories(databases, databaseId);
+      const categories = await loadWorkspaceCategories(databases, config.databaseId, workspaceId);
       const categorizedIds = new Set<string>();
       let remainingTransactions = createdTransactions;
 
       if (referenceDate && sourceAccount) {
         const range = getPreviousMonthRange(referenceDate);
         const historyResponse = await databases.listDocuments(
-          databaseId,
+          config.databaseId,
           "transactions",
           [
-            Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+            Query.equal("workspace_id", workspaceId),
             Query.equal("source_account", sourceAccount),
             Query.orderDesc("date"),
             Query.limit(400)
@@ -395,7 +390,7 @@ export async function POST(request: Request) {
             );
             if (normalizedCategory === "Uncategorised") continue;
             await databases.updateDocument(
-              databaseId,
+              config.databaseId,
               "transactions",
               match.id,
               {
@@ -438,7 +433,7 @@ export async function POST(request: Request) {
             continue;
           }
           await databases.updateDocument(
-            databaseId,
+            config.databaseId,
             "transactions",
             transaction.id,
             {
@@ -457,27 +452,18 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
+  const { databases, config, workspaceId } = ctx;
 
-  const response = await databases.listDocuments(databaseId, "imports", [
-    Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+  const response = await databases.listDocuments(config.databaseId, "imports", [
+    Query.equal("workspace_id", workspaceId),
     Query.orderDesc("uploaded_at"),
     Query.limit(30)
   ]);

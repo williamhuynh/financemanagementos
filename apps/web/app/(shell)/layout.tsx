@@ -5,6 +5,7 @@ import { getNavItems } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 import { AuthProvider } from "../../lib/auth-context";
+import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
 
 export const dynamic = "force-dynamic";
@@ -19,17 +20,19 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
 
   return (
     <AuthProvider>
-      <NumberVisibilityProvider>
-        <div className="app-shell">
-          <Sidebar navItems={navItems} />
-          <main className="main">
-            <Suspense fallback={<div className="topbar" />}>
-              <TopbarWithUser />
-            </Suspense>
-            <AuthGate>{children}</AuthGate>
-          </main>
-        </div>
-      </NumberVisibilityProvider>
+      <WorkspaceProvider>
+        <NumberVisibilityProvider>
+          <div className="app-shell">
+            <Sidebar navItems={navItems} />
+            <main className="main">
+              <Suspense fallback={<div className="topbar" />}>
+                <TopbarWithUser />
+              </Suspense>
+              <AuthGate>{children}</AuthGate>
+            </main>
+          </div>
+        </NumberVisibilityProvider>
+      </WorkspaceProvider>
     </AuthProvider>
   );
 }

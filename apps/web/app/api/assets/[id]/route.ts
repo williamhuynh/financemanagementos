@@ -1,26 +1,20 @@
 import { NextResponse } from "next/server";
-import { Client, Databases, Query } from "node-appwrite";
-
-const DEFAULT_WORKSPACE_ID = "default";
+import { Query } from "node-appwrite";
+import { getApiContext } from "../../../../lib/api-auth";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
     );
   }
+
+  const { databases, config, workspaceId } = ctx;
 
   const body = (await request.json()) as {
     name?: string;
@@ -32,7 +26,7 @@ export async function PATCH(
   };
 
   const updates: Record<string, unknown> = {
-    workspace_id: DEFAULT_WORKSPACE_ID
+    workspace_id: workspaceId
   };
 
   if (body.name !== undefined) {
@@ -61,13 +55,31 @@ export async function PATCH(
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
   const { id } = await params;
 
-  await databases.updateDocument(databaseId, "assets", id, updates);
+  // Verify the asset exists and belongs to the user's workspace
+  try {
+    const existingAssets = await databases.listDocuments(
+      config.databaseId,
+      "assets",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingAssets.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Asset not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying asset ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying asset ownership." },
+      { status: 500 }
+    );
+  }
+
+  await databases.updateDocument(config.databaseId, "assets", id, updates);
 
   return NextResponse.json({ ok: true });
 }
@@ -76,35 +88,48 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
+  const ctx = await getApiContext();
+  if (!ctx) {
     return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
+      { detail: "Unauthorized or missing configuration." },
+      { status: 401 }
+    );
+  }
+
+  const { databases, config, workspaceId } = ctx;
+  const { id } = await params;
+
+  // Verify the asset exists and belongs to the user's workspace
+  try {
+    const existingAssets = await databases.listDocuments(
+      config.databaseId,
+      "assets",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existingAssets.documents.length === 0) {
+      return NextResponse.json(
+        { detail: "Asset not found or access denied." },
+        { status: 404 }
+      );
+    }
+  } catch (error) {
+    console.error("Error verifying asset ownership:", error);
+    return NextResponse.json(
+      { detail: "Error verifying asset ownership." },
       { status: 500 }
     );
   }
 
-  const client = new Client();
-  client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
-  const databases = new Databases(client);
-
-  const { id } = await params;
   const deletedAt = new Date().toISOString();
 
   let offset = 0;
   while (true) {
     const response = await databases.listDocuments(
-      databaseId,
+      config.databaseId,
       "asset_values",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.equal("asset_id", id),
         Query.limit(100),
         Query.offset(offset)
@@ -116,7 +141,7 @@ export async function DELETE(
     }
     for (const doc of documents) {
       await databases.updateDocument(
-        databaseId,
+        config.databaseId,
         "asset_values",
         String(doc.$id ?? ""),
         { deleted_at: deletedAt }
@@ -128,7 +153,7 @@ export async function DELETE(
     }
   }
 
-  await databases.updateDocument(databaseId, "assets", id, {
+  await databases.updateDocument(config.databaseId, "assets", id, {
     deleted_at: deletedAt
   });
 
