@@ -123,7 +123,7 @@ export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible }: 
       <div className="topbar-actions">
         {onToggleNumberVisibility && (
           <button
-            className="secondary-btn"
+            className="toggle-btn"
             type="button"
             onClick={onToggleNumberVisibility}
             aria-label={numbersVisible ? "Hide numbers" : "Show numbers"}

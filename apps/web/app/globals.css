@@ -277,6 +277,25 @@ h3,
   border-color: var(--accent);
 }
 
+.toggle-btn {
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: rgba(242, 164, 59, 0.12);
+  border: 1px solid rgba(242, 164, 59, 0.4);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-btn:hover {
+  background: rgba(242, 164, 59, 0.2);
+  border-color: rgba(242, 164, 59, 0.6);
+}
+
 .pill {
   border-color: var(--border);
   background: rgba(26, 33, 46, 0.6);
