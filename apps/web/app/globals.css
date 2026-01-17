@@ -266,6 +266,17 @@ h3,
   background: rgba(26, 33, 46, 0.6);
 }
 
+.secondary-btn {
+  border-color: var(--border);
+  color: var(--text-primary);
+  background: rgba(26, 33, 46, 0.8);
+}
+
+.secondary-btn:hover {
+  background: rgba(26, 33, 46, 1);
+  border-color: var(--accent);
+}
+
 .pill {
   border-color: var(--border);
   background: rgba(26, 33, 46, 0.6);

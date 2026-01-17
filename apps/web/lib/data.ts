@@ -642,6 +642,34 @@ function formatSignedCurrency(amount: number, currency = "AUD") {
   return `${sign}${formatCurrencyValue(Math.abs(amount), currency)}`;
 }
 
+export function maskCurrencyValue(formattedValue: string, isVisible: boolean) {
+  if (isVisible) {
+    return formattedValue;
+  }
+
+  // Extract currency symbol and numeric part
+  // For example: "$1,234.56" or "-$1,234.56"
+  const match = formattedValue.match(/^(-?)(\$|[A-Z]{3})\s?([\d,]+\.?\d*)/);
+
+  if (!match) {
+    // If format doesn't match, just show first 2 chars + asterisks
+    return formattedValue.slice(0, 2) + "***";
+  }
+
+  const [, sign, currencySymbol, numericPart] = match;
+
+  // Remove commas and get just the digits
+  const digits = numericPart.replace(/,/g, "");
+
+  // Show first 2 digits and mask the rest
+  if (digits.length <= 2) {
+    return `${sign}${currencySymbol}${digits.slice(0, 2)}***`;
+  }
+
+  const firstTwo = digits.slice(0, 2);
+  return `${sign}${currencySymbol}${firstTwo}***`;
+}
+
 function normalizeAssetKey(value: string) {
   return value.trim().toLowerCase();
 }
