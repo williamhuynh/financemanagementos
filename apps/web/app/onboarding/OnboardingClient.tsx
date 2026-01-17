@@ -73,9 +73,21 @@ export default function OnboardingClient() {
     setStatusMessage(null);
 
     try {
+      // Get the current session token
+      const appwrite = getAppwriteClient();
+      if (!appwrite) {
+        throw new Error("Appwrite client not available");
+      }
+
+      const account = new Account(appwrite.client);
+      const session = await account.getSession("current");
+
       const response = await fetch("/api/workspaces", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.secret}`
+        },
         body: JSON.stringify({
           name: finalName,
           currency

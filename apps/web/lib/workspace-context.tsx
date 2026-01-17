@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { Account } from 'appwrite';
 import { useAuth } from './auth-context';
+import { getAppwriteClient } from './appwriteClient';
 
 export interface Workspace {
   id: string;
@@ -24,6 +26,27 @@ interface WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceState | undefined>(undefined);
 
+/**
+ * Helper function to get Authorization headers with the current session token
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  try {
+    const appwrite = getAppwriteClient();
+    if (!appwrite) {
+      return {};
+    }
+
+    const account = new Account(appwrite.client);
+    const session = await account.getSession('current');
+    return {
+      Authorization: `Bearer ${session.secret}`
+    };
+  } catch (error) {
+    console.error('Error getting session token:', error);
+    return {};
+  }
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -39,7 +62,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch('/api/workspaces');
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch('/api/workspaces', {
+        headers: authHeaders
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch workspaces');
       }
@@ -91,9 +117,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currency: string = 'AUD'
   ): Promise<Workspace | null> => {
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch('/api/workspaces', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
         body: JSON.stringify({ name, currency })
       });
 

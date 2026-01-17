@@ -21,18 +21,35 @@ function getServerConfig() {
   return { endpoint, projectId, databaseId, apiKey };
 }
 
-async function getCurrentUser(config: { endpoint: string; projectId: string }) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
+async function getCurrentUser(
+  config: { endpoint: string; projectId: string },
+  request?: NextRequest
+) {
+  // Try to get session from Authorization header first (for Appwrite Cloud)
+  let sessionToken: string | null = null;
 
-  if (!sessionCookie?.value) {
+  if (request) {
+    const authHeader = request.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      sessionToken = authHeader.substring(7);
+    }
+  }
+
+  // Fall back to cookie-based session (for self-hosted Appwrite)
+  if (!sessionToken) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
+    sessionToken = sessionCookie?.value ?? null;
+  }
+
+  if (!sessionToken) {
     return null;
   }
 
   try {
     const client = new Client();
     client.setEndpoint(config.endpoint).setProject(config.projectId);
-    client.setSession(sessionCookie.value);
+    client.setSession(sessionToken);
 
     const account = new Account(client);
     return await account.get();
@@ -44,7 +61,7 @@ async function getCurrentUser(config: { endpoint: string; projectId: string }) {
 /**
  * GET /api/workspaces - Get all workspaces for the current user
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const config = getServerConfig();
   if (!config) {
     return NextResponse.json(
@@ -53,7 +70,7 @@ export async function GET() {
     );
   }
 
-  const user = await getCurrentUser(config);
+  const user = await getCurrentUser(config, request);
   if (!user) {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
@@ -121,7 +138,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const user = await getCurrentUser(config);
+  const user = await getCurrentUser(config, request);
   if (!user) {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
