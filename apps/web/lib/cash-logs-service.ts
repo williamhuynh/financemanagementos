@@ -1,21 +1,28 @@
 import { Query } from "node-appwrite";
 import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "./appwrite-server";
 
+export type ParsedItem = {
+  description: string;
+  amount: number;
+  category: string;
+  confidence?: number;
+};
+
 export type CashLog = {
   id: string;
   text: string;
   date: string;
   month: string;
-  status: string;
-  source: string;
+  status: "draft" | "processed" | "committed";
+  source: "text" | "voice";
   isIncome: boolean;
-  parsedItems: unknown[] | null;
+  parsedItems: ParsedItem[] | null;
   createdAt: string;
 };
 
 export type Category = string;
 
-function safeParseParsedItems(json: string): unknown[] | null {
+function safeParseParsedItems(json: string): ParsedItem[] | null {
   try {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? parsed : null;
@@ -71,8 +78,8 @@ export async function fetchCashLogs(
       text: doc.text ?? "",
       date: doc.date ?? "",
       month: doc.month ?? "",
-      status: doc.status ?? "draft",
-      source: doc.source ?? "text",
+      status: (doc.status ?? "draft") as "draft" | "processed" | "committed",
+      source: (doc.source ?? "text") as "text" | "voice",
       isIncome: doc.isIncome ?? false,
       parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
       createdAt: doc.$createdAt
