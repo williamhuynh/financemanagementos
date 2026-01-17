@@ -1,53 +1,9 @@
 import { SectionHead } from "@financelab/ui";
 import CashLogClient from "./CashLogClient";
+import { fetchCashLogs, fetchCategories } from "../../../lib/cash-logs-service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-async function getCashLogs(month?: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const params = new URLSearchParams();
-  if (month) {
-    params.set("month", month);
-  }
-
-  const url = `${baseUrl}/api/cash-logs?${params}`;
-  console.log("[CASH-PAGE] Fetching logs from:", url);
-
-  try {
-    const response = await fetch(url, {
-      cache: "no-store"
-    });
-    console.log("[CASH-PAGE] Response status:", response.status);
-    if (!response.ok) {
-      console.error("[CASH-PAGE] Response not OK:", response.status, response.statusText);
-      return [];
-    }
-    const data = await response.json();
-    console.log("[CASH-PAGE] Received data:", data);
-    console.log("[CASH-PAGE] Logs count:", data.logs?.length ?? 0);
-    return data.logs ?? [];
-  } catch (error) {
-    console.error("[CASH-PAGE] Fetch error:", error);
-    return [];
-  }
-}
-
-async function getCategories() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  try {
-    const response = await fetch(`${baseUrl}/api/categories`, {
-      cache: "no-store"
-    });
-    if (!response.ok) {
-      return [];
-    }
-    const data = await response.json();
-    return data.categories ?? [];
-  } catch {
-    return [];
-  }
-}
 
 function getCurrentMonth() {
   // Use ISO date string to avoid timezone issues
@@ -100,9 +56,9 @@ export default async function CashPage({ searchParams }: CashPageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedMonth = resolvedSearchParams?.month || getCurrentMonth();
   console.log("[CASH-PAGE] Selected month:", selectedMonth);
-  const logs = await getCashLogs(selectedMonth);
-  console.log("[CASH-PAGE] Received", logs.length, "logs from getCashLogs");
-  const categories = await getCategories();
+  const logs = await fetchCashLogs(selectedMonth);
+  console.log("[CASH-PAGE] Received", logs.length, "logs");
+  const categories = await fetchCategories();
   const monthOptions = buildMonthOptions(6);
   console.log("[CASH-PAGE] Month options:", monthOptions.map(o => o.value).join(", "));
 
