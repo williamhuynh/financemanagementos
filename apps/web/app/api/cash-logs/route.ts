@@ -38,6 +38,8 @@ export async function GET(request: Request) {
   const month = searchParams.get("month");
   const status = searchParams.get("status");
 
+  console.log("[CASH-LOGS-API] GET request - month:", month, "status:", status);
+
   try {
     const queries = [
       Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
@@ -54,11 +56,18 @@ export async function GET(request: Request) {
       queries.push(Query.equal("status", status));
     }
 
+    console.log("[CASH-LOGS-API] Querying with:", queries.map(q => q.toString()));
+
     const response = await serverClient.databases.listDocuments(
       serverClient.databaseId,
       "cash_logs",
       queries
     );
+
+    console.log("[CASH-LOGS-API] Found", response.documents.length, "documents");
+    response.documents.forEach((doc, i) => {
+      console.log(`  [${i}] id=${doc.$id}, date=${doc.date}, month=${doc.month}, status=${doc.status}, text="${doc.text?.substring(0, 30)}..."`);
+    });
 
     const logs = response.documents.map((doc) => ({
       id: doc.$id,
@@ -72,6 +81,7 @@ export async function GET(request: Request) {
       createdAt: doc.$createdAt
     }));
 
+    console.log("[CASH-LOGS-API] Returning", logs.length, "logs");
     return NextResponse.json({ logs });
   } catch (error) {
     console.error("Failed to fetch cash logs:", error);

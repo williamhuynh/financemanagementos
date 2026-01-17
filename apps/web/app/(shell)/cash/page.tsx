@@ -11,16 +11,24 @@ async function getCashLogs(month?: string) {
     params.set("month", month);
   }
 
+  const url = `${baseUrl}/api/cash-logs?${params}`;
+  console.log("[CASH-PAGE] Fetching logs from:", url);
+
   try {
-    const response = await fetch(`${baseUrl}/api/cash-logs?${params}`, {
+    const response = await fetch(url, {
       cache: "no-store"
     });
+    console.log("[CASH-PAGE] Response status:", response.status);
     if (!response.ok) {
+      console.error("[CASH-PAGE] Response not OK:", response.status, response.statusText);
       return [];
     }
     const data = await response.json();
+    console.log("[CASH-PAGE] Received data:", data);
+    console.log("[CASH-PAGE] Logs count:", data.logs?.length ?? 0);
     return data.logs ?? [];
-  } catch {
+  } catch (error) {
+    console.error("[CASH-PAGE] Fetch error:", error);
     return [];
   }
 }
@@ -91,9 +99,12 @@ type CashPageProps = {
 export default async function CashPage({ searchParams }: CashPageProps) {
   const resolvedSearchParams = await searchParams;
   const selectedMonth = resolvedSearchParams?.month || getCurrentMonth();
+  console.log("[CASH-PAGE] Selected month:", selectedMonth);
   const logs = await getCashLogs(selectedMonth);
+  console.log("[CASH-PAGE] Received", logs.length, "logs from getCashLogs");
   const categories = await getCategories();
   const monthOptions = buildMonthOptions(6);
+  console.log("[CASH-PAGE] Month options:", monthOptions.map(o => o.value).join(", "));
 
   return (
     <>
