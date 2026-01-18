@@ -69,7 +69,14 @@ export default function SignupClient() {
       await account.create(ID.unique(), email, password, name);
 
       // Create a session (log them in)
-      await account.createEmailPasswordSession(email, password);
+      const session = await account.createEmailPasswordSession(email, password);
+
+      // Store the session secret for API authentication
+      // This is needed because getSession('current') doesn't return the secret
+      if (session.secret) {
+        localStorage.setItem('appwrite_session_secret', session.secret);
+        console.log('[SIGNUP] Session secret stored for API authentication');
+      }
 
       // Redirect to onboarding for new users
       router.replace("/onboarding");

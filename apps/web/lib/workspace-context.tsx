@@ -40,12 +40,18 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     const account = new Account(appwrite.client);
     console.log('[CLIENT] Fetching current session...');
     const session = await account.getSession('current');
+
+    // Get the session secret from localStorage (stored during login)
+    // getSession('current') doesn't return the secret, only createSession does
+    const sessionSecret = localStorage.getItem('appwrite_session_secret');
+
     console.log('[CLIENT] Session retrieved:', {
       sessionId: session.$id,
       userId: session.userId,
       provider: session.provider,
       expire: session.expire,
-      secretLength: session.secret?.length || 0,
+      hasStoredSecret: !!sessionSecret,
+      secretLength: sessionSecret?.length || 0,
       expireDate: new Date(session.expire).toISOString()
     });
 
@@ -60,14 +66,17 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       return {};
     }
 
+    if (!sessionSecret) {
+      console.error('[CLIENT] No session secret found in localStorage');
+      return {};
+    }
+
     // For Appwrite: use the full session token (secret) for authentication
     // The server-side will validate this using client.setSession()
-    // Note: session secret is the actual authentication token, not the session ID
-    const token = session.secret;
-    console.log(`[CLIENT] Using session secret as Bearer token (length: ${token.length})`);
+    console.log(`[CLIENT] Using session secret as Bearer token (length: ${sessionSecret.length})`);
 
     return {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${sessionSecret}`
     };
   } catch (error) {
     console.error('[CLIENT] Error getting session token:', error);

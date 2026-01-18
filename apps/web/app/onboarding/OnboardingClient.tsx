@@ -69,6 +69,8 @@ export default function OnboardingClient() {
     try {
       const account = new Account(appwrite.client);
       await account.deleteSession("current");
+      // Clear the stored session secret
+      localStorage.removeItem('appwrite_session_secret');
       router.replace("/login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -100,18 +102,23 @@ export default function OnboardingClient() {
       const account = new Account(appwrite.client);
       const session = await account.getSession("current");
 
+      // Get the session secret from localStorage (stored during login)
+      // getSession('current') doesn't return the secret, only createSession does
+      const sessionSecret = localStorage.getItem('appwrite_session_secret');
+
       console.log('[ONBOARDING] Creating workspace with session:', {
         sessionId: session.$id,
         userId: session.userId,
-        secretLength: session.secret?.length || 0,
-        secretPreview: session.secret ? `${session.secret.substring(0, 30)}...` : 'null'
+        hasStoredSecret: !!sessionSecret,
+        secretLength: sessionSecret?.length || 0,
+        secretPreview: sessionSecret ? `${sessionSecret.substring(0, 30)}...` : 'null'
       });
 
-      if (!session.secret) {
-        throw new Error("Session secret is missing. Please try logging out and back in.");
+      if (!sessionSecret) {
+        throw new Error("Session secret is missing. Please log out and log back in to refresh your session.");
       }
 
-      const authHeader = `Bearer ${session.secret}`;
+      const authHeader = `Bearer ${sessionSecret}`;
       console.log('[ONBOARDING] Authorization header being sent:', authHeader.substring(0, 50) + '...');
 
       const response = await fetch("/api/workspaces", {

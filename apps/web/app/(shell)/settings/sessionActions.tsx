@@ -23,6 +23,8 @@ export default function SessionActions() {
     try {
       const account = new Account(appwrite.client);
       await account.deleteSession("current");
+      // Clear the stored session secret
+      localStorage.removeItem("appwrite_session_secret");
       router.replace("/login");
     } catch (error) {
       setSignOutState("error");
