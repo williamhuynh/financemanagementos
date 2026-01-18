@@ -48,10 +48,11 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       secretLength: session.secret?.length || 0
     });
 
-    // For Appwrite Cloud: use session.$id as the session token
+    // For Appwrite: use the full session token (secret) for authentication
     // The server-side will validate this using client.setSession()
-    const token = session.$id;
-    console.log(`[CLIENT] Using session ID as Bearer token: ${token}`);
+    // Note: session secret is the actual authentication token, not the session ID
+    const token = session.secret;
+    console.log(`[CLIENT] Using session secret as Bearer token (length: ${token.length})`);
 
     return {
       Authorization: `Bearer ${token}`
