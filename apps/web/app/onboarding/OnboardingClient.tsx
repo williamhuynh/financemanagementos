@@ -103,14 +103,22 @@ export default function OnboardingClient() {
       console.log('[ONBOARDING] Creating workspace with session:', {
         sessionId: session.$id,
         userId: session.userId,
-        secretLength: session.secret?.length || 0
+        secretLength: session.secret?.length || 0,
+        secretPreview: session.secret ? `${session.secret.substring(0, 30)}...` : 'null'
       });
+
+      if (!session.secret) {
+        throw new Error("Session secret is missing. Please try logging out and back in.");
+      }
+
+      const authHeader = `Bearer ${session.secret}`;
+      console.log('[ONBOARDING] Authorization header being sent:', authHeader.substring(0, 50) + '...');
 
       const response = await fetch("/api/workspaces", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.secret}`
+          Authorization: authHeader
         },
         body: JSON.stringify({
           name: finalName,

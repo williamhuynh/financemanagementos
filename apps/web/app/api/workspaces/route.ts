@@ -79,6 +79,11 @@ export async function GET() {
 export async function POST(request: Request) {
   console.log("[WORKSPACE] POST /api/workspaces - Create workspace request received");
 
+  // Log all headers for debugging
+  const headerEntries = Array.from(request.headers.entries());
+  console.log("[WORKSPACE] All request headers:", Object.fromEntries(headerEntries));
+  console.log("[WORKSPACE] Authorization header specifically:", request.headers.get("Authorization") || "not present");
+
   const config = getServerConfig();
   if (!config) {
     console.error("[WORKSPACE] Missing Appwrite server configuration");
