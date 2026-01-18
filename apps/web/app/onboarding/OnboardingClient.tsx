@@ -92,7 +92,7 @@ export default function OnboardingClient() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.$id}`
+          Authorization: `Bearer ${session.secret}`
         },
         body: JSON.stringify({
           name: finalName,
