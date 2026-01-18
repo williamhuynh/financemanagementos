@@ -68,6 +68,11 @@ export async function getCurrentUser(
       tokenSource = "session cookie";
       console.log(`[AUTH] Session token found in ${tokenSource}`);
       console.log(`[AUTH] Token length: ${sessionToken.length}, starts with: ${sessionToken.substring(0, 20)}...`);
+    } else {
+      // Log all available cookies for debugging
+      const allCookies = cookieStore.getAll();
+      console.log(`[AUTH] No session cookie found. Expected: a_session_${config.projectId}`);
+      console.log(`[AUTH] Available cookies:`, allCookies.map(c => c.name).join(', ') || 'none');
     }
   }
 
