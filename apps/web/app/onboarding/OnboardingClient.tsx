@@ -82,17 +82,25 @@ export default function OnboardingClient() {
       const account = new Account(appwrite.client);
       const session = await account.getSession("current");
 
+      console.log('[ONBOARDING] Creating workspace with session:', {
+        sessionId: session.$id,
+        userId: session.userId,
+        secretLength: session.secret?.length || 0
+      });
+
       const response = await fetch("/api/workspaces", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.secret}`
+          Authorization: `Bearer ${session.$id}`
         },
         body: JSON.stringify({
           name: finalName,
           currency
         })
       });
+
+      console.log('[ONBOARDING] Response:', response.status, response.statusText);
 
       if (!response.ok) {
         const data = await response.json();
