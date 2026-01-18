@@ -78,16 +78,10 @@ export default function LoginClient() {
 
     try {
       const account = new Account(appwrite.client);
-      const session = await account.createEmailPasswordSession(email, password);
+      await account.createEmailPasswordSession(email, password);
 
-      // Store the session secret for API authentication
-      // This is needed because getSession('current') doesn't return the secret
-      if (session.secret) {
-        localStorage.setItem('appwrite_session_secret', session.secret);
-        console.log('[LOGIN] Session secret stored for API authentication');
-      }
-
-      // Session created successfully, redirect
+      // Session created successfully - cookies are set automatically by Appwrite
+      // No need to manually store anything!
       router.replace(nextPath);
     } catch (error) {
       setFormState("error");
