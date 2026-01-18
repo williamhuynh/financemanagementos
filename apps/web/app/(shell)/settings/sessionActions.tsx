@@ -13,17 +13,13 @@ export default function SessionActions() {
   const [signOutState, setSignOutState] = useState<SignOutState>("idle");
 
   const handleSignOut = async () => {
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      setSignOutState("error");
-      return;
-    }
-
     setSignOutState("working");
     try {
-      const account = new Account(appwrite.client);
-      await account.deleteSession("current");
-      // Cookies are cleared automatically by Appwrite
+      // Use server-side session API
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      // Session destroyed server-side
       router.replace("/login");
     } catch (error) {
       setSignOutState("error");

@@ -63,28 +63,27 @@ export default function SignupClient() {
     setStatusMessage(null);
 
     try {
-      const account = new Account(appwrite.client);
+      // Use server-side session API for Appwrite Cloud compatibility
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-      // Create the user account
-      await account.create(ID.unique(), email, password, name);
+      const data = await response.json();
 
-      // Create a session (log them in)
-      // Cookies are set automatically by Appwrite - no need to manually store anything!
-      await account.createEmailPasswordSession(email, password);
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create account");
+      }
 
-      // Redirect to onboarding for new users
+      // Session stored server-side - secure HttpOnly cookie set automatically
       router.replace("/onboarding");
     } catch (error: unknown) {
       setFormState("error");
       if (error instanceof Error) {
-        // Appwrite specific error messages
-        if (error.message.includes("already exists")) {
-          setStatusMessage("An account with this email already exists. Please sign in instead.");
-        } else if (error.message.includes("Invalid email")) {
-          setStatusMessage("Please enter a valid email address.");
-        } else {
-          setStatusMessage(error.message);
-        }
+        setStatusMessage(error.message);
       } else {
         setStatusMessage("Something went wrong. Please try again.");
       }

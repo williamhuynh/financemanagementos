@@ -1,0 +1,19 @@
+import { NextResponse } from "next/server";
+import { getSession } from "../../../../lib/session";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * POST /api/auth/logout - Destroy server-side session
+ */
+export async function POST() {
+  try {
+    const session = await getSession();
+    session.destroy();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[AUTH] Logout error:", error);
+    return NextResponse.json({ error: "Logout failed" }, { status: 500 });
+  }
+}

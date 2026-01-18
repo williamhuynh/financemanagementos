@@ -60,16 +60,13 @@ export default function OnboardingClient() {
   }, [router]);
 
   const handleLogout = async () => {
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      return;
-    }
-
     setIsLoggingOut(true);
     try {
-      const account = new Account(appwrite.client);
-      await account.deleteSession("current");
-      // Cookies are cleared automatically by Appwrite
+      // Use server-side session API
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      // Session destroyed server-side
       router.replace("/login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -92,15 +89,9 @@ export default function OnboardingClient() {
     setStatusMessage(null);
 
     try {
-      // Get the current session token
-      const appwrite = getAppwriteClient();
-      if (!appwrite) {
-        throw new Error("Appwrite client not available");
-      }
-
       console.log('[ONBOARDING] Creating workspace...');
 
-      // Cookies are sent automatically by the browser - no manual headers needed!
+      // Session cookie sent automatically by the browser
       const response = await fetch("/api/workspaces", {
         method: "POST",
         headers: {
