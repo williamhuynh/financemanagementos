@@ -45,8 +45,20 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       userId: session.userId,
       provider: session.provider,
       expire: session.expire,
-      secretLength: session.secret?.length || 0
+      secretLength: session.secret?.length || 0,
+      expireDate: new Date(session.expire).toISOString()
     });
+
+    // Check if session has expired
+    const now = new Date().getTime() / 1000;
+    const expireTime = new Date(session.expire).getTime() / 1000;
+    if (expireTime < now) {
+      console.error('[CLIENT] Session has expired!', {
+        expire: session.expire,
+        now: new Date().toISOString()
+      });
+      return {};
+    }
 
     // For Appwrite: use the full session token (secret) for authentication
     // The server-side will validate this using client.setSession()
@@ -59,6 +71,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     };
   } catch (error) {
     console.error('[CLIENT] Error getting session token:', error);
+    if (error instanceof Error) {
+      console.error('[CLIENT] Error message:', error.message);
+      console.error('[CLIENT] Error stack:', error.stack);
+    }
     return {};
   }
 }
@@ -137,6 +153,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       const authHeaders = await getAuthHeaders();
       console.log('[CLIENT] Auth headers prepared:', Object.keys(authHeaders));
 
+      // Check if we actually got auth headers
+      if (!authHeaders.Authorization) {
+        console.error('[CLIENT] No Authorization header available - session may be invalid');
+        throw new Error('Authentication failed. Please try logging out and logging back in.');
+      }
+
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
@@ -147,6 +169,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
 
       console.log(`[CLIENT] Response status: ${response.status} ${response.statusText}`);
+
+      if (response.status === 401) {
+        console.error('[CLIENT] Unauthorized (401) - session may be invalid or expired');
+        throw new Error('Your session has expired. Please log out and log back in to continue.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -165,7 +192,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return newWorkspace;
     } catch (error) {
       console.error('[CLIENT] Error creating workspace:', error);
-      return null;
+      throw error; // Re-throw to let the UI handle it
     }
   }, []);
 

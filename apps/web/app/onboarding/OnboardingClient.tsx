@@ -102,6 +102,12 @@ export default function OnboardingClient() {
 
       console.log('[ONBOARDING] Response:', response.status, response.statusText);
 
+      if (response.status === 401) {
+        setFormState("error");
+        setStatusMessage("Your session has expired. Please log out and log back in to continue. Visit /settings to log out.");
+        return;
+      }
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.detail || "Failed to create workspace");
