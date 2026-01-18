@@ -33,16 +33,31 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   try {
     const appwrite = getAppwriteClient();
     if (!appwrite) {
+      console.error('[CLIENT] Appwrite client not available');
       return {};
     }
 
     const account = new Account(appwrite.client);
+    console.log('[CLIENT] Fetching current session...');
     const session = await account.getSession('current');
+    console.log('[CLIENT] Session retrieved:', {
+      sessionId: session.$id,
+      userId: session.userId,
+      provider: session.provider,
+      expire: session.expire,
+      secretLength: session.secret?.length || 0
+    });
+
+    // For Appwrite Cloud: use session.$id as the session token
+    // The server-side will validate this using client.setSession()
+    const token = session.$id;
+    console.log(`[CLIENT] Using session ID as Bearer token: ${token}`);
+
     return {
-      Authorization: `Bearer ${session.secret}`
+      Authorization: `Bearer ${token}`
     };
   } catch (error) {
-    console.error('Error getting session token:', error);
+    console.error('[CLIENT] Error getting session token:', error);
     return {};
   }
 }
@@ -117,7 +132,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currency: string = 'AUD'
   ): Promise<Workspace | null> => {
     try {
+      console.log(`[CLIENT] Creating workspace: name="${name}", currency="${currency}"`);
       const authHeaders = await getAuthHeaders();
+      console.log('[CLIENT] Auth headers prepared:', Object.keys(authHeaders));
+
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
@@ -127,12 +145,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ name, currency })
       });
 
+      console.log(`[CLIENT] Response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
-        throw new Error('Failed to create workspace');
+        const errorData = await response.json();
+        console.error('[CLIENT] Error response:', errorData);
+        throw new Error(`Failed to create workspace: ${response.status} ${errorData.detail || response.statusText}`);
       }
 
       const data = await response.json();
       const newWorkspace = data.workspace;
+      console.log('[CLIENT] Workspace created successfully:', newWorkspace.id);
 
       setWorkspaces((prev) => [...prev, newWorkspace]);
       setCurrentWorkspaceId(newWorkspace.id);
@@ -140,7 +163,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       return newWorkspace;
     } catch (error) {
-      console.error('Error creating workspace:', error);
+      console.error('[CLIENT] Error creating workspace:', error);
       return null;
     }
   }, []);

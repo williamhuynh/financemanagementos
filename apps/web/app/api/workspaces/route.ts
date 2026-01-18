@@ -77,18 +77,25 @@ export async function GET() {
  * POST /api/workspaces - Create a new workspace
  */
 export async function POST(request: Request) {
+  console.log("[WORKSPACE] POST /api/workspaces - Create workspace request received");
+
   const config = getServerConfig();
   if (!config) {
+    console.error("[WORKSPACE] Missing Appwrite server configuration");
     return NextResponse.json(
       { detail: "Missing Appwrite server configuration." },
       { status: 500 }
     );
   }
 
+  console.log("[WORKSPACE] Checking user authentication...");
   const user = await getCurrentUser(config);
   if (!user) {
+    console.error("[WORKSPACE] User authentication failed - returning 401");
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
+
+  console.log(`[WORKSPACE] User authenticated: ${user.email} (${user.$id})`);
 
   let body: { name?: string; currency?: string };
   try {
@@ -101,8 +108,11 @@ export async function POST(request: Request) {
   const currency = body.currency?.trim() || "AUD";
 
   if (!name) {
+    console.error("[WORKSPACE] Workspace name is missing or empty");
     return NextResponse.json({ detail: "Workspace name is required" }, { status: 400 });
   }
+
+  console.log(`[WORKSPACE] Creating workspace: name="${name}", currency="${currency}", owner="${user.email}"`);
 
   const client = new Client();
   client.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
@@ -111,6 +121,7 @@ export async function POST(request: Request) {
   try {
     // Create the workspace
     const workspaceId = ID.unique();
+    console.log(`[WORKSPACE] Creating workspace document with ID: ${workspaceId}`);
     const workspace = await databases.createDocument(
       config.databaseId,
       "workspaces",
@@ -121,8 +132,10 @@ export async function POST(request: Request) {
         owner_id: user.$id
       }
     );
+    console.log(`[WORKSPACE] Workspace document created successfully`);
 
     // Add user as owner member
+    console.log(`[WORKSPACE] Adding user as owner member`);
     await databases.createDocument(
       config.databaseId,
       "workspace_members",
@@ -133,7 +146,9 @@ export async function POST(request: Request) {
         role: "owner"
       }
     );
+    console.log(`[WORKSPACE] Workspace member added successfully`);
 
+    console.log(`[WORKSPACE] Workspace creation completed successfully: ${workspace.$id}`);
     return NextResponse.json({
       workspace: {
         id: workspace.$id,
@@ -144,7 +159,10 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
-    console.error("Error creating workspace:", error);
+    console.error("[WORKSPACE] Error creating workspace:", error);
+    if (error instanceof Error) {
+      console.error(`[WORKSPACE] Error message: ${error.message}`);
+    }
     return NextResponse.json({ detail: "Failed to create workspace" }, { status: 500 });
   }
 }

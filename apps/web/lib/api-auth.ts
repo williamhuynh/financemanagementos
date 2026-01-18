@@ -48,11 +48,15 @@ export async function getCurrentUser(
 ): Promise<AuthenticatedUser | null> {
   // Try to get session from Authorization header first (for Appwrite Cloud)
   let sessionToken: string | null = null;
+  let tokenSource = "none";
 
   const headerStore = await headers();
   const authHeader = headerStore.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     sessionToken = authHeader.substring(7);
+    tokenSource = "Authorization header";
+    console.log(`[AUTH] Session token found in ${tokenSource}`);
+    console.log(`[AUTH] Token length: ${sessionToken.length}, starts with: ${sessionToken.substring(0, 20)}...`);
   }
 
   // Fall back to cookie-based session (for self-hosted Appwrite)
@@ -60,9 +64,16 @@ export async function getCurrentUser(
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
     sessionToken = sessionCookie?.value ?? null;
+    if (sessionToken) {
+      tokenSource = "session cookie";
+      console.log(`[AUTH] Session token found in ${tokenSource}`);
+      console.log(`[AUTH] Token length: ${sessionToken.length}, starts with: ${sessionToken.substring(0, 20)}...`);
+    }
   }
 
   if (!sessionToken) {
+    console.log("[AUTH] No session token found - checked Authorization header and cookies");
+    console.log(`[AUTH] Cookie name checked: a_session_${config.projectId}`);
     return null;
   }
 
@@ -74,12 +85,18 @@ export async function getCurrentUser(
     const account = new Account(client);
     const user = await account.get();
 
+    console.log(`[AUTH] Successfully validated user: ${user.email} (${user.$id}) via ${tokenSource}`);
+
     return {
       $id: user.$id,
       email: user.email,
       name: user.name
     };
-  } catch {
+  } catch (error) {
+    console.error(`[AUTH] Failed to validate session token from ${tokenSource}:`, error);
+    if (error instanceof Error) {
+      console.error(`[AUTH] Error message: ${error.message}`);
+    }
     return null;
   }
 }
