@@ -52,15 +52,22 @@ export async function getCurrentUser(
 
   const headerStore = await headers();
   const authHeader = headerStore.get("Authorization");
-  console.log(`[AUTH] Raw Authorization header:`, authHeader ? `"${authHeader.substring(0, 50)}..."` : 'null');
+  console.log(`[AUTH] Raw Authorization header:`, authHeader || 'null');
+  console.log(`[AUTH] Header length:`, authHeader?.length || 0);
+  console.log(`[AUTH] First 20 chars:`, authHeader ? JSON.stringify(authHeader.substring(0, 20)) : 'null');
+  console.log(`[AUTH] Starts with "Bearer ":`, authHeader?.startsWith("Bearer "));
 
-  if (authHeader?.startsWith("Bearer ")) {
-    sessionToken = authHeader.substring(7);
+  // Trim the header value to remove any whitespace
+  const trimmedAuthHeader = authHeader?.trim();
+
+  if (trimmedAuthHeader?.startsWith("Bearer ")) {
+    sessionToken = trimmedAuthHeader.substring(7).trim();
     tokenSource = "Authorization header";
     console.log(`[AUTH] Session token found in ${tokenSource}`);
     console.log(`[AUTH] Token length: ${sessionToken.length}, starts with: ${sessionToken.substring(0, 20)}...`);
-  } else if (authHeader) {
+  } else if (trimmedAuthHeader) {
     console.log(`[AUTH] Authorization header present but doesn't start with "Bearer "`);
+    console.log(`[AUTH] Header value (escaped):`, JSON.stringify(trimmedAuthHeader.substring(0, 100)));
   }
 
   // Fall back to cookie-based session (for self-hosted Appwrite)
