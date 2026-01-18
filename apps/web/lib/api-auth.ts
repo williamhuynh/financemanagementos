@@ -52,11 +52,15 @@ export async function getCurrentUser(
 
   const headerStore = await headers();
   const authHeader = headerStore.get("Authorization");
+  console.log(`[AUTH] Raw Authorization header:`, authHeader ? `"${authHeader.substring(0, 50)}..."` : 'null');
+
   if (authHeader?.startsWith("Bearer ")) {
     sessionToken = authHeader.substring(7);
     tokenSource = "Authorization header";
     console.log(`[AUTH] Session token found in ${tokenSource}`);
     console.log(`[AUTH] Token length: ${sessionToken.length}, starts with: ${sessionToken.substring(0, 20)}...`);
+  } else if (authHeader) {
+    console.log(`[AUTH] Authorization header present but doesn't start with "Bearer "`);
   }
 
   // Fall back to cookie-based session (for self-hosted Appwrite)
