@@ -69,6 +69,7 @@ export default function OnboardingClient() {
     try {
       const account = new Account(appwrite.client);
       await account.deleteSession("current");
+      // Cookies are cleared automatically by Appwrite
       router.replace("/login");
     } catch (error) {
       console.error("Error logging out:", error);
@@ -97,29 +98,15 @@ export default function OnboardingClient() {
         throw new Error("Appwrite client not available");
       }
 
-      const account = new Account(appwrite.client);
-      const session = await account.getSession("current");
+      console.log('[ONBOARDING] Creating workspace...');
 
-      console.log('[ONBOARDING] Creating workspace with session:', {
-        sessionId: session.$id,
-        userId: session.userId,
-        secretLength: session.secret?.length || 0,
-        secretPreview: session.secret ? `${session.secret.substring(0, 30)}...` : 'null'
-      });
-
-      if (!session.secret) {
-        throw new Error("Session secret is missing. Please try logging out and back in.");
-      }
-
-      const authHeader = `Bearer ${session.secret}`;
-      console.log('[ONBOARDING] Authorization header being sent:', authHeader.substring(0, 50) + '...');
-
+      // Cookies are sent automatically by the browser - no manual headers needed!
       const response = await fetch("/api/workspaces", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader
+          "Content-Type": "application/json"
         },
+        credentials: 'include', // Ensure cookies are included
         body: JSON.stringify({
           name: finalName,
           currency

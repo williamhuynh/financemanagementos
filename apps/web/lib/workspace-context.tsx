@@ -26,58 +26,7 @@ interface WorkspaceState {
 
 const WorkspaceContext = createContext<WorkspaceState | undefined>(undefined);
 
-/**
- * Helper function to get Authorization headers with the current session token
- */
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  try {
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      console.error('[CLIENT] Appwrite client not available');
-      return {};
-    }
-
-    const account = new Account(appwrite.client);
-    console.log('[CLIENT] Fetching current session...');
-    const session = await account.getSession('current');
-    console.log('[CLIENT] Session retrieved:', {
-      sessionId: session.$id,
-      userId: session.userId,
-      provider: session.provider,
-      expire: session.expire,
-      secretLength: session.secret?.length || 0,
-      expireDate: new Date(session.expire).toISOString()
-    });
-
-    // Check if session has expired
-    const now = new Date().getTime() / 1000;
-    const expireTime = new Date(session.expire).getTime() / 1000;
-    if (expireTime < now) {
-      console.error('[CLIENT] Session has expired!', {
-        expire: session.expire,
-        now: new Date().toISOString()
-      });
-      return {};
-    }
-
-    // For Appwrite: use the full session token (secret) for authentication
-    // The server-side will validate this using client.setSession()
-    // Note: session secret is the actual authentication token, not the session ID
-    const token = session.secret;
-    console.log(`[CLIENT] Using session secret as Bearer token (length: ${token.length})`);
-
-    return {
-      Authorization: `Bearer ${token}`
-    };
-  } catch (error) {
-    console.error('[CLIENT] Error getting session token:', error);
-    if (error instanceof Error) {
-      console.error('[CLIENT] Error message:', error.message);
-      console.error('[CLIENT] Error stack:', error.stack);
-    }
-    return {};
-  }
-}
+// No helper function needed - browser automatically sends cookies!
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
@@ -94,10 +43,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const authHeaders = await getAuthHeaders();
+      // Cookies are sent automatically by the browser - no manual headers needed!
       const response = await fetch('/api/workspaces', {
-        headers: authHeaders
+        credentials: 'include' // Ensure cookies are included
       });
+
       if (!response.ok) {
         throw new Error('Failed to fetch workspaces');
       }
@@ -150,21 +100,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   ): Promise<Workspace | null> => {
     try {
       console.log(`[CLIENT] Creating workspace: name="${name}", currency="${currency}"`);
-      const authHeaders = await getAuthHeaders();
-      console.log('[CLIENT] Auth headers prepared:', Object.keys(authHeaders));
 
-      // Check if we actually got auth headers
-      if (!authHeaders.Authorization) {
-        console.error('[CLIENT] No Authorization header available - session may be invalid');
-        throw new Error('Authentication failed. Please try logging out and logging back in.');
-      }
-
+      // Cookies are sent automatically by the browser - no manual headers needed!
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders
+          'Content-Type': 'application/json'
         },
+        credentials: 'include', // Ensure cookies are included
         body: JSON.stringify({ name, currency })
       });
 

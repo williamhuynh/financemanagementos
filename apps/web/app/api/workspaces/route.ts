@@ -1,35 +1,45 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, Query, ID } from "node-appwrite";
 import { getServerConfig, getCurrentUser } from "../../../lib/api-auth";
+import { createSessionClient } from "../../../lib/appwrite-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
  * GET /api/workspaces - Get all workspaces for the current user
+ *
+ * Production-ready approach: Uses session cookies (set by Appwrite) instead of localStorage.
  */
 export async function GET() {
-  const config = getServerConfig();
-  if (!config) {
-    return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
-    );
-  }
-
-  const user = await getCurrentUser(config);
-  if (!user) {
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
-  }
-
-  const client = new Client();
-  client.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-  const databases = new Databases(client);
-
   try {
+    // Create session client from cookies (secure, production-ready)
+    const session = await createSessionClient();
+
+    if (!session) {
+      console.error("[WORKSPACE] No active session found in cookies");
+      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get the authenticated user
+    const user = await session.account.get();
+
+    // Use the server API key for database operations (bypasses permissions)
+    const config = getServerConfig();
+    if (!config) {
+      return NextResponse.json(
+        { detail: "Missing Appwrite server configuration." },
+        { status: 500 }
+      );
+    }
+
+    const adminClient = new Client();
+    adminClient.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
+    const databases = new Databases(adminClient);
+
     // Get all memberships for user
     const memberships = await databases.listDocuments(
-      config.databaseId,
+      session.databaseId,
       "workspace_members",
       [Query.equal("user_id", user.$id), Query.limit(100)]
     );
@@ -43,7 +53,7 @@ export async function GET() {
     for (const membership of memberships.documents) {
       try {
         const workspace = await databases.getDocument(
-          config.databaseId,
+          session.databaseId,
           "workspaces",
           membership.workspace_id as string
         );
@@ -75,60 +85,63 @@ export async function GET() {
 
 /**
  * POST /api/workspaces - Create a new workspace
+ *
+ * Production-ready approach: Uses session cookies (set by Appwrite) instead of localStorage.
+ * This is secure and works with HttpOnly cookies.
  */
 export async function POST(request: Request) {
   console.log("[WORKSPACE] POST /api/workspaces - Create workspace request received");
 
-  // Log all headers for debugging
-  const headerEntries = Array.from(request.headers.entries());
-  console.log("[WORKSPACE] All request headers:", Object.fromEntries(headerEntries));
-  console.log("[WORKSPACE] Authorization header specifically:", request.headers.get("Authorization") || "not present");
-
-  const config = getServerConfig();
-  if (!config) {
-    console.error("[WORKSPACE] Missing Appwrite server configuration");
-    return NextResponse.json(
-      { detail: "Missing Appwrite server configuration." },
-      { status: 500 }
-    );
-  }
-
-  console.log("[WORKSPACE] Checking user authentication...");
-  const user = await getCurrentUser(config);
-  if (!user) {
-    console.error("[WORKSPACE] User authentication failed - returning 401");
-    return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
-  }
-
-  console.log(`[WORKSPACE] User authenticated: ${user.email} (${user.$id})`);
-
-  let body: { name?: string; currency?: string };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
-  }
+    // Create session client from cookies (secure, production-ready)
+    const session = await createSessionClient();
 
-  const name = body.name?.trim();
-  const currency = body.currency?.trim() || "AUD";
+    if (!session) {
+      console.error("[WORKSPACE] No active session found in cookies");
+      return NextResponse.json({ detail: "Unauthorized - Please log in" }, { status: 401 });
+    }
 
-  if (!name) {
-    console.error("[WORKSPACE] Workspace name is missing or empty");
-    return NextResponse.json({ detail: "Workspace name is required" }, { status: 400 });
-  }
+    // Get the authenticated user
+    const user = await session.account.get();
+    console.log(`[WORKSPACE] User authenticated from session: ${user.email} (${user.$id})`);
 
-  console.log(`[WORKSPACE] Creating workspace: name="${name}", currency="${currency}", owner="${user.email}"`);
+    // Parse request body
+    let body: { name?: string; currency?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
+    }
 
-  const client = new Client();
-  client.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
-  const databases = new Databases(client);
+    const name = body.name?.trim();
+    const currency = body.currency?.trim() || "AUD";
 
-  try {
+    if (!name) {
+      console.error("[WORKSPACE] Workspace name is missing or empty");
+      return NextResponse.json({ detail: "Workspace name is required" }, { status: 400 });
+    }
+
+    console.log(`[WORKSPACE] Creating workspace: name="${name}", currency="${currency}", owner="${user.email}"`);
+
+    // Use the server API key for database operations (bypasses permissions)
+    const config = getServerConfig();
+    if (!config) {
+      console.error("[WORKSPACE] Missing Appwrite server configuration");
+      return NextResponse.json(
+        { detail: "Missing Appwrite server configuration." },
+        { status: 500 }
+      );
+    }
+
+    const adminClient = new Client();
+    adminClient.setEndpoint(config.endpoint).setProject(config.projectId).setKey(config.apiKey);
+    const databases = new Databases(adminClient);
+
     // Create the workspace
     const workspaceId = ID.unique();
     console.log(`[WORKSPACE] Creating workspace document with ID: ${workspaceId}`);
     const workspace = await databases.createDocument(
-      config.databaseId,
+      session.databaseId,
       "workspaces",
       workspaceId,
       {
@@ -142,7 +155,7 @@ export async function POST(request: Request) {
     // Add user as owner member
     console.log(`[WORKSPACE] Adding user as owner member`);
     await databases.createDocument(
-      config.databaseId,
+      session.databaseId,
       "workspace_members",
       ID.unique(),
       {

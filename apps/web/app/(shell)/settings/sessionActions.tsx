@@ -23,6 +23,7 @@ export default function SessionActions() {
     try {
       const account = new Account(appwrite.client);
       await account.deleteSession("current");
+      // Cookies are cleared automatically by Appwrite
       router.replace("/login");
     } catch (error) {
       setSignOutState("error");

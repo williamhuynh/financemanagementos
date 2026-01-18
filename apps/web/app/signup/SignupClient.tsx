@@ -69,6 +69,7 @@ export default function SignupClient() {
       await account.create(ID.unique(), email, password, name);
 
       // Create a session (log them in)
+      // Cookies are set automatically by Appwrite - no need to manually store anything!
       await account.createEmailPasswordSession(email, password);
 
       // Redirect to onboarding for new users

@@ -79,7 +79,9 @@ export default function LoginClient() {
     try {
       const account = new Account(appwrite.client);
       await account.createEmailPasswordSession(email, password);
-      // Session created successfully, redirect
+
+      // Session created successfully - cookies are set automatically by Appwrite
+      // No need to manually store anything!
       router.replace(nextPath);
     } catch (error) {
       setFormState("error");
