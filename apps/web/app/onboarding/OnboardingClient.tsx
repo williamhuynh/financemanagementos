@@ -28,6 +28,7 @@ export default function OnboardingClient() {
   const [formState, setFormState] = useState<FormState>("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in and get their name
@@ -57,6 +58,23 @@ export default function OnboardingClient() {
         router.replace("/login");
       });
   }, [router]);
+
+  const handleLogout = async () => {
+    const appwrite = getAppwriteClient();
+    if (!appwrite) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      const account = new Account(appwrite.client);
+      await account.deleteSession("current");
+      router.replace("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      setIsLoggingOut(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -104,7 +122,7 @@ export default function OnboardingClient() {
 
       if (response.status === 401) {
         setFormState("error");
-        setStatusMessage("Your session has expired. Please log out and log back in to continue. Visit /settings to log out.");
+        setStatusMessage("Your session has expired. Please log out and log back in to continue.");
         return;
       }
 
@@ -187,6 +205,18 @@ export default function OnboardingClient() {
           </button>
         </form>
         {statusMessage ? <p className="auth-error">{statusMessage}</p> : null}
+        <p className="auth-hint" style={{ marginTop: "var(--space-4)" }}>
+          Having issues?{" "}
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="auth-link"
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            {isLoggingOut ? "Logging out..." : "Log out"}
+          </button>
+        </p>
       </div>
     </div>
   );
