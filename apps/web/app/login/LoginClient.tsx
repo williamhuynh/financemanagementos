@@ -77,11 +77,20 @@ export default function LoginClient() {
     setStatusMessage(null);
 
     try {
-      const account = new Account(appwrite.client);
-      await account.createEmailPasswordSession(email, password);
+      // Use server-side session API for Appwrite Cloud compatibility
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Session created successfully - cookies are set automatically by Appwrite
-      // No need to manually store anything!
+      if (!response.ok) {
+        throw new Error("Login failed");
+      }
+
+      // Session stored server-side - secure HttpOnly cookie set automatically
       router.replace(nextPath);
     } catch (error) {
       setFormState("error");

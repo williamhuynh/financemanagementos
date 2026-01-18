@@ -1,5 +1,5 @@
 import { Client, Databases, Account } from "node-appwrite";
-import { cookies } from "next/headers";
+import { getSession } from "./session";
 
 export type ServerAppwriteClient = {
   databases: Databases;
@@ -28,8 +28,11 @@ export function getServerAppwrite(): ServerAppwriteClient | null {
 
 /**
  * Creates a session-based Appwrite client for authenticated requests.
- * This reads the session from cookies and creates a client with user context.
+ * This reads the Appwrite session from our server-side encrypted session store.
  * Use this for API routes that need to act on behalf of the logged-in user.
+ *
+ * This approach works with Appwrite Cloud since the session is stored server-side,
+ * not relying on cross-origin cookies.
  */
 export async function createSessionClient() {
   const endpoint =
@@ -43,18 +46,19 @@ export async function createSessionClient() {
     throw new Error("Missing Appwrite configuration");
   }
 
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(`a_session_${projectId}`);
+  // Get session from iron-session (server-side encrypted session store)
+  const session = await getSession();
 
-  if (!sessionCookie) {
-    console.log("[SESSION] No session cookie found");
+  if (!session.isLoggedIn || !session.appwriteSession) {
+    console.log("[SESSION] No active session found in server-side store");
     return null;
   }
 
+  // Create Appwrite client with the stored session secret
   const client = new Client()
     .setEndpoint(endpoint)
     .setProject(projectId)
-    .setSession(sessionCookie.value);
+    .setSession(session.appwriteSession);
 
   return {
     client,
