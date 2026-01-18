@@ -1,67 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { Client, Account, Databases, Query, ID } from "node-appwrite";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { Client, Databases, Query, ID } from "node-appwrite";
+import { getServerConfig, getCurrentUser } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function getServerConfig() {
-  const endpoint =
-    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId =
-    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const databaseId =
-    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !databaseId || !apiKey) {
-    return null;
-  }
-
-  return { endpoint, projectId, databaseId, apiKey };
-}
-
-async function getCurrentUser(
-  config: { endpoint: string; projectId: string },
-  request?: NextRequest
-) {
-  // Try to get session from Authorization header first (for Appwrite Cloud)
-  let sessionToken: string | null = null;
-
-  if (request) {
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      sessionToken = authHeader.substring(7);
-    }
-  }
-
-  // Fall back to cookie-based session (for self-hosted Appwrite)
-  if (!sessionToken) {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(`a_session_${config.projectId}`);
-    sessionToken = sessionCookie?.value ?? null;
-  }
-
-  if (!sessionToken) {
-    return null;
-  }
-
-  try {
-    const client = new Client();
-    client.setEndpoint(config.endpoint).setProject(config.projectId);
-    client.setSession(sessionToken);
-
-    const account = new Account(client);
-    return await account.get();
-  } catch {
-    return null;
-  }
-}
-
 /**
  * GET /api/workspaces - Get all workspaces for the current user
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   const config = getServerConfig();
   if (!config) {
     return NextResponse.json(
@@ -70,7 +17,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const user = await getCurrentUser(config, request);
+  const user = await getCurrentUser(config);
   if (!user) {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
@@ -129,7 +76,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/workspaces - Create a new workspace
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const config = getServerConfig();
   if (!config) {
     return NextResponse.json(
@@ -138,7 +85,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const user = await getCurrentUser(config, request);
+  const user = await getCurrentUser(config);
   if (!user) {
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
