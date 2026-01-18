@@ -49,12 +49,18 @@ export default function LoginClient() {
       });
 
       if (!response.ok) {
-        throw new Error("Login failed");
+        const errorData = await response.json();
+        console.error("[LOGIN] Server error:", errorData);
+        throw new Error(errorData.error || "Login failed");
       }
+
+      const data = await response.json();
+      console.log("[LOGIN] Success:", data);
 
       // Session stored server-side - secure HttpOnly cookie set automatically
       router.replace(nextPath);
     } catch (error) {
+      console.error("[LOGIN] Client error:", error);
       setFormState("error");
       setStatusMessage("Email or password is incorrect. Please try again.");
     }

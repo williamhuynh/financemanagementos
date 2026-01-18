@@ -55,8 +55,14 @@ export async function POST(request: Request) {
         name: user.name,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[AUTH] Login error:", error);
+    console.error("[AUTH] Error details:", {
+      message: error.message,
+      code: error.code,
+      type: error.type,
+      response: error.response,
+    });
     return NextResponse.json(
       { error: "Invalid credentials" },
       { status: 401 }
