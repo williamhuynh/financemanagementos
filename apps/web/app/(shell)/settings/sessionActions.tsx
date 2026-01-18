@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Account } from "appwrite";
 import { Card } from "@financelab/ui";
-import { getAppwriteClient } from "../../../lib/appwriteClient";
 
 type SignOutState = "idle" | "working" | "error";
 

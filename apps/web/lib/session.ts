@@ -5,6 +5,7 @@ export interface SessionData {
   appwriteSession: string; // The Appwrite session secret
   userId: string;
   email: string;
+  name: string;
   isLoggedIn: boolean;
 }
 

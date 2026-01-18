@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Account } from "appwrite";
-import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
 
 type FormState = "idle" | "sending" | "error";
 
@@ -24,29 +22,6 @@ export default function LoginClient() {
     return "/dashboard";
   }, [searchParams]);
 
-  useEffect(() => {
-    if (!appwriteEnabled) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const account = new Account(appwrite.client);
-    account
-      .get()
-      .then(() => router.replace(nextPath))
-      .catch(() => {
-        setFormState("idle");
-      });
-  }, [router, nextPath]);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email) {
@@ -57,19 +32,6 @@ export default function LoginClient() {
     if (!password) {
       setFormState("error");
       setStatusMessage("Enter your password.");
-      return;
-    }
-
-    if (!appwriteEnabled) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
       return;
     }
 

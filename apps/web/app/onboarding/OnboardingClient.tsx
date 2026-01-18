@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Account } from "appwrite";
-import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
 
 type FormState = "idle" | "sending" | "error";
 
@@ -31,32 +29,37 @@ export default function OnboardingClient() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    // Check if user is logged in and get their name
-    if (!appwriteEnabled) {
-      router.replace("/login");
-      return;
-    }
+    // Check session and get user info from server
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include",
+        });
 
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      router.replace("/login");
-      return;
-    }
-
-    const account = new Account(appwrite.client);
-    account
-      .get()
-      .then((user) => {
-        setUserName(user.name || "");
-        // Default workspace name to "{Name}'s Workspace"
-        if (user.name) {
-          setWorkspaceName(`${user.name}'s Workspace`);
+        if (!response.ok) {
+          router.replace("/login");
+          return;
         }
-        setIsCheckingAuth(false);
-      })
-      .catch(() => {
+
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUserName(data.user.name || "");
+          // Default workspace name to "{Name}'s Workspace"
+          if (data.user.name) {
+            setWorkspaceName(`${data.user.name}'s Workspace`);
+          }
+          setIsCheckingAuth(false);
+        } else {
+          router.replace("/login");
+        }
+      } catch (error) {
+        console.error("[ONBOARDING] Session check failed:", error);
         router.replace("/login");
-      });
+      }
+    };
+
+    checkSession();
   }, [router]);
 
   const handleLogout = async () => {

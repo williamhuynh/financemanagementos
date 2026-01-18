@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     session.appwriteSession = appwriteSession.secret;
     session.userId = user.$id;
     session.email = user.email;
+    session.name = user.name;
     session.isLoggedIn = true;
     await session.save();
 

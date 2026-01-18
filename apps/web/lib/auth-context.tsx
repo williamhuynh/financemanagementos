@@ -1,10 +1,16 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Account, type Models } from 'appwrite';
-import { getAppwriteClient } from './appwriteClient';
 
-type User = Models.User<Models.Preferences> | null;
+/**
+ * User type based on server session data
+ * No longer uses Appwrite Models - we get this from our session API
+ */
+type User = {
+  id: string;
+  email: string;
+  name: string;
+} | null;
 
 interface AuthState {
   user: User;
@@ -18,19 +24,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Check authentication by calling our server session API
+   * This reads from iron-session (server-side) instead of Appwrite client SDK
+   */
   const checkAuth = async () => {
     try {
-      const appwrite = getAppwriteClient();
-      if (!appwrite) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+      const response = await fetch('/api/auth/session', {
+        method: 'GET',
+        credentials: 'include', // Send cookies
+      });
 
-      const account = new Account(appwrite.client);
-      const userData = await account.get();
-      setUser(userData);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
     } catch (error) {
+      console.error('[AUTH] Session check failed:', error);
       setUser(null);
     } finally {
       setLoading(false);
