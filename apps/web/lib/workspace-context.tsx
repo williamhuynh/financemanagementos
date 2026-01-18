@@ -1,9 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { Account } from 'appwrite';
 import { useAuth } from './auth-context';
-import { getAppwriteClient } from './appwriteClient';
 
 export interface Workspace {
   id: string;

@@ -2,9 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Account } from "appwrite";
-import { appwriteEnabled, getAppwriteClient } from "../../../lib/appwriteClient";
-import { isAllowedEmail } from "../../../lib/auth";
 
 type CallbackState = "loading" | "success" | "error";
 

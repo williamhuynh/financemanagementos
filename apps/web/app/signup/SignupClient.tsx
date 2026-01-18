@@ -3,8 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Account, ID } from "appwrite";
-import { appwriteEnabled, getAppwriteClient } from "../../lib/appwriteClient";
 
 type FormState = "idle" | "sending" | "error";
 
@@ -43,19 +41,6 @@ export default function SignupClient() {
     if (password !== confirmPassword) {
       setFormState("error");
       setStatusMessage("Passwords do not match.");
-      return;
-    }
-
-    if (!appwriteEnabled) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
-      return;
-    }
-
-    const appwrite = getAppwriteClient();
-    if (!appwrite) {
-      setFormState("error");
-      setStatusMessage("Appwrite auth is not configured yet.");
       return;
     }
 
