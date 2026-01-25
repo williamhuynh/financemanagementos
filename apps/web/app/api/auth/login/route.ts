@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 
+    console.log("[AUTH] Login attempt for:", email);
+    console.log("[AUTH] Appwrite endpoint:", endpoint);
+    console.log("[AUTH] Appwrite project:", projectId);
+
     if (!endpoint || !projectId) {
       return NextResponse.json(
         { error: "Appwrite configuration missing" },
@@ -32,11 +36,34 @@ export async function POST(request: Request) {
     const client = new Client().setEndpoint(endpoint).setProject(projectId);
     const account = new Account(client);
 
-    const appwriteSession = await account.createEmailPasswordSession(email, password);
+    console.log("[AUTH] Attempting to create session...");
+    let appwriteSession;
+    try {
+      appwriteSession = await account.createEmailPasswordSession(email, password);
+      console.log("[AUTH] Session created successfully, session ID:", appwriteSession.$id);
+    } catch (sessionError: unknown) {
+      const err = sessionError as { code?: number; type?: string; message?: string };
+      console.error("[AUTH] Session creation failed:", err.message);
+      console.error("[AUTH] Error code:", err.code);
+      console.error("[AUTH] Error type:", err.type);
+      return NextResponse.json(
+        { error: "Invalid credentials", detail: err.message },
+        { status: 401 }
+      );
+    }
 
-    // Get user info
-    client.setSession(appwriteSession.secret);
-    const user = await account.get();
+    // Create a new client with the session for authenticated requests
+    console.log("[AUTH] Creating authenticated client...");
+    const authenticatedClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(projectId)
+      .setSession(appwriteSession.secret);
+
+    const authenticatedAccount = new Account(authenticatedClient);
+
+    console.log("[AUTH] Fetching user info...");
+    const user = await authenticatedAccount.get();
+    console.log("[AUTH] User fetched:", user.$id);
 
     // Store session server-side (encrypted, HttpOnly cookie)
     const session = await getSession();
@@ -47,6 +74,8 @@ export async function POST(request: Request) {
     session.isLoggedIn = true;
     await session.save();
 
+    console.log("[AUTH] Login successful for:", user.email);
+
     return NextResponse.json({
       success: true,
       user: {
@@ -55,10 +84,14 @@ export async function POST(request: Request) {
         name: user.name,
       },
     });
-  } catch (error) {
-    console.error("[AUTH] Login error:", error);
+  } catch (error: unknown) {
+    const err = error as { code?: number; type?: string; message?: string };
+    console.error("[AUTH] Login error:", err.message);
+    console.error("[AUTH] Error code:", err.code);
+    console.error("[AUTH] Error type:", err.type);
+    console.error("[AUTH] Full error:", error);
     return NextResponse.json(
-      { error: "Invalid credentials" },
+      { error: "Invalid credentials", detail: err.message },
       { status: 401 }
     );
   }
