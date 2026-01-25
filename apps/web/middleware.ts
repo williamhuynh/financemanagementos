@@ -30,8 +30,8 @@ export async function middleware(request: NextRequest) {
   try {
     const response = NextResponse.next();
     const session = await getIronSession<SessionData>(
-      request.cookies,
-      response.cookies,
+      request,
+      response,
       sessionOptions
     );
 

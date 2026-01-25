@@ -52,17 +52,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create a new client with the session for authenticated requests
-    console.log("[AUTH] Creating authenticated client...");
-    const authenticatedClient = new Client()
-      .setEndpoint(endpoint)
-      .setProject(projectId)
-      .setSession(appwriteSession.secret);
-
-    const authenticatedAccount = new Account(authenticatedClient);
-
+    // Session is automatically set in the client after createEmailPasswordSession
     console.log("[AUTH] Fetching user info...");
-    const user = await authenticatedAccount.get();
+    const user = await account.get();
     console.log("[AUTH] User fetched:", user.$id);
 
     // Store session server-side (encrypted, HttpOnly cookie)
