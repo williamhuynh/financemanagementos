@@ -50,7 +50,6 @@ export async function createSessionClient() {
   const session = await getSession();
 
   if (!session.isLoggedIn || !session.appwriteSession) {
-    console.log("[SESSION] No active session found in server-side store");
     return null;
   }
 

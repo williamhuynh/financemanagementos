@@ -30,17 +30,14 @@ export async function POST() {
 
           const account = new Account(client);
           await account.deleteSession("current");
-          console.log("[AUTH] Appwrite session deleted");
         }
-      } catch (error) {
-        console.error("[AUTH] Error deleting Appwrite session:", error);
+      } catch {
         // Continue anyway to destroy server session
       }
     }
 
     // Destroy the server-side session (clears cookie)
     session.destroy();
-    console.log("[AUTH] Server session destroyed");
 
     // Return success with cache control headers to prevent stale auth state
     const response = NextResponse.json({ success: true });
@@ -49,8 +46,7 @@ export async function POST() {
     response.headers.set("Expires", "0");
 
     return response;
-  } catch (error) {
-    console.error("[AUTH] Logout error:", error);
+  } catch {
     return NextResponse.json({ error: "Logout failed" }, { status: 500 });
   }
 }

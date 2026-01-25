@@ -45,8 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
       }
-    } catch (error) {
-      console.error('[AUTH] Session check failed:', error);
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);

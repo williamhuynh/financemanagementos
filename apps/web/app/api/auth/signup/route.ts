@@ -31,7 +31,6 @@ export async function POST(request: Request) {
     const apiKey = process.env.APPWRITE_API_KEY;
 
     if (!apiKey) {
-      console.error("[AUTH] APPWRITE_API_KEY is missing");
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 }
@@ -77,7 +76,6 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("[AUTH] Signup error:", error);
     if (error.message?.includes("already exists")) {
       return NextResponse.json(
         { error: "An account with this email already exists" },
