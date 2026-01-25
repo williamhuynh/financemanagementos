@@ -32,18 +32,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create Appwrite session
-    const client = new Client().setEndpoint(endpoint).setProject(projectId);
-    const account = new Account(client);
+    const apiKey = process.env.APPWRITE_API_KEY;
 
-    console.log("[AUTH] Attempting to create session...");
+    if (!apiKey) {
+      console.error("[AUTH] APPWRITE_API_KEY is missing");
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    // Create admin client with API key - required to get session secret
+    const adminClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(projectId)
+      .setKey(apiKey);
+    const adminAccount = new Account(adminClient);
+
+    console.log("[AUTH] Attempting to create session with admin client...");
     let appwriteSession;
     try {
-      appwriteSession = await account.createEmailPasswordSession(email, password);
+      appwriteSession = await adminAccount.createEmailPasswordSession(email, password);
       console.log("[AUTH] Session created successfully, session ID:", appwriteSession.$id);
-      console.log("[AUTH] Session object keys:", Object.keys(appwriteSession));
       console.log("[AUTH] Session secret exists:", !!appwriteSession.secret);
-      console.log("[AUTH] Session secret length:", appwriteSession.secret?.length);
+      console.log("[AUTH] Session secret length:", appwriteSession.secret?.length || 0);
     } catch (sessionError: unknown) {
       const err = sessionError as { code?: number; type?: string; message?: string };
       console.error("[AUTH] Session creation failed:", err.message);
@@ -55,14 +67,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // In node-appwrite, we need to create a new client with the session explicitly set
-    console.log("[AUTH] Creating client with session...");
+    // Create a session client to fetch user info
+    console.log("[AUTH] Creating session client to fetch user info...");
     const sessionClient = new Client()
       .setEndpoint(endpoint)
-      .setProject(projectId);
-
-    console.log("[AUTH] Setting session on client...");
-    sessionClient.setSession(appwriteSession.secret);
+      .setProject(projectId)
+      .setSession(appwriteSession.secret);
 
     const sessionAccount = new Account(sessionClient);
 

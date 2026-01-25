@@ -28,18 +28,36 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create Appwrite account
-    const client = new Client().setEndpoint(endpoint).setProject(projectId);
-    const account = new Account(client);
+    const apiKey = process.env.APPWRITE_API_KEY;
 
-    await account.create(ID.unique(), email, password, name);
+    if (!apiKey) {
+      console.error("[AUTH] APPWRITE_API_KEY is missing");
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
 
-    // Create session
-    const appwriteSession = await account.createEmailPasswordSession(email, password);
+    // Create admin client with API key - required to get session secret
+    const adminClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(projectId)
+      .setKey(apiKey);
+    const adminAccount = new Account(adminClient);
 
-    // Get user info
-    client.setSession(appwriteSession.secret);
-    const user = await account.get();
+    // Create user account
+    await adminAccount.create(ID.unique(), email, password, name);
+
+    // Create session using admin client
+    const appwriteSession = await adminAccount.createEmailPasswordSession(email, password);
+
+    // Create session client to get user info
+    const sessionClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(projectId)
+      .setSession(appwriteSession.secret);
+    const sessionAccount = new Account(sessionClient);
+    const user = await sessionAccount.get();
 
     // Store session server-side (encrypted, HttpOnly cookie)
     const session = await getSession();
