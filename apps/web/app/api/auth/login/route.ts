@@ -41,6 +41,9 @@ export async function POST(request: Request) {
     try {
       appwriteSession = await account.createEmailPasswordSession(email, password);
       console.log("[AUTH] Session created successfully, session ID:", appwriteSession.$id);
+      console.log("[AUTH] Session object keys:", Object.keys(appwriteSession));
+      console.log("[AUTH] Session secret exists:", !!appwriteSession.secret);
+      console.log("[AUTH] Session secret length:", appwriteSession.secret?.length);
     } catch (sessionError: unknown) {
       const err = sessionError as { code?: number; type?: string; message?: string };
       console.error("[AUTH] Session creation failed:", err.message);
@@ -52,9 +55,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Session is automatically set in the client after createEmailPasswordSession
-    console.log("[AUTH] Fetching user info...");
-    const user = await account.get();
+    // In node-appwrite, we need to create a new client with the session explicitly set
+    console.log("[AUTH] Creating client with session...");
+    const sessionClient = new Client()
+      .setEndpoint(endpoint)
+      .setProject(projectId);
+
+    console.log("[AUTH] Setting session on client...");
+    sessionClient.setSession(appwriteSession.secret);
+
+    const sessionAccount = new Account(sessionClient);
+
+    console.log("[AUTH] Fetching user info with authenticated client...");
+    const user = await sessionAccount.get();
     console.log("[AUTH] User fetched:", user.$id);
 
     // Store session server-side (encrypted, HttpOnly cookie)
