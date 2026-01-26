@@ -2405,7 +2405,7 @@ export async function getAssetCards(): Promise<AssetCard[]> {
   return listOrFallback<AssetCard>("asset_cards", assetCards);
 }
 
-export async function getAssetOverview(): Promise<AssetOverview> {
+export async function getAssetOverview(workspaceId: string): Promise<AssetOverview> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return buildAssetOverviewFromRecords([], []);
@@ -2413,8 +2413,8 @@ export async function getAssetOverview(): Promise<AssetOverview> {
 
   try {
     const [records, assets] = await Promise.all([
-      listAssetValueRecords(serverClient),
-      listAssets(serverClient)
+      listAssetValueRecords(serverClient, workspaceId),
+      listAssets(serverClient, workspaceId)
     ]);
     return buildAssetOverviewFromRecords(records, assets);
   } catch (error) {
