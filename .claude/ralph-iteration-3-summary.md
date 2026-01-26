@@ -69,6 +69,8 @@
 1. `feat: Phase 5.2 COMPLETE - create database indexes for workspace isolation`
 2. `feat: Phase 3 COMPLETE - implement workspace switcher UI`
 3. `feat: Phase 4 COMPLETE - implement member management and invitations`
+4. `docs: add Ralph Loop iteration 3 summary - Phase 4 complete`
+5. `fix: correct ApiContext property access in API routes`
 
 ## Remaining Work
 
