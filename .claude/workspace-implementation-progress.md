@@ -162,16 +162,32 @@
     - `.workspace-switcher` - flex container matching month-control style
     - `.workspace-select` - styled dropdown with pill design, hover effects, and disabled state
 
-### ⏳ Phase 4: Member Management
-- **Status:** NOT STARTED
-- **Required Work:**
-  - Create invitation schema (workspace_invitations collection)
-  - Create invitation API routes
-  - Create invitation service with token hashing (HMAC-SHA256)
-  - Add owner protection logic
-  - Update settings page with dynamic members
-  - Implement workspace deletion
-  - Implement user self-removal from workspace
+### ✅ Phase 4: Member Management
+- **Status:** COMPLETE
+- **Changes:**
+  - Created `workspace_invitations` collection schema in Appwrite
+  - Created invitation service (`apps/web/lib/invitation-service.ts`):
+    - HMAC-SHA256 token hashing for secure invitations
+    - 7-day expiry for invitation tokens
+    - Functions: createInvitation, verifyInvitationToken, acceptInvitation, listPendingInvitations, cancelInvitation
+  - Created invitation API routes:
+    - POST/GET `/api/workspaces/[id]/invitations` - Create and list invitations (admin)
+    - DELETE `/api/workspaces/[id]/invitations/[invitationId]` - Cancel invitation (admin)
+    - GET `/api/invitations/verify` - Verify invitation token (public)
+    - POST `/api/invitations/accept` - Accept invitation (authenticated)
+  - Created member management API routes:
+    - GET `/api/workspaces/[id]/members` - List all members (read)
+    - DELETE `/api/workspaces/[id]/members/[memberId]` - Remove member (admin)
+  - Created invitation accept page (`apps/web/app/invite/accept/page.tsx`):
+    - Verifies invitation token
+    - Handles sign-in/sign-up redirects
+    - Accepts invitation and switches to new workspace
+  - Updated settings page (`apps/web/app/(shell)/settings/page.tsx`):
+    - Dynamic member listing with role display
+    - Invitation form for admins/owners
+    - Pending invitation display with cancel option
+    - Member removal for admins (owner protected)
+  - Added CSS styles for invitation and member management UI
 
 ### ✅ Phase 5.2: Create Database Indexes
 - **Status:** COMPLETE

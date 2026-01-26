@@ -134,6 +134,27 @@ const indexes = [
     type: IndexType.Key,
     attributes: ["workspace_id"],
     description: "Optimizes queries for category rules in a workspace"
+  },
+  {
+    collectionId: "workspace_invitations",
+    key: "idx_workspace_id",
+    type: IndexType.Key,
+    attributes: ["workspace_id"],
+    description: "Optimizes queries for invitations in a workspace"
+  },
+  {
+    collectionId: "workspace_invitations",
+    key: "idx_email",
+    type: IndexType.Key,
+    attributes: ["email"],
+    description: "Optimizes queries for pending invitations by email"
+  },
+  {
+    collectionId: "workspace_invitations",
+    key: "idx_token_hash",
+    type: IndexType.Key,
+    attributes: ["token_hash"],
+    description: "Optimizes lookup of invitations by token"
   }
 ];
 
