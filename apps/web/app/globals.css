@@ -205,6 +205,33 @@ h3,
   gap: 10px;
 }
 
+.workspace-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-select {
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.workspace-select:hover {
+  border-color: var(--accent);
+}
+
+.workspace-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .label {
   color: var(--text-secondary);
   font-size: 12px;

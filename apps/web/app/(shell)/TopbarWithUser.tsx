@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Topbar } from "@financelab/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useNumberVisibility } from "../../lib/number-visibility-context";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 export default function TopbarWithUser() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function TopbarWithUser() {
       userLabel={userLabel}
       onToggleNumberVisibility={toggleVisibility}
       numbersVisible={isVisible}
+      workspaceSwitcher={<WorkspaceSwitcher />}
     />
   );
 }

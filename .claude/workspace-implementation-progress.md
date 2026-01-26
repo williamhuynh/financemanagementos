@@ -148,11 +148,19 @@
   - 3 routes with 'delete' permission
   - 3 routes with 'admin' permission
 
-### ⏳ Phase 3: Workspace Switcher UI
-- **Status:** NOT STARTED
-- **Components to Create:**
-  - `apps/web/app/(shell)/WorkspaceSwitcher.tsx`
-  - Update `apps/web/app/(shell)/TopbarWithUser.tsx` to include switcher
+### ✅ Phase 3: Workspace Switcher UI
+- **Status:** COMPLETE
+- **Changes:**
+  - Created `apps/web/app/(shell)/WorkspaceSwitcher.tsx` component
+    - Fetches all workspaces for current user via `/api/workspaces`
+    - Displays dropdown selector when user has multiple workspaces
+    - Handles workspace switching via `/api/workspaces/switch`
+    - Refreshes page after successful switch to reload data
+  - Updated `apps/web/app/(shell)/TopbarWithUser.tsx` to include WorkspaceSwitcher
+  - Updated `packages/ui/src/components/Topbar.tsx` to accept optional `workspaceSwitcher` prop
+  - Added CSS styling in `apps/web/app/globals.css`:
+    - `.workspace-switcher` - flex container matching month-control style
+    - `.workspace-select` - styled dropdown with pill design, hover effects, and disabled state
 
 ### ⏳ Phase 4: Member Management
 - **Status:** NOT STARTED
@@ -193,9 +201,9 @@
 
 ## Summary
 
-**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4, 5.2 + Type Definitions
+**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4, 3, 5.2 + Type Definitions
 **In Progress:** None
-**Pending:** Phases 3, 4, 5.1, 5.3
+**Pending:** Phases 4, 5.1, 5.3
 
 **🎉 Major Milestone: All Critical Security Phases Complete!**
 - ✅ Phase 1.7: All server components secured with workspace authentication
@@ -203,10 +211,9 @@
 - Pattern established and consistently applied across entire codebase
 
 **Next Immediate Steps:**
-1. Phase 3 - Workspace Switcher UI
-2. Phase 4 - Member Management (invitations, owner protection)
-3. Phase 5.1 - Data Migration (if needed for existing users)
-4. Phase 5.3 - Comprehensive Testing
+1. Phase 4 - Member Management (invitations, owner protection)
+2. Phase 5.1 - Data Migration (if needed for existing users)
+3. Phase 5.3 - Comprehensive Testing
 
 **Critical Path:**
 - ✅ Complete Phase 1.7 to ensure all data access is properly scoped to workspaces
