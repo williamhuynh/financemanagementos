@@ -165,18 +165,37 @@
   - Implement workspace deletion
   - Implement user self-removal from workspace
 
-### ⏳ Phase 5: Data Migration & Testing
+### ✅ Phase 5.2: Create Database Indexes
+- **Status:** COMPLETE
+- **Changes:**
+  - Created `apps/web/scripts/appwrite-create-indexes.mjs` script
+  - Added CRITICAL unique index on workspace_members (workspace_id, user_id) to prevent duplicate memberships
+  - Added 14 additional indexes for query optimization:
+    - workspace_members: idx_workspace_id, idx_user_id
+    - workspaces: idx_owner_id
+    - accounts, categories, transactions, imports, assets, asset_values, transfer_pairs, monthly_closes, category_rules: idx_workspace_id
+    - transactions: idx_workspace_date (composite index)
+    - monthly_closes: unique_workspace_month (prevents duplicate close records)
+  - All indexes successfully created in Appwrite database
+
+### ⏳ Phase 5.1: Data Migration
 - **Status:** NOT STARTED
 - **Required Work:**
-  - Create database indexes (including unique constraint on workspace_members)
   - Create migration script for existing data
+  - Handle legacy users without workspaces
+
+### ⏳ Phase 5.3: Testing
+- **Status:** NOT STARTED
+- **Required Work:**
   - Run comprehensive testing
+  - Verify workspace isolation
+  - Test permission enforcement
 
 ## Summary
 
-**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4 + Type Definitions
+**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4, 5.2 + Type Definitions
 **In Progress:** None
-**Pending:** Phases 3, 4, 5
+**Pending:** Phases 3, 4, 5.1, 5.3
 
 **🎉 Major Milestone: All Critical Security Phases Complete!**
 - ✅ Phase 1.7: All server components secured with workspace authentication
@@ -184,11 +203,12 @@
 - Pattern established and consistently applied across entire codebase
 
 **Next Immediate Steps:**
-1. **Phase 5.2 - Create database indexes (CRITICAL)** - Prevent duplicate memberships
-2. Phase 3 - Workspace Switcher UI
-3. Phase 4 - Member Management (invitations, owner protection)
+1. Phase 3 - Workspace Switcher UI
+2. Phase 4 - Member Management (invitations, owner protection)
+3. Phase 5.1 - Data Migration (if needed for existing users)
+4. Phase 5.3 - Comprehensive Testing
 
 **Critical Path:**
 - ✅ Complete Phase 1.7 to ensure all data access is properly scoped to workspaces
 - ✅ Complete Phase 2.4 to enforce role-based permissions
-- ⏳ Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)
+- ✅ Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)
