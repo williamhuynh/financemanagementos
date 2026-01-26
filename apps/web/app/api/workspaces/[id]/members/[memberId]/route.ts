@@ -27,7 +27,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     // Verify user has admin permission for this workspace
-    await requireWorkspacePermission(workspaceId, ctx.userId, "admin");
+    await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
 
     // Use API key client for database operations
     const client = new Client();
@@ -59,7 +59,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     // Prevent self-removal (use leave endpoint instead)
-    if (membership.user_id === ctx.userId) {
+    if (membership.user_id === ctx.user.$id) {
       return NextResponse.json(
         { error: "Cannot remove yourself. Use the leave workspace option instead." },
         { status: 400 }

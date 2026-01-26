@@ -21,12 +21,12 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     // Verify user has admin permission for this workspace
-    await requireWorkspacePermission(workspaceId, ctx.userId, "admin");
+    await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
 
     // Verify the invitation belongs to this workspace
     try {
       const invitation = await ctx.databases.getDocument(
-        ctx.databaseId,
+        ctx.config.databaseId,
         COLLECTIONS.WORKSPACE_INVITATIONS,
         invitationId
       );
@@ -38,7 +38,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     }
 
-    await cancelInvitation(ctx.databases, ctx.databaseId, invitationId);
+    await cancelInvitation(ctx.databases, ctx.config.databaseId, invitationId);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

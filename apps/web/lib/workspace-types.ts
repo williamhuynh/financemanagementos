@@ -51,5 +51,3 @@ export interface ApiContext {
   databases: any; // Databases type from node-appwrite
 }
 
-// Re-export for backwards compatibility
-export type { ApiConfig, AuthenticatedUser };

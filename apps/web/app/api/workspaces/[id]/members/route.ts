@@ -26,7 +26,7 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     // Verify user has read permission for this workspace
-    await requireWorkspacePermission(workspaceId, ctx.userId, "read");
+    await requireWorkspacePermission(workspaceId, ctx.user.$id, "read");
 
     // Use API key client to access user details
     const client = new Client();

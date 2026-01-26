@@ -21,11 +21,11 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     // Verify user has admin permission for this workspace
-    await requireWorkspacePermission(workspaceId, ctx.userId, "admin");
+    await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
 
     const invitations = await listPendingInvitations(
       ctx.databases,
-      ctx.databaseId,
+      ctx.config.databaseId,
       workspaceId
     );
 
@@ -57,7 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     // Verify user has admin permission for this workspace
-    await requireWorkspacePermission(workspaceId, ctx.userId, "admin");
+    await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
 
     const body = await request.json();
     const { email, role } = body;
@@ -86,11 +86,11 @@ export async function POST(request: Request, context: RouteContext) {
 
     const { invitation, token } = await createInvitation(
       ctx.databases,
-      ctx.databaseId,
+      ctx.config.databaseId,
       workspaceId,
       email,
       role,
-      ctx.userId
+      ctx.user.$id
     );
 
     // Build invitation URL (token is included so it can be sent to the invitee)

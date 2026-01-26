@@ -24,7 +24,7 @@ export default async function SettingsPage() {
       />
       <MembersSection
         workspaceId={ctx.workspaceId}
-        currentUserId={ctx.userId}
+        currentUserId={ctx.user.$id}
         userRole={ctx.role}
       />
       <Card title="System">

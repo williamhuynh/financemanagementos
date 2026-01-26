@@ -234,10 +234,8 @@ export async function POST(request: Request) {
     // Check admin permission (processing cash logs is an admin operation)
     await requireWorkspacePermission(workspaceId, user.$id, 'admin');
 
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
-  const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
-
-  try {
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
     const body = (await request.json()) as ProcessInput;
 
     if (!body.logIds || body.logIds.length === 0) {
