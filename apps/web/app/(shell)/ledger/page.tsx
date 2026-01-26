@@ -8,6 +8,7 @@ import {
   getEarliestUnclosedMonth,
   type LedgerFilterParams
 } from "../../../lib/data";
+import { getApiContext } from "../../../lib/api-auth";
 
 type LedgerSearchParams = {
   account?: string;
@@ -22,11 +23,17 @@ type LedgerPageProps = {
 };
 
 export default async function LedgerPage({ searchParams }: LedgerPageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const resolvedSearchParams = await searchParams;
 
   // If no month is specified, redirect to the earliest unclosed month
   if (!resolvedSearchParams?.month) {
-    const earliestUnclosedMonth = await getEarliestUnclosedMonth();
+    const earliestUnclosedMonth = await getEarliestUnclosedMonth(context.workspaceId);
     if (earliestUnclosedMonth) {
       const params = new URLSearchParams();
       params.set("month", earliestUnclosedMonth);
@@ -49,14 +56,14 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
     }
   }
 
-  const ledgerRows = await getLedgerRows({
+  const ledgerRows = await getLedgerRows(context.workspaceId, {
     account: resolvedSearchParams?.account,
     category: resolvedSearchParams?.category,
     amount: resolvedSearchParams?.amount as LedgerFilterParams["amount"],
     month: resolvedSearchParams?.month,
     sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
   });
-  const categories = await getCategories();
+  const categories = await getCategories(context.workspaceId);
 
   return (
     <>

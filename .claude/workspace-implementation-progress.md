@@ -90,29 +90,37 @@
 
 ## Pending Phases
 
-### ⏳ Phase 1.4: Update API Routes Using data.ts
-- **Status:** NOT STARTED
-- **Required Actions:**
-  - Update all API routes that call data.ts functions to:
-    - Use `getApiContext()` to get authenticated user's workspaceId
-    - Pass workspaceId to data.ts functions
-  - Files to update:
-    - `apps/web/app/api/ledger/route.ts`
-    - `apps/web/app/api/monthly-close/route.ts`
-    - Any other routes calling data.ts functions
+### ✅ Phase 1.4: Update API Routes Using data.ts
+- **Status:** COMPLETE
+- **Changes:**
+  - Updated `/api/ledger` (GET) - Added authentication and 'read' permission check
+  - Updated `/api/monthly-close`:
+    - GET - Added authentication and 'read' permission check
+    - POST - Added 'admin' permission check for closing month
+    - PATCH - Added 'admin' permission check for reopening month
+  - Updated `/api/assets/overview` (GET) - Added authentication and 'read' permission check
+  - Updated `getAssetOverview(workspaceId)` in data.ts to accept workspaceId
+  - All routes now pass workspaceId to data.ts functions
+  - Consistent error handling with proper HTTP status codes (401, 403, 500)
 
-### ⏳ Phase 1.7: Audit Server Components for Direct Data Access
-- **Status:** NOT STARTED
-- **Required Actions:**
-  - Search for all imports of data.ts outside of API routes
-  - For each server component or server action:
-    - Add authentication check via `getApiContext()`
-    - Add workspace permission check via `requireWorkspacePermission()`
-    - Pass workspaceId to data.ts functions
-  - Files to audit:
-    - All files in `apps/web/app/(shell)/`
-    - Any server actions in `app/actions/`
-    - Any middleware that accesses data
+### ✅ Phase 1.7: Audit Server Components for Direct Data Access
+- **Status:** COMPLETE
+- **Changes:**
+  - Updated all server components to use `getApiContext()` and pass workspaceId
+  - Files updated:
+    - `apps/web/app/(shell)/layout.tsx` - Added auth check, pass workspaceId to `getSidebarMonthlyCloseStatus`
+    - `apps/web/app/(shell)/dashboard/page.tsx` - Added auth check, pass workspaceId to all data functions
+    - `apps/web/app/(shell)/ledger/page.tsx` - Added auth check, pass workspaceId to all data functions
+    - `apps/web/app/(shell)/assets/page.tsx` - Added auth check, pass workspaceId to `getAssetOverview`
+    - `apps/web/app/(shell)/review/page.tsx` - Added auth check, pass workspaceId to all data functions
+    - `apps/web/app/(shell)/reports/page.tsx` - Added auth check, pass workspaceId to all data functions
+    - `apps/web/app/(shell)/reports/expenses/category/[name]/page.tsx` - Added auth check, pass workspaceId
+  - Updated wrapper functions in data.ts to accept workspaceId:
+    - `getSidebarMonthlyCloseStatus(workspaceId)`
+    - `getEarliestUnclosedMonth(workspaceId)`
+    - `getLedgerRows(workspaceId, options)`
+    - `getStatCards(workspaceId)` - Returns empty array (collection doesn't support workspaces yet)
+  - Verified client components only import types and helper functions, not data access functions
 
 ### ⏳ Phase 2.4: Add Role Checks to All API Endpoints
 - **Status:** NOT STARTED
@@ -153,16 +161,16 @@
 
 ## Summary
 
-**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.5, 1.6, 2.1, 2.2 + Type Definitions
+**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2 + Type Definitions
 **In Progress:** None
-**Pending:** Phases 1.4, 1.7, 2.4, 3, 4, 5
+**Pending:** Phases 2.4, 3, 4, 5
 
 **Next Immediate Steps:**
-1. Phase 1.4 - Update API routes to use getApiContext() and pass workspaceId
-2. Phase 1.7 - Audit server components for direct data access
-3. Phase 2.4 - Add role checks to all API endpoints
+1. Phase 2.4 - Add role checks to all remaining API endpoints
+2. Phase 5.2 - Create database indexes (CRITICAL for data integrity)
+3. Phase 3 - Workspace Switcher UI
 
 **Critical Path:**
-- Complete Phase 1.4 and 1.7 to ensure all data access is properly scoped to workspaces
+- ✅ Complete Phase 1.7 to ensure all data access is properly scoped to workspaces
 - Complete Phase 2.4 to enforce role-based permissions
 - Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { Sidebar } from "@financelab/ui";
 import { getNavItems, getSidebarMonthlyCloseStatus } from "../../lib/data";
 import AuthGate from "./authGate";
@@ -7,6 +8,7 @@ import TopbarWithUser from "./TopbarWithUser";
 import { AuthProvider } from "../../lib/auth-context";
 import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
+import { getApiContext } from "../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,10 +18,14 @@ type ShellLayoutProps = {
 };
 
 export default async function ShellLayout({ children }: ShellLayoutProps) {
-  const [navItems, monthlyCloseStatus] = await Promise.all([
-    getNavItems(),
-    getSidebarMonthlyCloseStatus()
-  ]);
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
+  const navItems = getNavItems();
+  const monthlyCloseStatus = await getSidebarMonthlyCloseStatus(context.workspaceId);
 
   return (
     <AuthProvider>

@@ -1,5 +1,7 @@
 import { SectionHead } from "@financelab/ui";
+import { redirect } from "next/navigation";
 import { getExpenseBreakdown, getMonthlyCloseSummary } from "../../../lib/data";
+import { getApiContext } from "../../../lib/api-auth";
 import MonthlyCloseClient from "./MonthlyCloseClient";
 
 type ReportsPageProps = {
@@ -7,10 +9,16 @@ type ReportsPageProps = {
 };
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const [summary, expenseBreakdown] = await Promise.all([
-    getMonthlyCloseSummary(resolvedSearchParams?.month),
-    getExpenseBreakdown(resolvedSearchParams?.month)
+    getMonthlyCloseSummary(context.workspaceId, resolvedSearchParams?.month),
+    getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month)
   ]);
 
   return (

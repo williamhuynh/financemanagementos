@@ -1261,14 +1261,18 @@ export async function getCategories(workspaceId: string): Promise<string[]> {
   }
 }
 
-export async function getStatCards(): Promise<CardStat[]> {
-  return listOrEmpty<CardStat>("dashboard_cards");
+export async function getStatCards(workspaceId: string): Promise<CardStat[]> {
+  // TODO: dashboard_cards collection doesn't have workspace_id field yet
+  // For now, return empty array. This should be refactored to calculate
+  // stats dynamically from workspace data (assets, transactions, etc.)
+  return [];
 }
 
 export async function getLedgerRows(
+  workspaceId: string,
   options?: LedgerFilterParams & { limit?: number; offset?: number }
 ): Promise<LedgerRow[]> {
-  const response = await getLedgerRowsWithTotal(options);
+  const response = await getLedgerRowsWithTotal(workspaceId, options);
   return response.rows;
 }
 
@@ -2590,7 +2594,7 @@ function parseSnapshotTotals(record: Record<string, unknown>) {
   };
 }
 
-export async function getEarliestUnclosedMonth(): Promise<string | null> {
+export async function getEarliestUnclosedMonth(workspaceId: string): Promise<string | null> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return null;
@@ -2602,7 +2606,7 @@ export async function getEarliestUnclosedMonth(): Promise<string | null> {
   for (let i = 0; i < monthOptions.length; i++) {
     const monthKey = monthOptions[i].value;
     try {
-      const closeDoc = await getMonthlyCloseRecord(serverClient, monthKey);
+      const closeDoc = await getMonthlyCloseRecord(serverClient, workspaceId, monthKey);
 
       // If no close document exists or status is "open", this month is unclosed
       if (!closeDoc || closeDoc.status !== "closed") {
@@ -2802,19 +2806,19 @@ export async function buildMonthlySnapshotPayload(
   };
 }
 
-export async function getSidebarMonthlyCloseStatus(): Promise<{
+export async function getSidebarMonthlyCloseStatus(workspaceId: string): Promise<{
   unresolvedCount: number;
   monthKey: string;
 } | null> {
   try {
     // Get the earliest unclosed month
-    const monthKey = await getEarliestUnclosedMonth();
+    const monthKey = await getEarliestUnclosedMonth(workspaceId);
     if (!monthKey) {
       return null;
     }
 
     // Get the monthly close summary for that month
-    const summary = await getMonthlyCloseSummary(monthKey);
+    const summary = await getMonthlyCloseSummary(workspaceId, monthKey);
 
     // Count items with "attention" status
     const unresolvedCount = summary.checklist.filter(

@@ -1,4 +1,5 @@
 import { Card, SectionHead } from "@financelab/ui";
+import { redirect } from "next/navigation";
 import ReviewClient from "./ReviewClient";
 import ReviewFilters from "./ReviewFilters";
 import TransferMatchClient from "./TransferMatchClient";
@@ -8,6 +9,7 @@ import {
   getTransferReviewData,
   type ReviewFilterParams
 } from "../../../lib/data";
+import { getApiContext } from "../../../lib/api-auth";
 
 type ReviewSearchParams = {
   account?: string;
@@ -20,14 +22,20 @@ type ReviewPageProps = {
 };
 
 export default async function ReviewPage({ searchParams }: ReviewPageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const resolvedSearchParams = await searchParams;
-  const reviewItems = await getReviewItems({
+  const reviewItems = await getReviewItems(context.workspaceId, {
     account: resolvedSearchParams?.account,
     month: resolvedSearchParams?.month,
     sort: resolvedSearchParams?.sort as ReviewFilterParams["sort"]
   });
-  const categories = await getCategories();
-  const transferReviewData = await getTransferReviewData();
+  const categories = await getCategories(context.workspaceId);
+  const transferReviewData = await getTransferReviewData(context.workspaceId);
 
   return (
     <>

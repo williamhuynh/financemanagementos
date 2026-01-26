@@ -1,9 +1,11 @@
+import { redirect } from "next/navigation";
 import {
   getAssetOverview,
   getCashFlowWaterfall,
   getExpenseBreakdown,
   getStatCards
 } from "../../../lib/data";
+import { getApiContext } from "../../../lib/api-auth";
 import DashboardClient from "./DashboardClient";
 
 type DashboardPageProps = {
@@ -15,11 +17,17 @@ type DashboardPageProps = {
 };
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const statCards = await getStatCards();
-  const assetOverview = await getAssetOverview();
-  const breakdown = await getExpenseBreakdown(resolvedSearchParams?.month);
-  const cashFlow = await getCashFlowWaterfall(resolvedSearchParams?.month);
+  const statCards = await getStatCards(context.workspaceId);
+  const assetOverview = await getAssetOverview(context.workspaceId);
+  const breakdown = await getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month);
+  const cashFlow = await getCashFlowWaterfall(context.workspaceId, resolvedSearchParams?.month);
   const spendByCategory = breakdown.categories;
   const availableCategories = spendByCategory.map((category) => category.name);
   const defaultSpendCategories = availableCategories.filter(
