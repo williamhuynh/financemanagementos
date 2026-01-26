@@ -102,6 +102,56 @@ h3,
   place-items: center;
 }
 
+.invitation-details {
+  margin: 20px 0;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.invitation-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.invitation-row:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+.invitation-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.invitation-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.invitation-auth-options {
+  margin-top: 24px;
+}
+
+.secondary-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 18px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.secondary-btn:hover {
+  border-color: var(--accent);
+  background: rgba(242, 164, 59, 0.08);
+}
+
 .rail {
   background: linear-gradient(180deg, rgba(26, 33, 46, 0.9), rgba(10, 13, 18, 0.95));
   border-right: 1px solid var(--border);
@@ -203,6 +253,33 @@ h3,
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.workspace-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-select {
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.workspace-select:hover {
+  border-color: var(--accent);
+}
+
+.workspace-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .label {
@@ -893,6 +970,100 @@ h3,
 .list-row.highlight {
   border-color: rgba(242, 157, 73, 0.6);
   box-shadow: 0 0 0 1px rgba(242, 157, 73, 0.2);
+}
+
+.list-row.pending {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.ghost-btn.danger {
+  color: var(--liability);
+}
+
+.ghost-btn.danger:hover {
+  background: rgba(226, 106, 90, 0.12);
+  border-color: rgba(226, 106, 90, 0.4);
+}
+
+.invite-form {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.text-input {
+  flex: 1;
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.role-select {
+  background: rgba(20, 25, 35, 0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 120px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.invite-url-box {
+  margin-top: 12px;
+}
+
+.invite-url-box .text-input {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
 }
 
 .row-title {

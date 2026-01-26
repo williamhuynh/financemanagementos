@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, Query, ID } from "node-appwrite";
-import { getServerConfig, getCurrentUser } from "../../../lib/api-auth";
-import { createSessionClient } from "../../../lib/appwrite-server";
+import { getServerConfig, createSessionClient } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -48,6 +47,10 @@ export async function GET() {
       return NextResponse.json({ workspaces: [], currentWorkspaceId: null });
     }
 
+    // Get user's stored workspace preference
+    const prefs = await session.account.getPrefs();
+    const storedWorkspaceId = prefs.activeWorkspaceId as string | undefined;
+
     // Get workspace details
     const workspaces = [];
     for (const membership of memberships.documents) {
@@ -70,8 +73,9 @@ export async function GET() {
       }
     }
 
-    // Return first workspace as current (later can add preference storage)
-    const currentWorkspaceId = workspaces.length > 0 ? workspaces[0].id : null;
+    // Return stored preference if valid, otherwise fall back to first workspace
+    const isStoredWorkspaceValid = storedWorkspaceId && workspaces.some(w => w.id === storedWorkspaceId);
+    const currentWorkspaceId = isStoredWorkspaceValid ? storedWorkspaceId : (workspaces.length > 0 ? workspaces[0].id : null);
 
     return NextResponse.json({
       workspaces,

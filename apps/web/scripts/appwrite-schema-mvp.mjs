@@ -40,6 +40,20 @@ const collections = [
     ]
   },
   {
+    id: "workspace_invitations",
+    name: "Workspace Invitations",
+    attributes: [
+      { type: "string", key: "workspace_id", size: 64, required: true },
+      { type: "string", key: "email", size: 255, required: true },
+      { type: "string", key: "role", size: 32, required: true },
+      { type: "string", key: "token_hash", size: 128, required: true },
+      { type: "string", key: "created_at", size: 40, required: true },
+      { type: "string", key: "expires_at", size: 40, required: true },
+      { type: "string", key: "created_by_id", size: 64, required: true },
+      { type: "string", key: "accepted_at", size: 40, required: false }
+    ]
+  },
+  {
     id: "accounts",
     name: "Accounts",
     attributes: [

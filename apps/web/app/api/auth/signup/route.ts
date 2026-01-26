@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { Client, Account, ID } from "node-appwrite";
+import { Client, Account, ID, Databases } from "node-appwrite";
 import { getSession } from "../../../../lib/session";
+import { COLLECTIONS } from "../../../../lib/collection-names";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,21 @@ export async function POST(request: Request) {
     }
 
     // Create admin client with API key - required to get session secret
+    const databaseId = process.env.APPWRITE_DATABASE_ID || process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+
+    if (!databaseId) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
     const adminClient = new Client()
       .setEndpoint(endpoint)
       .setProject(projectId)
       .setKey(apiKey);
     const adminAccount = new Account(adminClient);
+    const adminDatabases = new Databases(adminClient);
 
     // Create user account
     await adminAccount.create(ID.unique(), email, password, name);
@@ -57,6 +68,41 @@ export async function POST(request: Request) {
       .setSession(appwriteSession.secret);
     const sessionAccount = new Account(sessionClient);
     const user = await sessionAccount.get();
+
+    // Create default workspace for new user
+    const workspaceId = ID.unique();
+
+    try {
+      // 1. Create workspace
+      await adminDatabases.createDocument(
+        databaseId,
+        COLLECTIONS.WORKSPACES,
+        workspaceId,
+        {
+          name: `${user.name}'s Workspace`,
+          currency: 'USD',
+          owner_id: user.$id,
+        }
+      );
+
+      // 2. Add user as owner in workspace_members
+      await adminDatabases.createDocument(
+        databaseId,
+        COLLECTIONS.WORKSPACE_MEMBERS,
+        ID.unique(),
+        {
+          workspace_id: workspaceId,
+          user_id: user.$id,
+          role: 'owner',
+        }
+      );
+
+      // 3. Set active workspace preference
+      await sessionAccount.updatePrefs({ activeWorkspaceId: workspaceId });
+    } catch (workspaceError) {
+      console.error("Error creating workspace for new user:", workspaceError);
+      // Continue anyway - workspace can be created later
+    }
 
     // Store session server-side (encrypted, HttpOnly cookie)
     const session = await getSession();

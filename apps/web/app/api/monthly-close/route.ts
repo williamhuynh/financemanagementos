@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { buildMonthlySnapshotPayload, getMonthlyCloseSummary } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
 function isValidMonth(value: string) {
   return /^\d{4}-\d{2}$/.test(value);
@@ -56,33 +57,62 @@ async function listCollectionAttributes(
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month") ?? "";
-  if (month && !isValidMonth(month)) {
-    return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+  try {
+    // Authentication and workspace context
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { user, workspaceId } = ctx;
+
+    // Verify user has read permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'read');
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month") ?? "";
+    if (month && !isValidMonth(month)) {
+      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+    }
+    const summary = await getMonthlyCloseSummary(workspaceId, month || undefined);
+    return NextResponse.json(summary);
+  } catch (error: any) {
+    if (error.message?.includes('not member')) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    if (error.message?.includes('Insufficient permission')) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+    console.error('Monthly close GET error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch monthly close summary' },
+      { status: 500 }
+    );
   }
-  const summary = await getMonthlyCloseSummary(month || undefined);
-  return NextResponse.json(summary);
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
 
-  const { databases, config, workspaceId } = ctx;
+    const { databases, config, workspaceId, user } = ctx;
 
-  const body = (await request.json()) as { month?: string; notes?: string };
-  const month = body.month?.trim() ?? "";
-  if (!isValidMonth(month)) {
-    return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
-  }
+    // Monthly close requires admin permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'admin');
 
-  const snapshotPayload = await buildMonthlySnapshotPayload(month);
+    const body = (await request.json()) as { month?: string; notes?: string };
+    const month = body.month?.trim() ?? "";
+    if (!isValidMonth(month)) {
+      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+    }
+
+    const snapshotPayload = await buildMonthlySnapshotPayload(workspaceId, month);
   if (!snapshotPayload) {
     return NextResponse.json(
       { detail: "Unable to build monthly snapshot." },
@@ -152,25 +182,42 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, status: "closed", snapshotId: snapshot.$id });
+    return NextResponse.json({ ok: true, status: "closed", snapshotId: snapshot.$id });
+  } catch (error: any) {
+    if (error.message?.includes('not member')) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    if (error.message?.includes('Insufficient permission')) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+    console.error('Monthly close POST error:', error);
+    return NextResponse.json(
+      { error: 'Failed to close month' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
 
-  const { databases, config, workspaceId } = ctx;
+    const { databases, config, workspaceId, user } = ctx;
 
-  const body = (await request.json()) as { month?: string; notes?: string };
-  const month = body.month?.trim() ?? "";
-  if (!isValidMonth(month)) {
-    return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
-  }
+    // Reopening month requires admin permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'admin');
+
+    const body = (await request.json()) as { month?: string; notes?: string };
+    const month = body.month?.trim() ?? "";
+    if (!isValidMonth(month)) {
+      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+    }
 
   const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
   if (!existing) {
@@ -185,17 +232,30 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true, status: "open" });
   }
 
-  await databases.updateDocument(
-    config.databaseId,
-    "monthly_closes",
-    String(existing.$id),
-    {
-      status: "open",
-      reopened_at: new Date().toISOString(),
-      reopened_by: "system",
-      notes: body.notes ?? ""
-    }
-  );
+    await databases.updateDocument(
+      config.databaseId,
+      "monthly_closes",
+      String(existing.$id),
+      {
+        status: "open",
+        reopened_at: new Date().toISOString(),
+        reopened_by: "system",
+        notes: body.notes ?? ""
+      }
+    );
 
-  return NextResponse.json({ ok: true, status: "open" });
+    return NextResponse.json({ ok: true, status: "open" });
+  } catch (error: any) {
+    if (error.message?.includes('not member')) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    if (error.message?.includes('Insufficient permission')) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+    console.error('Monthly close PATCH error:', error);
+    return NextResponse.json(
+      { error: 'Failed to reopen month' },
+      { status: 500 }
+    );
+  }
 }

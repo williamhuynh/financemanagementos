@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Card, ListRow, SectionHead } from "@financelab/ui";
 import { getExpenseBreakdown } from "../../../../../../lib/data";
+import { getApiContext } from "../../../../../../lib/api-auth";
 import MonthSelector from "../../MonthSelector";
 
 type CategoryExpensePageProps = {
@@ -12,10 +14,16 @@ export default async function CategoryExpensePage({
   params,
   searchParams
 }: CategoryExpensePageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const { name } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const categoryName = decodeURIComponent(name);
-  const breakdown = await getExpenseBreakdown(resolvedSearchParams?.month);
+  const breakdown = await getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month);
   const category = breakdown.categories.find(
     (item) => item.name.toLowerCase() === categoryName.toLowerCase()
   );

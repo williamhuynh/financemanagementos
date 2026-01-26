@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppwriteDocument = { $id: string; [key: string]: any };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -244,15 +248,19 @@ async function fetchHistoryMatches(
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
 
-  const { databases, config, workspaceId } = ctx;
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check write permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'write');
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const openRouterModel =
     process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
@@ -356,16 +364,17 @@ export async function POST(request: Request) {
             Query.limit(400)
           ]
         );
-        const history = historyResponse.documents
-          .map((doc) => ({
+        type HistoryItem = { id: string; date: string; description: string; amount: string; category: string };
+        const history: HistoryItem[] = historyResponse.documents
+          .map((doc: AppwriteDocument) => ({
             id: doc.$id,
             date: String(doc.date ?? ""),
             description: String(doc.description ?? ""),
             amount: String(doc.amount ?? ""),
             category: String(doc.category_name ?? "Uncategorised")
           }))
-          .filter((doc) => doc.category !== "Uncategorised")
-          .filter((doc) => {
+          .filter((doc: HistoryItem) => doc.category !== "Uncategorised")
+          .filter((doc: HistoryItem) => {
             const parsed = parseDate(doc.date);
             if (!parsed) return false;
             return parsed >= range.start && parsed <= range.end;
@@ -448,19 +457,35 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ importId });
+    return NextResponse.json({ importId });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
+    console.error('Import POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function GET() {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
 
-  const { databases, config, workspaceId } = ctx;
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check read permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'read');
 
   const response = await databases.listDocuments(config.databaseId, "imports", [
     Query.equal("workspace_id", workspaceId),
@@ -468,22 +493,31 @@ export async function GET() {
     Query.limit(30)
   ]);
 
-  const imports = response.documents.map((doc) => ({
-    id: doc.$id,
-    source_name: doc.source_name,
-    source_owner: doc.source_owner,
-    file_name: doc.file_name,
-    row_count: doc.row_count,
-    status: doc.status,
-    uploaded_at: doc.uploaded_at
-  }));
+    const imports = response.documents.map((doc: AppwriteDocument) => ({
+      id: doc.$id,
+      source_name: doc.source_name,
+      source_owner: doc.source_owner,
+      file_name: doc.file_name,
+      row_count: doc.row_count,
+      status: doc.status,
+      uploaded_at: doc.uploaded_at
+    }));
 
-  return NextResponse.json(
-    { imports },
-    {
-      headers: {
-        "Cache-Control": "no-store, max-age=0"
+    return NextResponse.json(
+      { imports },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0"
+        }
+      }
+    );
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
       }
     }
-  );
+    console.error('Import GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

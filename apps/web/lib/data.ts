@@ -8,7 +8,6 @@ import {
 import { getAppwriteClient } from "./appwriteClient";
 import { Client, Databases, Query } from "node-appwrite";
 
-const DEFAULT_WORKSPACE_ID = "default";
 const DEFAULT_CATEGORIES = [
   "Income - Primary",
   "Income - Secondary",
@@ -510,7 +509,8 @@ function getServerAppwrite() {
 }
 
 async function listTransferPairIds(
-  serverClient: ServerAppwriteClient
+  serverClient: ServerAppwriteClient,
+  workspaceId: string
 ): Promise<Set<string>> {
   const ids = new Set<string>();
   let offset = 0;
@@ -520,7 +520,7 @@ async function listTransferPairIds(
       serverClient.databaseId,
       "transfer_pairs",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.limit(100),
         Query.offset(offset)
       ]
@@ -544,7 +544,8 @@ async function listTransferPairIds(
 }
 
 async function listTransferPairs(
-  serverClient: ServerAppwriteClient
+  serverClient: ServerAppwriteClient,
+  workspaceId: string
 ): Promise<TransferPairReview[]> {
   const pairs: TransferPairReview[] = [];
   let offset = 0;
@@ -554,7 +555,7 @@ async function listTransferPairs(
       serverClient.databaseId,
       "transfer_pairs",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("matched_at"),
         Query.limit(50),
         Query.offset(offset)
@@ -879,12 +880,13 @@ function normalizeReviewFilters(filters?: ReviewFilterParams) {
 }
 
 function buildLedgerQueries(
+  workspaceId: string,
   options?: LedgerFilterParams & { limit?: number; offset?: number }
 ) {
   const normalized = normalizeLedgerFilters(options);
   const sortDirection = normalized.sort === "desc" ? "desc" : "asc";
   const queries = [
-    Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+    Query.equal("workspace_id", workspaceId),
     sortDirection === "desc" ? Query.orderDesc("date") : Query.orderAsc("date"),
     Query.orderDesc("$createdAt")
   ];
@@ -911,12 +913,13 @@ function buildLedgerQueries(
 }
 
 function buildReviewQueries(
+  workspaceId: string,
   options?: ReviewFilterParams & { limit?: number; offset?: number }
 ) {
   const normalized = normalizeReviewFilters(options);
   const sortDirection = normalized.sort === "desc" ? "desc" : "asc";
   const queries = [
-    Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+    Query.equal("workspace_id", workspaceId),
     Query.or([
       Query.equal("needs_review", true),
       Query.equal("category_name", "Uncategorised")
@@ -1236,7 +1239,7 @@ export async function getNavItems(): Promise<NavItem[]> {
   return navItems;
 }
 
-export async function getCategories(): Promise<string[]> {
+export async function getCategories(workspaceId: string): Promise<string[]> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return DEFAULT_CATEGORIES;
@@ -1246,7 +1249,7 @@ export async function getCategories(): Promise<string[]> {
     const response = await serverClient.databases.listDocuments(
       serverClient.databaseId,
       "categories",
-      [Query.equal("workspace_id", DEFAULT_WORKSPACE_ID), Query.orderAsc("name")]
+      [Query.equal("workspace_id", workspaceId), Query.orderAsc("name")]
     );
     const names = (response?.documents ?? [])
       .map((doc) => String(doc.name ?? "").trim())
@@ -1258,18 +1261,23 @@ export async function getCategories(): Promise<string[]> {
   }
 }
 
-export async function getStatCards(): Promise<CardStat[]> {
-  return listOrEmpty<CardStat>("dashboard_cards");
+export async function getStatCards(workspaceId: string): Promise<CardStat[]> {
+  // TODO: dashboard_cards collection doesn't have workspace_id field yet
+  // For now, return empty array. This should be refactored to calculate
+  // stats dynamically from workspace data (assets, transactions, etc.)
+  return [];
 }
 
 export async function getLedgerRows(
+  workspaceId: string,
   options?: LedgerFilterParams & { limit?: number; offset?: number }
 ): Promise<LedgerRow[]> {
-  const response = await getLedgerRowsWithTotal(options);
+  const response = await getLedgerRowsWithTotal(workspaceId, options);
   return response.rows;
 }
 
 export async function getLedgerRowsWithTotal(
+  workspaceId: string,
   options?: LedgerFilterParams & { limit?: number; offset?: number }
 ): Promise<{ rows: LedgerRow[]; total: number; hasMore: boolean }> {
   const serverClient = getServerAppwrite();
@@ -1288,7 +1296,7 @@ export async function getLedgerRowsWithTotal(
         : 0;
     const normalizedFilters = normalizeLedgerFilters(options);
     const monthFilter = normalizedFilters.month;
-    const transferPairIds = await listTransferPairIds(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
     const rows: LedgerRow[] = [];
     const batchSize = 100;
     let rawOffset = 0;
@@ -1311,7 +1319,7 @@ export async function getLedgerRowsWithTotal(
       const response = await serverClient.databases.listDocuments(
         serverClient.databaseId,
         "transactions",
-        buildLedgerQueries({
+        buildLedgerQueries(workspaceId, {
           ...normalizedFilters,
           limit: batchSize,
           offset: rawOffset
@@ -1394,6 +1402,7 @@ export async function getLedgerRowsWithTotal(
 }
 
 export async function getReviewItems(
+  workspaceId: string,
   options?: ReviewFilterParams & { limit?: number }
 ): Promise<ReviewItem[]> {
   const serverClient = getServerAppwrite();
@@ -1402,7 +1411,7 @@ export async function getReviewItems(
   }
 
   try {
-    const transferPairIds = await listTransferPairIds(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
     const normalizedFilters = normalizeReviewFilters(options);
     const monthFilter = normalizedFilters.month;
     const sortDirection = normalizedFilters.sort === "desc" ? -1 : 1;
@@ -1429,7 +1438,7 @@ export async function getReviewItems(
       const response = await serverClient.databases.listDocuments(
         serverClient.databaseId,
         "transactions",
-        buildReviewQueries({ ...normalizedFilters, limit: batchSize, offset })
+        buildReviewQueries(workspaceId, { ...normalizedFilters, limit: batchSize, offset })
       );
       const documents = response?.documents ?? [];
       if (documents.length === 0) {
@@ -1487,20 +1496,20 @@ export async function getReviewItems(
   }
 }
 
-export async function getTransferReviewData(): Promise<TransferReviewData> {    
+export async function getTransferReviewData(workspaceId: string): Promise<TransferReviewData> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return { suggestions: [], unmatched: [], paired: [] };
   }
 
   try {
-    const transferPairIds = await listTransferPairIds(serverClient);
-    const paired = await listTransferPairs(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
+    const paired = await listTransferPairs(serverClient, workspaceId);
     const response = await serverClient.databases.listDocuments(
       serverClient.databaseId,
       "transactions",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.equal("is_transfer", true),
         Query.orderDesc("$createdAt"),
         Query.limit(200)
@@ -1643,7 +1652,8 @@ export async function getTransferReviewData(): Promise<TransferReviewData> {
 }
 
 async function listAssetValueRecords(
-  serverClient: ServerAppwriteClient
+  serverClient: ServerAppwriteClient,
+  workspaceId: string
 ): Promise<AssetValueRecord[]> {
   const records: AssetValueRecord[] = [];
   let offset = 0;
@@ -1654,7 +1664,7 @@ async function listAssetValueRecords(
       serverClient.databaseId,
       "asset_values",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("recorded_at"),
         Query.limit(limit),
         Query.offset(offset)
@@ -1692,7 +1702,8 @@ async function listAssetValueRecords(
 }
 
 async function listAssets(
-  serverClient: ServerAppwriteClient
+  serverClient: ServerAppwriteClient,
+  workspaceId: string
 ): Promise<AssetEntityRecord[]> {
   const assets: AssetEntityRecord[] = [];
   let offset = 0;
@@ -1703,7 +1714,7 @@ async function listAssets(
       serverClient.databaseId,
       "assets",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderAsc("name"),
         Query.limit(limit),
         Query.offset(offset)
@@ -1736,6 +1747,7 @@ async function listAssets(
 
 async function listTransactionsForMonth(
   serverClient: ServerAppwriteClient,
+  workspaceId: string,
   monthKey: string
 ): Promise<MonthlyCloseTransaction[]> {
   const transactions: MonthlyCloseTransaction[] = [];
@@ -1747,7 +1759,7 @@ async function listTransactionsForMonth(
       serverClient.databaseId,
       "transactions",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("date"),
         Query.limit(limit),
         Query.offset(offset)
@@ -1786,6 +1798,7 @@ async function listTransactionsForMonth(
 
 async function listImportsForMonth(
   serverClient: ServerAppwriteClient,
+  workspaceId: string,
   monthKey: string
 ) {
   let count = 0;
@@ -1797,7 +1810,7 @@ async function listImportsForMonth(
       serverClient.databaseId,
       "imports",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("uploaded_at"),
         Query.limit(limit),
         Query.offset(offset)
@@ -1824,13 +1837,14 @@ async function listImportsForMonth(
 
 async function getMonthlyCloseRecord(
   serverClient: ServerAppwriteClient,
+  workspaceId: string,
   monthKey: string
 ) {
   const response = await serverClient.databases.listDocuments(
     serverClient.databaseId,
     "monthly_closes",
     [
-      Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+      Query.equal("workspace_id", workspaceId),
       Query.equal("month", monthKey),
       Query.limit(1)
     ]
@@ -2395,7 +2409,7 @@ export async function getAssetCards(): Promise<AssetCard[]> {
   return listOrFallback<AssetCard>("asset_cards", assetCards);
 }
 
-export async function getAssetOverview(): Promise<AssetOverview> {
+export async function getAssetOverview(workspaceId: string): Promise<AssetOverview> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return buildAssetOverviewFromRecords([], []);
@@ -2403,8 +2417,8 @@ export async function getAssetOverview(): Promise<AssetOverview> {
 
   try {
     const [records, assets] = await Promise.all([
-      listAssetValueRecords(serverClient),
-      listAssets(serverClient)
+      listAssetValueRecords(serverClient, workspaceId),
+      listAssets(serverClient, workspaceId)
     ]);
     return buildAssetOverviewFromRecords(records, assets);
   } catch (error) {
@@ -2417,9 +2431,10 @@ export async function getReportStats(): Promise<ReportStat[]> {
 }
 
 export async function getSpendByCategory(
+  workspaceId: string,
   selectedMonth?: string
 ): Promise<CategorySpend[]> {
-  const breakdown = await getExpenseBreakdown(selectedMonth);
+  const breakdown = await getExpenseBreakdown(workspaceId, selectedMonth);
   if (breakdown.categories.length === 0) {
     return buildSpendByCategory(spendByCategory);
   }
@@ -2433,6 +2448,7 @@ export async function getSpendByCategory(
 }
 
 export async function getExpenseBreakdown(
+  workspaceId: string,
   selectedMonth?: string
 ): Promise<ExpenseBreakdown> {
   const serverClient = getServerAppwrite();
@@ -2445,13 +2461,13 @@ export async function getExpenseBreakdown(
       serverClient.databaseId,
       "transactions",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("$createdAt"),
         Query.limit(250)
       ]
     );
     const documents = response?.documents ?? [];
-    const transferPairIds = await listTransferPairIds(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
 
     const transactions = documents.map((doc) => ({
       id: String(doc.$id ?? ""),
@@ -2479,6 +2495,7 @@ export async function getExpenseBreakdown(
 }
 
 export async function getCashFlowWaterfall(
+  workspaceId: string,
   selectedMonth?: string
 ): Promise<CashFlowWaterfall> {
   const serverClient = getServerAppwrite();
@@ -2491,13 +2508,13 @@ export async function getCashFlowWaterfall(
       serverClient.databaseId,
       "transactions",
       [
-        Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+        Query.equal("workspace_id", workspaceId),
         Query.orderDesc("$createdAt"),
         Query.limit(250)
       ]
     );
     const documents = response?.documents ?? [];
-    const transferPairIds = await listTransferPairIds(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
 
     const transactions = documents.map((doc) => ({
       id: String(doc.$id ?? ""),
@@ -2578,7 +2595,7 @@ function parseSnapshotTotals(record: Record<string, unknown>) {
   };
 }
 
-export async function getEarliestUnclosedMonth(): Promise<string | null> {
+export async function getEarliestUnclosedMonth(workspaceId: string): Promise<string | null> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return null;
@@ -2590,7 +2607,7 @@ export async function getEarliestUnclosedMonth(): Promise<string | null> {
   for (let i = 0; i < monthOptions.length; i++) {
     const monthKey = monthOptions[i].value;
     try {
-      const closeDoc = await getMonthlyCloseRecord(serverClient, monthKey);
+      const closeDoc = await getMonthlyCloseRecord(serverClient, workspaceId, monthKey);
 
       // If no close document exists or status is "open", this month is unclosed
       if (!closeDoc || closeDoc.status !== "closed") {
@@ -2607,6 +2624,7 @@ export async function getEarliestUnclosedMonth(): Promise<string | null> {
 }
 
 export async function getMonthlyCloseSummary(
+  workspaceId: string,
   selectedMonth?: string
 ): Promise<MonthlyCloseSummary> {
   const monthOptions = buildRollingMonthOptions(12);
@@ -2634,14 +2652,14 @@ export async function getMonthlyCloseSummary(
   }
 
   try {
-    const transferPairIds = await listTransferPairIds(serverClient);
+    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
     const [transactions, assets, assetValues, importCount, closeDoc] =
       await Promise.all([
-        listTransactionsForMonth(serverClient, selected),
-        listAssets(serverClient),
-        listAssetValueRecords(serverClient),
-        listImportsForMonth(serverClient, selected),
-        getMonthlyCloseRecord(serverClient, selected)
+        listTransactionsForMonth(serverClient, workspaceId, selected),
+        listAssets(serverClient, workspaceId),
+        listAssetValueRecords(serverClient, workspaceId),
+        listImportsForMonth(serverClient, workspaceId, selected),
+        getMonthlyCloseRecord(serverClient, workspaceId, selected)
       ]);
 
     const snapshot = buildMonthlySnapshotFromRecords(
@@ -2742,6 +2760,7 @@ export async function getMonthlyCloseSummary(
 }
 
 export async function buildMonthlySnapshotPayload(
+  workspaceId: string,
   monthKey: string
 ): Promise<MonthlySnapshotPayload | null> {
   const serverClient = getServerAppwrite();
@@ -2749,11 +2768,11 @@ export async function buildMonthlySnapshotPayload(
     return null;
   }
 
-  const transferPairIds = await listTransferPairIds(serverClient);
+  const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
   const [transactions, assets, assetValues] = await Promise.all([
-    listTransactionsForMonth(serverClient, monthKey),
-    listAssets(serverClient),
-    listAssetValueRecords(serverClient)
+    listTransactionsForMonth(serverClient, workspaceId, monthKey),
+    listAssets(serverClient, workspaceId),
+    listAssetValueRecords(serverClient, workspaceId)
   ]);
   const snapshot = buildMonthlySnapshotFromRecords(
     monthKey,
@@ -2788,19 +2807,19 @@ export async function buildMonthlySnapshotPayload(
   };
 }
 
-export async function getSidebarMonthlyCloseStatus(): Promise<{
+export async function getSidebarMonthlyCloseStatus(workspaceId: string): Promise<{
   unresolvedCount: number;
   monthKey: string;
 } | null> {
   try {
     // Get the earliest unclosed month
-    const monthKey = await getEarliestUnclosedMonth();
+    const monthKey = await getEarliestUnclosedMonth(workspaceId);
     if (!monthKey) {
       return null;
     }
 
     // Get the monthly close summary for that month
-    const summary = await getMonthlyCloseSummary(monthKey);
+    const summary = await getMonthlyCloseSummary(workspaceId, monthKey);
 
     // Count items with "attention" status
     const unresolvedCount = summary.checklist.filter(

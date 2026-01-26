@@ -1,5 +1,6 @@
-import { Query } from "node-appwrite";
-import { getServerAppwrite, DEFAULT_WORKSPACE_ID } from "./appwrite-server";
+import { Query, Databases } from "node-appwrite";
+import { getServerConfig, createDatabasesClient } from "./api-auth";
+import { COLLECTIONS } from "./collection-names";
 
 export type ParsedItem = {
   description: string;
@@ -33,23 +34,27 @@ function safeParseParsedItems(json: string): ParsedItem[] | null {
 
 /**
  * Fetches cash logs from the database
+ * @param workspaceId The workspace ID to filter by
  * @param month Optional month filter in YYYY-MM format
  * @param status Optional status filter
  * @returns Array of cash logs
  */
 export async function fetchCashLogs(
+  workspaceId: string,
   month?: string,
   status?: string
 ): Promise<CashLog[]> {
-  const serverClient = getServerAppwrite();
-  if (!serverClient) {
+  const config = getServerConfig();
+  if (!config) {
     console.error("[CASH-LOGS-SERVICE] Missing Appwrite server configuration");
     return [];
   }
 
+  const databases = createDatabasesClient(config);
+
   try {
     const queries = [
-      Query.equal("workspace_id", DEFAULT_WORKSPACE_ID),
+      Query.equal("workspace_id", workspaceId),
       Query.orderDesc("date"),
       Query.orderDesc("$createdAt"),
       Query.limit(100)
@@ -63,11 +68,11 @@ export async function fetchCashLogs(
       queries.push(Query.equal("status", status));
     }
 
-    console.log("[CASH-LOGS-SERVICE] Querying with filters:", { month, status });
+    console.log("[CASH-LOGS-SERVICE] Querying with filters:", { month, status, workspaceId });
 
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
-      "cash_logs",
+    const response = await databases.listDocuments(
+      config.databaseId,
+      COLLECTIONS.CASH_LOGS,
       queries
     );
 
@@ -117,21 +122,24 @@ const DEFAULT_CATEGORIES = [
 
 /**
  * Fetches categories from the database
+ * @param workspaceId The workspace ID to filter by
  * @returns Array of category names
  */
-export async function fetchCategories(): Promise<Category[]> {
-  const serverClient = getServerAppwrite();
+export async function fetchCategories(workspaceId: string): Promise<Category[]> {
+  const config = getServerConfig();
 
-  if (!serverClient) {
+  if (!config) {
     console.log("[CASH-LOGS-SERVICE] No Appwrite client, returning default categories");
     return DEFAULT_CATEGORIES;
   }
 
+  const databases = createDatabasesClient(config);
+
   try {
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
-      "categories",
-      [Query.equal("workspace_id", DEFAULT_WORKSPACE_ID), Query.orderAsc("name")]
+    const response = await databases.listDocuments(
+      config.databaseId,
+      COLLECTIONS.CATEGORIES,
+      [Query.equal("workspace_id", workspaceId), Query.orderAsc("name")]
     );
 
     const names = (response?.documents ?? [])

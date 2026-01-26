@@ -34,9 +34,10 @@ type TopbarProps = {
   userLabel?: string;
   onToggleNumberVisibility?: () => void;
   numbersVisible?: boolean;
+  workspaceSwitcher?: React.ReactNode;
 };
 
-export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible }: TopbarProps) {
+export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, workspaceSwitcher }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -68,6 +69,7 @@ export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible }: 
 
   return (
     <header className="topbar">
+      {workspaceSwitcher}
       {hideMonthControl ? null : (
         <div className="month-control">
           <span className="label">Month</span>

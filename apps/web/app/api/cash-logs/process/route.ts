@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getApiContext } from "../../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -219,20 +220,22 @@ function guessCategory(description: string, isIncome: boolean): string {
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config } = ctx;
-
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
-  const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
-
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check admin permission (processing cash logs is an admin operation)
+    await requireWorkspacePermission(workspaceId, user.$id, 'admin');
+
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
     const body = (await request.json()) as ProcessInput;
 
     if (!body.logIds || body.logIds.length === 0) {
@@ -349,6 +352,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ processed });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to process cash logs:", error);
     return NextResponse.json(
       { detail: "Failed to process cash logs." },

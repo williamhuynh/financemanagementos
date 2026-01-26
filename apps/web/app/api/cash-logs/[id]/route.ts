@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,19 +19,23 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-  const { id } = await context.params;
-
-  // Verify the cash log exists and belongs to the user's workspace
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check write permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'write');
+
+    const { id } = await context.params;
+
+    // Verify the cash log exists and belongs to the user's workspace
     const existingLogs = await databases.listDocuments(
       config.databaseId,
       "cash_logs",
@@ -43,15 +48,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 404 }
       );
     }
-  } catch (error) {
-    console.error("Error verifying cash log ownership:", error);
-    return NextResponse.json(
-      { detail: "Error verifying cash log ownership." },
-      { status: 500 }
-    );
-  }
 
-  try {
     const body = (await request.json()) as {
       text?: string;
       date?: string;
@@ -110,6 +107,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       createdAt: doc.$createdAt
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to update cash log:", error);
     return NextResponse.json(
       { detail: "Failed to update cash log." },
@@ -119,19 +124,23 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-  const { id } = await context.params;
-
-  // Verify the cash log exists and belongs to the user's workspace
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check delete permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'delete');
+
+    const { id } = await context.params;
+
+    // Verify the cash log exists and belongs to the user's workspace
     const existingLogs = await databases.listDocuments(
       config.databaseId,
       "cash_logs",
@@ -144,15 +153,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
         { status: 404 }
       );
     }
-  } catch (error) {
-    console.error("Error verifying cash log ownership:", error);
-    return NextResponse.json(
-      { detail: "Error verifying cash log ownership." },
-      { status: 500 }
-    );
-  }
 
-  try {
     await databases.deleteDocument(
       config.databaseId,
       "cash_logs",
@@ -161,6 +162,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to delete cash log:", error);
     return NextResponse.json(
       { detail: "Failed to delete cash log." },
