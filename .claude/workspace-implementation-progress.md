@@ -169,15 +169,20 @@
 ## Summary
 
 **Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2 + Type Definitions
-**In Progress:** None
-**Pending:** Phases 2.4, 3, 4, 5
+**In Progress:** Phase 2.4 (50% complete)
+**Pending:** Phases 2.4 (remaining routes), 3, 4, 5
+
+**Phase 2.4 Progress:**
+- ✅ 5/16 route files updated with permission checks
+- Pattern established: Add `requireWorkspacePermission()` + error handling
+- Remaining: 11 route files (cash-logs, categories, transfer-pairs, accounts, transcribe, asset_values)
 
 **Next Immediate Steps:**
-1. Phase 2.4 - Add role checks to all remaining API endpoints
+1. Phase 2.4 - Complete remaining 11 API route files with permission checks
 2. Phase 5.2 - Create database indexes (CRITICAL for data integrity)
 3. Phase 3 - Workspace Switcher UI
 
 **Critical Path:**
 - ✅ Complete Phase 1.7 to ensure all data access is properly scoped to workspaces
-- Complete Phase 2.4 to enforce role-based permissions
+- ⏳ Complete Phase 2.4 to enforce role-based permissions (50% done)
 - Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)
