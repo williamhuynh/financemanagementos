@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -28,17 +29,19 @@ function isIncomeCategory(category: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check admin permission (committing cash logs is an admin operation)
+    await requireWorkspacePermission(workspaceId, user.$id, 'admin');
     const body = (await request.json()) as CommitInput;
 
     if (!body.processed || body.processed.length === 0) {
@@ -127,6 +130,14 @@ export async function POST(request: Request) {
       logsCommitted: updatedLogs.length
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to commit cash logs:", error);
     return NextResponse.json(
       { detail: "Failed to commit cash logs." },

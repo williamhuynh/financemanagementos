@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
+import { getApiContext } from "../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
 export const dynamic = "force-dynamic";
 
 const OPENAI_WHISPER_ENDPOINT = "https://api.openai.com/v1/audio/transcriptions";
 
 export async function POST(request: Request) {
-  const openaiKey = process.env.OPENAI_API_KEY;
-
-  if (!openaiKey) {
-    return NextResponse.json(
-      { detail: "Missing OpenAI API key configuration." },
-      { status: 500 }
-    );
-  }
-
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { workspaceId, user } = ctx;
+
+    // Check write permission (transcription creates data)
+    await requireWorkspacePermission(workspaceId, user.$id, 'write');
+
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (!openaiKey) {
+      return NextResponse.json(
+        { detail: "Missing OpenAI API key configuration." },
+        { status: 500 }
+      );
+    }
     const formData = await request.formData();
     const audioFile = formData.get("audio") as Blob | null;
 
@@ -62,6 +76,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ text: normalizedText });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Transcription failed:", error);
     return NextResponse.json(
       { detail: "Failed to transcribe audio." },

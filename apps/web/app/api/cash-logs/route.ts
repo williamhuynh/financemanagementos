@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,20 +27,23 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function GET(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-  const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month");
-  const status = searchParams.get("status");
-
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check read permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'read');
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month");
+    const status = searchParams.get("status");
     const queries = [
       Query.equal("workspace_id", workspaceId),
       Query.orderDesc("date"),
@@ -75,6 +79,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ logs });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to fetch cash logs:", error);
     return NextResponse.json(
       { detail: "Failed to fetch cash logs." },
@@ -84,17 +96,19 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-
   try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check write permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'write');
     const body = (await request.json()) as CashLogInput;
 
     if (!body.text?.trim()) {
@@ -138,6 +152,14 @@ export async function POST(request: Request) {
       createdAt: created.$createdAt
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
     console.error("Failed to create cash log:", error);
     return NextResponse.json(
       { detail: "Failed to create cash log." },
