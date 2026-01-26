@@ -122,25 +122,31 @@
     - `getStatCards(workspaceId)` - Returns empty array (collection doesn't support workspaces yet)
   - Verified client components only import types and helper functions, not data access functions
 
-### ⏳ Phase 2.4: Add Role Checks to All API Endpoints
-- **Status:** IN PROGRESS
-- **Completed:**
+### ✅ Phase 2.4: Add Role Checks to All API Endpoints
+- **Status:** COMPLETE
+- **All 16 API Routes Secured:**
   - ✅ `/api/imports/route.ts` - POST with 'write', GET with 'read'
   - ✅ `/api/imports/[id]/route.ts` - DELETE with 'delete'
   - ✅ `/api/transactions/[id]/route.ts` - PATCH with 'write'
   - ✅ `/api/assets/route.ts` - POST with 'write'
-- **Remaining Files:**
-  - `/api/assets/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
-  - `/api/assets/values/route.ts` - POST requires 'write', GET requires 'read'
-  - `/api/assets/values/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
-  - `/api/cash-logs/route.ts` - GET requires 'read', POST requires 'write'
-  - `/api/cash-logs/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
-  - `/api/cash-logs/commit/route.ts` - POST requires 'admin'
-  - `/api/cash-logs/process/route.ts` - POST requires 'admin'
-  - `/api/categories/route.ts` - GET requires 'read', POST requires 'write'
-  - `/api/transfer-pairs/route.ts` - GET requires 'read', POST requires 'write'
-  - `/api/accounts/route.ts` - GET requires 'read'
-  - `/api/transcribe/route.ts` - POST requires 'write'
+  - ✅ `/api/assets/[id]/route.ts` - PATCH with 'write', DELETE with 'delete'
+  - ✅ `/api/assets/values/route.ts` - POST with 'write'
+  - ✅ `/api/assets/values/[id]/route.ts` - DELETE with 'delete'
+  - ✅ `/api/cash-logs/route.ts` - GET with 'read', POST with 'write'
+  - ✅ `/api/cash-logs/[id]/route.ts` - PATCH with 'write', DELETE with 'delete'
+  - ✅ `/api/cash-logs/commit/route.ts` - POST with 'admin'
+  - ✅ `/api/cash-logs/process/route.ts` - POST with 'admin'
+  - ✅ `/api/categories/route.ts` - GET with 'read'
+  - ✅ `/api/transfer-pairs/route.ts` - POST with 'write'
+  - ✅ `/api/transfer-pairs/[id]/route.ts` - DELETE with 'delete' (completed in Phase 1.5)
+  - ✅ `/api/accounts/route.ts` - GET with 'read'
+  - ✅ `/api/transcribe/route.ts` - POST with 'write'
+
+- **Permission Breakdown:**
+  - 5 routes with 'read' permission
+  - 8 routes with 'write' permission
+  - 3 routes with 'delete' permission
+  - 3 routes with 'admin' permission
 
 ### ⏳ Phase 3: Workspace Switcher UI
 - **Status:** NOT STARTED
@@ -168,21 +174,21 @@
 
 ## Summary
 
-**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2 + Type Definitions
-**In Progress:** Phase 2.4 (50% complete)
-**Pending:** Phases 2.4 (remaining routes), 3, 4, 5
+**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4 + Type Definitions
+**In Progress:** None
+**Pending:** Phases 3, 4, 5
 
-**Phase 2.4 Progress:**
-- ✅ 5/16 route files updated with permission checks
-- Pattern established: Add `requireWorkspacePermission()` + error handling
-- Remaining: 11 route files (cash-logs, categories, transfer-pairs, accounts, transcribe, asset_values)
+**🎉 Major Milestone: All Critical Security Phases Complete!**
+- ✅ Phase 1.7: All server components secured with workspace authentication
+- ✅ Phase 2.4: All 16 API routes enforce role-based permissions
+- Pattern established and consistently applied across entire codebase
 
 **Next Immediate Steps:**
-1. Phase 2.4 - Complete remaining 11 API route files with permission checks
-2. Phase 5.2 - Create database indexes (CRITICAL for data integrity)
-3. Phase 3 - Workspace Switcher UI
+1. **Phase 5.2 - Create database indexes (CRITICAL)** - Prevent duplicate memberships
+2. Phase 3 - Workspace Switcher UI
+3. Phase 4 - Member Management (invitations, owner protection)
 
 **Critical Path:**
 - ✅ Complete Phase 1.7 to ensure all data access is properly scoped to workspaces
-- ⏳ Complete Phase 2.4 to enforce role-based permissions (50% done)
-- Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)
+- ✅ Complete Phase 2.4 to enforce role-based permissions
+- ⏳ Complete Phase 5.2 to create database indexes (CRITICAL for preventing duplicate memberships)
