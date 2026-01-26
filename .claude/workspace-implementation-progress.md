@@ -123,17 +123,24 @@
   - Verified client components only import types and helper functions, not data access functions
 
 ### ⏳ Phase 2.4: Add Role Checks to All API Endpoints
-- **Status:** NOT STARTED
-- **Required Actions:**
-  - Add `requireWorkspacePermission()` calls to all API routes
-  - Files to update:
-    - `apps/web/app/api/imports/route.ts` - POST requires 'write'
-    - `apps/web/app/api/imports/[id]/route.ts` - DELETE requires 'delete'
-    - `apps/web/app/api/transactions/[id]/route.ts` - PATCH requires 'write'
-    - `apps/web/app/api/assets/route.ts` - POST requires 'write'
-    - `apps/web/app/api/assets/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
-    - `apps/web/app/api/monthly-close/route.ts` - POST/PATCH requires 'admin'
-    - All other API routes - Add appropriate permission checks
+- **Status:** IN PROGRESS
+- **Completed:**
+  - ✅ `/api/imports/route.ts` - POST with 'write', GET with 'read'
+  - ✅ `/api/imports/[id]/route.ts` - DELETE with 'delete'
+  - ✅ `/api/transactions/[id]/route.ts` - PATCH with 'write'
+  - ✅ `/api/assets/route.ts` - POST with 'write'
+- **Remaining Files:**
+  - `/api/assets/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
+  - `/api/assets/values/route.ts` - POST requires 'write', GET requires 'read'
+  - `/api/assets/values/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
+  - `/api/cash-logs/route.ts` - GET requires 'read', POST requires 'write'
+  - `/api/cash-logs/[id]/route.ts` - PATCH/DELETE requires 'write'/'delete'
+  - `/api/cash-logs/commit/route.ts` - POST requires 'admin'
+  - `/api/cash-logs/process/route.ts` - POST requires 'admin'
+  - `/api/categories/route.ts` - GET requires 'read', POST requires 'write'
+  - `/api/transfer-pairs/route.ts` - GET requires 'read', POST requires 'write'
+  - `/api/accounts/route.ts` - GET requires 'read'
+  - `/api/transcribe/route.ts` - POST requires 'write'
 
 ### ⏳ Phase 3: Workspace Switcher UI
 - **Status:** NOT STARTED
