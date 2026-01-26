@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, Query, ID } from "node-appwrite";
-import { getServerConfig, getCurrentUser } from "../../../lib/api-auth";
-import { createSessionClient } from "../../../lib/appwrite-server";
+import { getServerConfig, createSessionClient } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
