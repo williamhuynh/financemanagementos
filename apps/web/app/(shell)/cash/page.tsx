@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import { SectionHead } from "@financelab/ui";
 import CashLogClient from "./CashLogClient";
 import { fetchCashLogs, fetchCategories } from "../../../lib/cash-logs-service";
+import { getApiContext } from "../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,12 +55,18 @@ type CashPageProps = {
 };
 
 export default async function CashPage({ searchParams }: CashPageProps) {
+  // Authenticate and get workspace context
+  const context = await getApiContext();
+  if (!context) {
+    redirect("/login");
+  }
+
   const resolvedSearchParams = await searchParams;
   const selectedMonth = resolvedSearchParams?.month || getCurrentMonth();
   console.log("[CASH-PAGE] Selected month:", selectedMonth);
-  const logs = await fetchCashLogs(selectedMonth);
+  const logs = await fetchCashLogs(context.workspaceId, selectedMonth);
   console.log("[CASH-PAGE] Received", logs.length, "logs");
-  const categories = await fetchCategories();
+  const categories = await fetchCategories(context.workspaceId);
   const monthOptions = buildMonthOptions(6);
   console.log("[CASH-PAGE] Month options:", monthOptions.map(o => o.value).join(", "));
 

@@ -3,6 +3,9 @@ import { Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppwriteDocument = { $id: string; [key: string]: any };
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -50,7 +53,7 @@ export async function GET() {
     );
 
     const names = (response?.documents ?? [])
-      .map((doc) => String(doc.name ?? "").trim())
+      .map((doc: AppwriteDocument) => String(doc.name ?? "").trim())
       .filter(Boolean);
 
     const categories = names.length > 0 ? names : DEFAULT_CATEGORIES;

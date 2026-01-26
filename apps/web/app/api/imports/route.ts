@@ -3,6 +3,9 @@ import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppwriteDocument = { $id: string; [key: string]: any };
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -361,16 +364,17 @@ export async function POST(request: Request) {
             Query.limit(400)
           ]
         );
-        const history = historyResponse.documents
-          .map((doc) => ({
+        type HistoryItem = { id: string; date: string; description: string; amount: string; category: string };
+        const history: HistoryItem[] = historyResponse.documents
+          .map((doc: AppwriteDocument) => ({
             id: doc.$id,
             date: String(doc.date ?? ""),
             description: String(doc.description ?? ""),
             amount: String(doc.amount ?? ""),
             category: String(doc.category_name ?? "Uncategorised")
           }))
-          .filter((doc) => doc.category !== "Uncategorised")
-          .filter((doc) => {
+          .filter((doc: HistoryItem) => doc.category !== "Uncategorised")
+          .filter((doc: HistoryItem) => {
             const parsed = parseDate(doc.date);
             if (!parsed) return false;
             return parsed >= range.start && parsed <= range.end;
@@ -489,7 +493,7 @@ export async function GET() {
     Query.limit(30)
   ]);
 
-    const imports = response.documents.map((doc) => ({
+    const imports = response.documents.map((doc: AppwriteDocument) => ({
       id: doc.$id,
       source_name: doc.source_name,
       source_owner: doc.source_owner,

@@ -24,7 +24,7 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     redirect("/login");
   }
 
-  const navItems = getNavItems();
+  const navItems = await getNavItems();
   const monthlyCloseStatus = await getSidebarMonthlyCloseStatus(context.workspaceId);
 
   return (

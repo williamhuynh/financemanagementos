@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/auth-context";
 
@@ -11,7 +11,7 @@ type InvitationInfo = {
   expires_at: string;
 };
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -193,5 +193,24 @@ export default function AcceptInvitationPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1 className="auth-title">Loading...</h1>
+        <p className="auth-sub">Please wait...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AcceptInvitationContent />
+    </Suspense>
   );
 }

@@ -2431,9 +2431,10 @@ export async function getReportStats(): Promise<ReportStat[]> {
 }
 
 export async function getSpendByCategory(
+  workspaceId: string,
   selectedMonth?: string
 ): Promise<CategorySpend[]> {
-  const breakdown = await getExpenseBreakdown(selectedMonth);
+  const breakdown = await getExpenseBreakdown(workspaceId, selectedMonth);
   if (breakdown.categories.length === 0) {
     return buildSpendByCategory(spendByCategory);
   }

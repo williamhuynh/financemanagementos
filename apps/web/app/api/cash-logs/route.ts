@@ -3,6 +3,9 @@ import { ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppwriteDocument = { $id: string; $createdAt: string; [key: string]: any };
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -65,7 +68,7 @@ export async function GET(request: Request) {
       queries
     );
 
-    const logs = response.documents.map((doc) => ({
+    const logs = response.documents.map((doc: AppwriteDocument) => ({
       id: doc.$id,
       text: doc.text ?? "",
       date: doc.date ?? "",
