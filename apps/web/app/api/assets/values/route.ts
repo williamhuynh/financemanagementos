@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
+import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 
 type AssetValuePayload = {
   assetId?: string;
@@ -61,81 +62,97 @@ async function fetchAudRate(currency: string) {
 }
 
 export async function POST(request: Request) {
-  const ctx = await getApiContext();
-  if (!ctx) {
-    return NextResponse.json(
-      { detail: "Unauthorized or missing configuration." },
-      { status: 401 }
-    );
-  }
-
-  const { databases, config, workspaceId } = ctx;
-
-  const body = (await request.json()) as {
-    recordedAt?: string;
-    items?: AssetValuePayload[];
-  };
-
-  const items = Array.isArray(body.items) ? body.items : [];
-  if (items.length === 0) {
-    return NextResponse.json(
-      { detail: "No asset values provided." },
-      { status: 400 }
-    );
-  }
-
-  const recordedAt = body.recordedAt?.trim() || new Date().toISOString();
-
-  let created = 0;
-  const rateCache = new Map<string, { rate: number; source: string }>();
-  for (const item of items) {
-    if (!item.assetName || !Number.isFinite(item.value)) {
-      continue;
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json(
+        { detail: "Unauthorized or missing configuration." },
+        { status: 401 }
+      );
     }
-    const currency = (item.currency ?? "AUD").toUpperCase();
-    let rate = rateCache.get(currency);
-    if (!rate) {
-      try {
-        rate = await fetchAudRate(currency);
-      } catch (error) {
-        return NextResponse.json(
-          {
-            detail:
-              error instanceof Error
-                ? error.message
-                : `Unable to fetch FX rate for ${currency}.`
-          },
-          { status: 502 }
-        );
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    // Check write permission
+    await requireWorkspacePermission(workspaceId, user.$id, 'write');
+
+    const body = (await request.json()) as {
+      recordedAt?: string;
+      items?: AssetValuePayload[];
+    };
+
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (items.length === 0) {
+      return NextResponse.json(
+        { detail: "No asset values provided." },
+        { status: 400 }
+      );
+    }
+
+    const recordedAt = body.recordedAt?.trim() || new Date().toISOString();
+
+    let created = 0;
+    const rateCache = new Map<string, { rate: number; source: string }>();
+    for (const item of items) {
+      if (!item.assetName || !Number.isFinite(item.value)) {
+        continue;
       }
-      rateCache.set(currency, rate);
+      const currency = (item.currency ?? "AUD").toUpperCase();
+      let rate = rateCache.get(currency);
+      if (!rate) {
+        try {
+          rate = await fetchAudRate(currency);
+        } catch (error) {
+          return NextResponse.json(
+            {
+              detail:
+                error instanceof Error
+                  ? error.message
+                  : `Unable to fetch FX rate for ${currency}.`
+            },
+            { status: 502 }
+          );
+        }
+        rateCache.set(currency, rate);
+      }
+      const audValue = item.value * rate.rate;
+      await databases.createDocument(config.databaseId, "asset_values", ID.unique(), {
+        workspace_id: workspaceId,
+        asset_id: item.assetId ?? "",
+        asset_name: item.assetName,
+        asset_type: item.assetType,
+        value: String(item.value),
+        currency,
+        original_value: String(item.value),
+        original_currency: currency,
+        value_aud: String(audValue),
+        fx_rate: String(rate.rate),
+        fx_source: rate.source,
+        recorded_at: recordedAt,
+        source: item.source ?? "manual",
+        notes: item.notes ?? ""
+      });
+      created += 1;
     }
-    const audValue = item.value * rate.rate;
-    await databases.createDocument(config.databaseId, "asset_values", ID.unique(), {
-      workspace_id: workspaceId,
-      asset_id: item.assetId ?? "",
-      asset_name: item.assetName,
-      asset_type: item.assetType,
-      value: String(item.value),
-      currency,
-      original_value: String(item.value),
-      original_currency: currency,
-      value_aud: String(audValue),
-      fx_rate: String(rate.rate),
-      fx_source: rate.source,
-      recorded_at: recordedAt,
-      source: item.source ?? "manual",
-      notes: item.notes ?? ""
-    });
-    created += 1;
-  }
 
-  if (created === 0) {
-    return NextResponse.json(
-      { detail: "No valid asset values provided." },
-      { status: 400 }
-    );
-  }
+    if (created === 0) {
+      return NextResponse.json(
+        { detail: "No valid asset values provided." },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json({ ok: true, created });
+    return NextResponse.json({ ok: true, created });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('not member')) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+      if (error.message.includes('Insufficient permission')) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
+    }
+    console.error('Asset values POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
