@@ -80,8 +80,8 @@ export async function POST(request: Request) {
         workspaceId,
         {
           name: `${user.name}'s Workspace`,
-          created_by: user.$id,
-          created_at: new Date().toISOString(),
+          currency: 'USD',
+          owner_id: user.$id,
         }
       );
 
@@ -94,7 +94,6 @@ export async function POST(request: Request) {
           workspace_id: workspaceId,
           user_id: user.$id,
           role: 'owner',
-          joined_at: new Date().toISOString(),
         }
       );
 
