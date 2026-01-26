@@ -170,13 +170,18 @@ async function createIndexIfMissing(index) {
     );
     console.log(`✅ Created index: ${index.collectionId}.${index.key}`);
     console.log(`   ${index.description}`);
+    return { status: 'created' };
   } catch (error) {
     if (error?.code === 409) {
       console.log(`⏭️  Index exists: ${index.collectionId}.${index.key}`);
+      return { status: 'exists' };
+    } else if (error?.type === 'attribute_not_available') {
+      console.log(`⏳ Skipped (attribute pending): ${index.collectionId}.${index.key}`);
+      return { status: 'pending' };
     } else {
       console.error(`❌ Failed to create index: ${index.collectionId}.${index.key}`);
       console.error(`   Error: ${error.message}`);
-      throw error;
+      return { status: 'failed', error: error.message };
     }
   }
 }
@@ -184,11 +189,20 @@ async function createIndexIfMissing(index) {
 async function run() {
   console.log("\n🔧 Creating database indexes...\n");
 
+  const counts = { created: 0, exists: 0, pending: 0, failed: 0 };
+
   for (const index of indexes) {
-    await createIndexIfMissing(index);
+    const result = await createIndexIfMissing(index);
+    counts[result.status]++;
   }
 
-  console.log("\n✨ Index creation complete!\n");
+  console.log("\n✨ Index creation complete!");
+  console.log(`   Created: ${counts.created}, Already existed: ${counts.exists}, Pending: ${counts.pending}, Failed: ${counts.failed}\n`);
+
+  if (counts.pending > 0) {
+    console.log("⚠️  Some indexes were skipped because attributes are still provisioning.");
+    console.log("   Re-run this script later to create them.\n");
+  }
 }
 
 run().catch((error) => {

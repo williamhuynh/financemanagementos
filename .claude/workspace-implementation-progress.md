@@ -217,9 +217,11 @@
 
 ## Summary
 
-**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4, 3, 5.2 + Type Definitions
+**Completed:** Phases 0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.4, 3, 4, 5.2 + Type Definitions
 **In Progress:** None
-**Pending:** Phases 4, 5.1, 5.3
+**Pending:** Phases 5.1, 5.3
+
+**Note:** workspace_invitations indexes (idx_email, idx_token_hash) pending - rerun `node scripts/appwrite-create-indexes.mjs` once Appwrite finishes attribute provisioning.
 
 **🎉 Major Milestone: All Critical Security Phases Complete!**
 - ✅ Phase 1.7: All server components secured with workspace authentication
