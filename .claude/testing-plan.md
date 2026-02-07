@@ -1,5 +1,7 @@
 # Multi-Workspace Testing Plan
 
+> See [docs/TESTING_PLAN.md](../docs/TESTING_PLAN.md) for the consolidated testing plan and [docs/ROADMAP.md](../docs/ROADMAP.md) for the master roadmap.
+
 ## Test Environment Setup
 - Local development environment with Appwrite
 - Two test user accounts (User A, User B)

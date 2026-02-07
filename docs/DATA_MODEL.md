@@ -1,4 +1,6 @@
-# Data Model (Draft)
+# Data Model
+
+See [APPWRITE_SETUP.md](APPWRITE_SETUP.md) for the actual Appwrite collection definitions and [ROADMAP.md](ROADMAP.md) for current status.
 
 ## Entities
 - User

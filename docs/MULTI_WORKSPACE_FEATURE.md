@@ -1,5 +1,7 @@
 # Multi-Workspace Feature
 
+See [ROADMAP.md](ROADMAP.md) for the master plan and current priorities.
+
 ## Overview
 
 The Finance Management Tool now supports **multi-workspace collaboration**, allowing users to:
@@ -372,16 +374,12 @@ Planned features for future releases:
 - Billing per workspace
 - Workspace templates
 
-## Support
+## Related Documentation
 
-For issues or questions:
-1. Check this documentation
-2. Review the testing plan in `.claude/testing-plan.md`
-3. See implementation details in `.claude/multi-workspace-completion-summary.md`
-4. Contact the development team
+- [ROADMAP.md](ROADMAP.md) — Master plan and current priorities
+- [TESTING_PLAN.md](TESTING_PLAN.md) — Manual and automated test plan
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture and key services
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2026-01-26
-**Status:** Production Ready (pending testing)
+**Last Updated:** 2026-02-07

@@ -1,7 +1,11 @@
 # Multi-User/Multi-Workspace Readiness Plan
 
+> **Status (Feb 2026):** ALL PHASES COMPLETE. See [docs/ROADMAP.md](../../docs/ROADMAP.md) for the master plan and current priorities.
+>
+> This document is kept as an architectural reference. For user-facing docs see [docs/MULTI_WORKSPACE_FEATURE.md](../../docs/MULTI_WORKSPACE_FEATURE.md).
+
 ## Overview
-Prepare the finance management app for multiple users/families with proper data isolation. The workspace foundation exists but has critical security gaps that must be fixed before extending to other users.
+Prepare the finance management app for multiple users/families with proper data isolation. All phases below have been implemented.
 
 ## Architecture Decision
 **Data Access Model: Server-Side Only**
