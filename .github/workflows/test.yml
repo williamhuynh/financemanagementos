@@ -36,19 +36,20 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: cd apps/web && npm run lint
+        run: npm run lint --workspace=apps/web
         continue-on-error: false
 
       - name: Run TypeScript type-check
-        run: cd apps/web && npx tsc --noEmit
+        working-directory: apps/web
+        run: npx tsc --noEmit
         continue-on-error: false
 
       - name: Run Vitest unit tests
-        run: cd apps/web && npm test
+        run: npm test --workspace=apps/web
         continue-on-error: false
 
       - name: Build production bundle
-        run: cd apps/web && npm run build
+        run: npm run build --workspace=apps/web
         env:
           # Stub required env vars for build (not used in tests)
           NEXT_PUBLIC_APPWRITE_ENDPOINT: https://cloud.appwrite.io/v1
