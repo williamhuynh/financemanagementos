@@ -219,7 +219,13 @@ function resolveAmount(
   return "";
 }
 
-export default function ImportClient() {
+type ImportMode = "csv" | "pdf";
+
+type ImportClientProps = {
+  mode?: ImportMode;
+};
+
+export default function ImportClient({ mode = "csv" }: ImportClientProps) {
   const [fileName, setFileName] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hasHeader, setHasHeader] = useState(true);
@@ -247,8 +253,16 @@ export default function ImportClient() {
     {}
   );
 
-  const mappedRows = useMemo(() => {
-    if (rows.length === 0) return [];
+  // PDF-specific state
+  const [extractedRows, setExtractedRows] = useState<Record<string, string>[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
+
+  const isPdf = mode === "pdf";
+
+  // CSV: derive mapped rows from raw rows + column mapping
+  const csvMappedRows = useMemo(() => {
+    if (isPdf || rows.length === 0) return [];
 
     return rows.map((row) => {
       const mapped: Record<string, string> = {};
@@ -261,9 +275,13 @@ export default function ImportClient() {
       mapped.amount = applyAmountSign(resolveAmount(row, mapping), invertAmount);
       return mapped;
     });
-  }, [rows, mapping, invertAmount]);
+  }, [rows, mapping, invertAmount, isPdf]);
+
+  // Unified mapped rows: CSV uses column mapping, PDF uses server-extracted rows
+  const mappedRows = isPdf ? extractedRows : csvMappedRows;
 
   const canSubmit =
+    mappedRows.length > 0 &&
     requiredFields.every((field) => mappedRows.some((row) => row[field])) &&
     mappedRows.some((row) => row.amount) &&
     Boolean(sourceOwner);
@@ -290,14 +308,28 @@ export default function ImportClient() {
     }
   };
 
+  // Reset file state when mode changes
+  useEffect(() => {
+    setSelectedFile(null);
+    setFileName("");
+    setHeaders([]);
+    setRows([]);
+    setMapping({});
+    setExtractedRows([]);
+    setExtractWarnings([]);
+    setStatus("");
+    setProgress(0);
+    setProgressState("idle");
+  }, [mode]);
+
   useEffect(() => {
     loadImportHistory();
   }, []);
 
   useEffect(() => {
-    if (!selectedFile) return;
+    if (!selectedFile || isPdf) return;
     parseFile(selectedFile, hasHeader);
-  }, [hasHeader, selectedFile]);
+  }, [hasHeader, selectedFile, isPdf]);
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -314,6 +346,59 @@ export default function ImportClient() {
     loadAccounts();
   }, []);
 
+  // --- PDF extraction ---
+  const handlePdfExtract = async (file: File) => {
+    setFileName(file.name);
+    setIsExtracting(true);
+    setExtractedRows([]);
+    setExtractWarnings([]);
+    setStatus("Extracting transactions from PDF...");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (sourceAccount) {
+        formData.append("sourceAccount", sourceAccount);
+      }
+
+      const response = await fetch("/api/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setStatus(payload?.detail ?? payload?.error ?? "PDF extraction failed.");
+        return;
+      }
+
+      const rows: Record<string, string>[] = (payload.rows ?? []).map(
+        (row: Record<string, string>) => ({
+          date: row.date ?? "",
+          description: row.description ?? "",
+          amount: row.amount ?? "",
+          account: row.account ?? "",
+          category: row.category ?? "",
+          currency: row.currency ?? "",
+        })
+      );
+
+      setExtractedRows(rows);
+      setExtractWarnings(payload.warnings ?? []);
+      setStatus(
+        rows.length > 0
+          ? `Extracted ${rows.length} transactions from PDF.`
+          : "No transactions found in PDF."
+      );
+    } catch (error) {
+      setStatus("PDF extraction failed.");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  // --- CSV parsing ---
   const parseFile = async (file: File, includeHeader: boolean) => {
     setFileName(file.name);
     setStatus("Parsing CSV...");
@@ -392,8 +477,12 @@ export default function ImportClient() {
     const file = event.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    setHeaderMode("auto");
-    parseFile(file, hasHeader);
+    if (isPdf) {
+      handlePdfExtract(file);
+    } else {
+      setHeaderMode("auto");
+      parseFile(file, hasHeader);
+    }
   };
 
   const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
@@ -402,8 +491,12 @@ export default function ImportClient() {
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
     setSelectedFile(file);
-    setHeaderMode("auto");
-    parseFile(file, hasHeader);
+    if (isPdf) {
+      handlePdfExtract(file);
+    } else {
+      setHeaderMode("auto");
+      parseFile(file, hasHeader);
+    }
   };
 
   const applyPreset = (nextPresetId: string, activeHeaders = headers) => {
@@ -434,7 +527,7 @@ export default function ImportClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sourceName: "CSV",
+          sourceName: isPdf ? "PDF" : "CSV",
           fileName,
           rows: mappedRows,
           sourceAccount,
@@ -496,10 +589,15 @@ export default function ImportClient() {
     return parsed.toLocaleString();
   };
 
+  const fileAccept = isPdf ? ".pdf" : ".csv";
+  const fileLabel = isPdf ? "Drop or browse PDF" : "Drop or browse CSV";
+  const uploadTitle = isPdf ? "1. Upload PDF" : "1. Upload CSV";
+  const sourceName = isPdf ? "PDF" : "CSV";
+
   return (
     <div className="import-flow">
       <div className="import-panel">
-        <div className="import-title">1. Upload CSV</div>
+        <div className="import-title">{uploadTitle}</div>
         <label
           className={`upload-area upload-input${isDragActive ? " drag-active" : ""}`}
           onDragOver={(event) => {
@@ -509,11 +607,14 @@ export default function ImportClient() {
           onDragLeave={() => setIsDragActive(false)}
           onDrop={handleDrop}
         >
-          <input type="file" accept=".csv" onChange={handleFileChange} />
+          <input type="file" accept={fileAccept} onChange={handleFileChange} />
           <span className="upload-icon">+</span>
-          <span className="row-title">Drop or browse CSV</span>
+          <span className="row-title">{fileLabel}</span>
           <span className="row-sub">{fileName || "No file selected"}</span>
         </label>
+        {isExtracting ? (
+          <div className="row-sub">Extracting transactions... This may take a moment.</div>
+        ) : null}
         <div className="field">
           <label className="field-label" htmlFor="sourceAccount">
             Source account
@@ -551,93 +652,115 @@ export default function ImportClient() {
           </select>
         </div>
         <div className="row-sub">{status}</div>
+        {extractWarnings.length > 0 ? (
+          <div className="row-sub">
+            {extractWarnings.map((warning, index) => (
+              <div key={index}>{warning}</div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <div className="import-panel">
-        <div className="import-title">2. Map Columns</div>
-        {headers.length === 0 ? (
-          <div className="row-sub">Upload a CSV to map columns.</div>
-        ) : (
-          <>
-            <div className="preset-row">
-              <span className="row-title">CSV headers</span>
-              <select
-                className="mapping-select"
-                value={hasHeader ? "yes" : "no"}
-                onChange={(event) => {
-                  setHeaderMode("manual");
-                  setHasHeader(event.target.value === "yes");
-                }}
-              >
-                {headerOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {!hasHeader ? (
-              <div className="row-sub">
-                No headers detected. Columns are labeled Column 1, Column 2, etc.
-                with a sample value to help mapping.
-              </div>
-            ) : null}
-            <div className="preset-row">
-              <span className="row-title">Preset</span>
-              <select
-                className="mapping-select"
-                value={presetId}
-                onChange={(event) => applyPreset(event.target.value)}
-              >
-                {presets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="preset-row">
-              <span className="row-title">Amount sign</span>
-              <button
-                className="pill"
-                type="button"
-                aria-pressed={invertAmount}
-                onClick={() => setInvertAmount((prev) => !prev)}
-              >
-                {invertAmount ? "Reverse: On" : "Reverse: Off"}
-              </button>
-            </div>
+      {isPdf ? (
+        <div className="import-panel">
+          <div className="import-title">2. Extracted Transactions</div>
+          {extractedRows.length === 0 ? (
             <div className="row-sub">
-              Toggle if your statement exports debits as positive numbers (e.g. Amex).
+              Upload a PDF statement. Transactions will be automatically extracted.
             </div>
-            <div className="mapping-grid">
-              {headers.map((header) => (
-                <div key={header} className="mapping-row">
-                  <div className="row-title">
-                    {header}
-                    {headerSamples[header] ? (
-                      <span className="row-sub">
-                        e.g. {headerSamples[header]}
-                      </span>
-                    ) : null}
-                  </div>
-                  <select
-                    className="mapping-select"
-                    value={mapping[header] ?? "ignore"}
-                    onChange={(event) => handleMappingChange(header, event.target.value as MappingKey)}
-                  >
-                    {mappingOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+          ) : (
+            <div className="row-sub">
+              {extractedRows.length} transactions extracted. Review them below before importing.
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="import-panel">
+          <div className="import-title">2. Map Columns</div>
+          {headers.length === 0 ? (
+            <div className="row-sub">Upload a CSV to map columns.</div>
+          ) : (
+            <>
+              <div className="preset-row">
+                <span className="row-title">CSV headers</span>
+                <select
+                  className="mapping-select"
+                  value={hasHeader ? "yes" : "no"}
+                  onChange={(event) => {
+                    setHeaderMode("manual");
+                    setHasHeader(event.target.value === "yes");
+                  }}
+                >
+                  {headerOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {!hasHeader ? (
+                <div className="row-sub">
+                  No headers detected. Columns are labeled Column 1, Column 2, etc.
+                  with a sample value to help mapping.
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+              ) : null}
+              <div className="preset-row">
+                <span className="row-title">Preset</span>
+                <select
+                  className="mapping-select"
+                  value={presetId}
+                  onChange={(event) => applyPreset(event.target.value)}
+                >
+                  {presets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="preset-row">
+                <span className="row-title">Amount sign</span>
+                <button
+                  className="pill"
+                  type="button"
+                  aria-pressed={invertAmount}
+                  onClick={() => setInvertAmount((prev) => !prev)}
+                >
+                  {invertAmount ? "Reverse: On" : "Reverse: Off"}
+                </button>
+              </div>
+              <div className="row-sub">
+                Toggle if your statement exports debits as positive numbers (e.g. Amex).
+              </div>
+              <div className="mapping-grid">
+                {headers.map((header) => (
+                  <div key={header} className="mapping-row">
+                    <div className="row-title">
+                      {header}
+                      {headerSamples[header] ? (
+                        <span className="row-sub">
+                          e.g. {headerSamples[header]}
+                        </span>
+                      ) : null}
+                    </div>
+                    <select
+                      className="mapping-select"
+                      value={mapping[header] ?? "ignore"}
+                      onChange={(event) => handleMappingChange(header, event.target.value as MappingKey)}
+                    >
+                      {mappingOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="import-panel">
         <div className="import-title">3. Preview Rows</div>
@@ -706,7 +829,7 @@ export default function ImportClient() {
             </div>
             {importHistory.map((item) => (
               <div key={item.id} className="history-row">
-                <span>{item.file_name || "Untitled CSV"}</span>
+                <span>{item.file_name || `Untitled ${sourceName}`}</span>
                 <span>{item.source_name}</span>
                 <span>{item.source_owner || "-"}</span>
                 <span>{item.row_count}</span>

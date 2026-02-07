@@ -1,5 +1,5 @@
 import { Card, SectionHead } from "@financelab/ui";
-import ImportClient from "./ImportClient";
+import ImportHubClient from "./ImportHubClient";
 
 export default function ImportHubPage() {
   return (
@@ -11,20 +11,10 @@ export default function ImportHubPage() {
           { label: "Home", href: "/dashboard" },
           { label: "Import Hub" }
         ]}
-        actions={
-          <>
-            <button className="pill" type="button">
-              CSV
-            </button>
-            <button className="pill" type="button">
-              PDF
-            </button>
-          </>
-        }
       />
       <div className="import-grid">
         <Card title="Import Flow">
-          <ImportClient />
+          <ImportHubClient />
         </Card>
         <Card title="Import Steps">
           <ol className="steps">

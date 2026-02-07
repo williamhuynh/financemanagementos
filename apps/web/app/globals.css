@@ -426,9 +426,16 @@ h3,
 }
 
 .pill.active,
+.pill-active,
 .pill:hover {
   border-color: rgba(242, 164, 59, 0.5);
   color: var(--text-primary);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .pill.confirmed {
