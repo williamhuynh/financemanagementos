@@ -2,17 +2,18 @@ export type NavItem = {
   id: string;
   label: string;
   href: string;
+  icon: string;
 };
 
 export const navItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", href: "/dashboard" },
-  { id: "cash", label: "Cash Log", href: "/cash" },
-  { id: "ledger", label: "Ledger", href: "/ledger" },
-  { id: "review", label: "Review Queue", href: "/review" },
-  { id: "assets", label: "Assets", href: "/assets" },
-  { id: "reports", label: "Reports", href: "/reports" },
-  { id: "import", label: "Import Hub", href: "/import-hub" },
-  { id: "settings", label: "Settings", href: "/settings" }
+  { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: "dashboard" },
+  { id: "cash", label: "Cash Log", href: "/cash", icon: "cash" },
+  { id: "ledger", label: "Ledger", href: "/ledger", icon: "ledger" },
+  { id: "review", label: "Review Queue", href: "/review", icon: "review" },
+  { id: "assets", label: "Assets", href: "/assets", icon: "assets" },
+  { id: "reports", label: "Reports", href: "/reports", icon: "reports" },
+  { id: "import", label: "Import Hub", href: "/import-hub", icon: "import" },
+  { id: "settings", label: "Settings", href: "/settings", icon: "settings" }
 ];
 
 export const statCards = [
