@@ -960,6 +960,32 @@ h3,
   font-size: 13px;
 }
 
+.cash-flow-value {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 16px;
+}
+
+.cash-flow-prev {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cash-flow-prev-label {
+  color: var(--text-secondary);
+}
+
+.cash-flow-change {
+  font-weight: 600;
+  font-size: 13px;
+}
+
 .chart-body {
   display: flex;
   gap: 18px;

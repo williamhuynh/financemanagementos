@@ -7,7 +7,7 @@ import {
 } from "@tandemly/ui";
 import { Suspense } from "react";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
-import { maskCurrencyValue } from "../../../lib/data";
+import { maskCurrencyValue, formatCurrencyValue } from "../../../lib/data";
 import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 import SpendByCategoryControls from "./SpendByCategoryControls";
@@ -283,6 +283,51 @@ export default function DashboardClient({
             <div className="empty-state">No spend data for {selectedMonthLabel}.</div>
           </article>
         )}
+        <article className={`card chart${cashFlow.netTotal < 0 ? " negative" : ""}`}>
+          <div className="chart-head">
+            <div className="card-title">Net Cash Flow</div>
+          </div>
+          <div
+            className="cash-flow-value"
+            style={{ color: cashFlow.netTotal >= 0 ? "var(--asset)" : "var(--liability)" }}
+          >
+            {maskCurrencyValue(
+              formatCurrencyValue(cashFlow.netTotal, "AUD"),
+              isVisible
+            )}
+          </div>
+          {cashFlow.previousMonthNetTotal !== null && (
+            <div className="cash-flow-prev">
+              <span className="cash-flow-prev-label">Last month:</span>{" "}
+              <span>
+                {maskCurrencyValue(
+                  formatCurrencyValue(cashFlow.previousMonthNetTotal, "AUD"),
+                  isVisible
+                )}
+              </span>
+              {cashFlow.previousMonthNetTotal !== 0 && (
+                <span
+                  className="cash-flow-change"
+                  style={{
+                    color:
+                      cashFlow.netTotal >= cashFlow.previousMonthNetTotal
+                        ? "var(--asset)"
+                        : "var(--liability)"
+                  }}
+                >
+                  {(() => {
+                    const pct = Math.round(
+                      ((cashFlow.netTotal - cashFlow.previousMonthNetTotal) /
+                        Math.abs(cashFlow.previousMonthNetTotal)) *
+                        100
+                    );
+                    return `${pct >= 0 ? "+" : ""}${pct}%`;
+                  })()}
+                </span>
+              )}
+            </div>
+          )}
+        </article>
         <WaterfallDrilldown cashFlow={cashFlow} />
       </div>
     </>
