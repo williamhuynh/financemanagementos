@@ -36,7 +36,8 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint --workspace=apps/web
+        working-directory: apps/web
+        run: npx eslint .
         continue-on-error: false
 
       - name: Run TypeScript type-check
