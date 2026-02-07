@@ -11,6 +11,11 @@ import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
 import { getApiContext } from "../../lib/api-auth";
 import EmailVerificationBanner from "./EmailVerificationBanner";
 
+// Ensure the shell layout is always dynamically rendered (never cached).
+// getApiContext() reads cookies which should auto-opt into dynamic rendering,
+// but revalidate = 0 is an explicit safety net against stale data.
+export const revalidate = 0;
+
 type ShellLayoutProps = {
   children: ReactNode;
 };
