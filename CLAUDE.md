@@ -21,14 +21,16 @@ docs/                Architecture, design, data model, roadmap
 ```
 
 ## Commands
-All commands run from `apps/web/`:
+All commands **must** run from `apps/web/` (not from root):
 ```sh
+cd apps/web
 npm run dev          # Dev server
 npm run build        # Production build
 npm test             # Vitest test suite
 npm run test:watch   # Tests in watch mode
-npm run lint         # ESLint
-npx tsc --noEmit     # Type-check (must run from apps/web/, not root)
+npx eslint app/ lib/ # ESLint (DO NOT use `npm run lint` — `next lint` is
+                     #   broken in this Next.js 16 workspace setup)
+npx tsc --noEmit     # Type-check
 ```
 
 ## Key patterns — follow these
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
 ```sh
 cd apps/web
 npm test              # Unit tests (fast, < 10s)
-npm run lint          # Code quality
+npx eslint app/ lib/  # Code quality (not `npm run lint`, see note above)
 ```
 
 **Before pushing (recommended):**
