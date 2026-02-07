@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, SectionHead } from "@financelab/ui";
 import { getApiContext } from "../../../lib/api-auth";
-import SessionActions from "./sessionActions";
 import MembersSection from "./MembersSection";
 
 export default async function SettingsPage() {
@@ -38,7 +37,6 @@ export default async function SettingsPage() {
           </Link>
         </div>
       </Card>
-      <SessionActions />
     </>
   );
 }

@@ -12,17 +12,18 @@ export default function TopbarWithUser() {
   const { isVisible, toggleVisibility } = useNumberVisibility();
   const { toggle } = useDrawer();
 
-  const userLabel = useMemo(() => {
-    if (!user) {
-      return "Signed in";
-    }
-    const label = user.name?.trim() || user.email?.trim();
-    return label ? `Signed in as ${label}` : "Signed in";
+  const userInitials = useMemo(() => {
+    if (!user?.name) return "";
+    const parts = user.name.trim().split(/\s+/);
+    return (
+      (parts[0]?.charAt(0) ?? "") + (parts[1]?.charAt(0) ?? "")
+    ).toUpperCase();
   }, [user]);
 
   return (
     <Topbar
-      userLabel={userLabel}
+      profileHref="/profile"
+      userInitials={userInitials}
       onToggleNumberVisibility={toggleVisibility}
       numbersVisible={isVisible}
       workspaceSwitcher={<WorkspaceSwitcher />}

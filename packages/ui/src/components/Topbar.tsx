@@ -32,13 +32,15 @@ function buildMonthOptions(count = 12): MonthOption[] {
 
 type TopbarProps = {
   userLabel?: string;
+  userInitials?: string;
+  profileHref?: string;
   onToggleNumberVisibility?: () => void;
   numbersVisible?: boolean;
   workspaceSwitcher?: React.ReactNode;
   onMenuToggle?: () => void;
 };
 
-export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, workspaceSwitcher, onMenuToggle }: TopbarProps) {
+export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVisibility, numbersVisible, workspaceSwitcher, onMenuToggle }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -162,7 +164,18 @@ export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, wo
         <button className="primary-btn" type="button" onClick={handleImportClick}>
           Import
         </button>
-        <div className="user-chip">{userLabel ?? "Signed in"}</div>
+        {profileHref ? (
+          <a className="topbar-avatar" href={profileHref} aria-label="User profile">
+            {userInitials || (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            )}
+          </a>
+        ) : (
+          <div className="user-chip">{userLabel ?? "Signed in"}</div>
+        )}
       </div>
     </header>
   );
