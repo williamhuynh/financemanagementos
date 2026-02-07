@@ -35,9 +35,10 @@ type TopbarProps = {
   onToggleNumberVisibility?: () => void;
   numbersVisible?: boolean;
   workspaceSwitcher?: React.ReactNode;
+  onMenuToggle?: () => void;
 };
 
-export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, workspaceSwitcher }: TopbarProps) {
+export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, workspaceSwitcher, onMenuToggle }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,7 +52,7 @@ export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, wo
     selectedIndex >= 0 ? options[selectedIndex + 1] : undefined;
   const nextMonth = selectedIndex > 0 ? options[selectedIndex - 1] : undefined;
 
-  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {       
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const month = event.target.value;
     const params = new URLSearchParams(searchParams.toString());
     if (month) {
@@ -69,7 +70,32 @@ export function Topbar({ userLabel, onToggleNumberVisibility, numbersVisible, wo
 
   return (
     <header className="topbar">
-      {workspaceSwitcher}
+      <div className="topbar-left">
+        {onMenuToggle && (
+          <button
+            className="menu-toggle"
+            type="button"
+            onClick={onMenuToggle}
+            aria-label="Open menu"
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
+        {workspaceSwitcher}
+      </div>
       {hideMonthControl ? null : (
         <div className="month-control">
           <span className="label">Month</span>

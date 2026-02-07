@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@financelab/ui";
 import { getNavItems, getSidebarMonthlyCloseStatus } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
+import AppShell from "./AppShell";
 import { AuthProvider } from "../../lib/auth-context";
 import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
@@ -44,16 +44,13 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     <AuthProvider>
       <WorkspaceProvider>
         <NumberVisibilityProvider>
-          <div className="app-shell">
-            <Sidebar navItems={navItems} monthlyCloseData={monthlyCloseStatus} />
-            <main className="main">
-              <EmailVerificationBanner emailVerified={emailVerified} />
-              <Suspense fallback={<div className="topbar" />}>
-                <TopbarWithUser />
-              </Suspense>
-              <AuthGate>{children}</AuthGate>
-            </main>
-          </div>
+          <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>
+            <EmailVerificationBanner emailVerified={emailVerified} />
+            <Suspense fallback={<div className="topbar" />}>
+              <TopbarWithUser />
+            </Suspense>
+            <AuthGate>{children}</AuthGate>
+          </AppShell>
         </NumberVisibilityProvider>
       </WorkspaceProvider>
     </AuthProvider>
