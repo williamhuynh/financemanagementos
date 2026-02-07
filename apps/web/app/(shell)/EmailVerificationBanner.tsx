@@ -9,7 +9,7 @@ type BannerProps = {
 export default function EmailVerificationBanner({ emailVerified }: BannerProps) {
   const [dismissed, setDismissed] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sent" | "error">("idle");
 
   if (emailVerified || dismissed) {
     return null;
@@ -17,15 +17,20 @@ export default function EmailVerificationBanner({ emailVerified }: BannerProps) 
 
   const handleResend = async () => {
     setSending(true);
+    setStatus("idle");
     try {
-      await fetch("/api/auth/verify-email", {
+      const response = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "send" }),
       });
-      setSent(true);
+      if (response.ok) {
+        setStatus("sent");
+      } else {
+        setStatus("error");
+      }
     } catch {
-      // Silently fail - user can try again
+      setStatus("error");
     } finally {
       setSending(false);
     }
@@ -35,17 +40,22 @@ export default function EmailVerificationBanner({ emailVerified }: BannerProps) 
     <div className="verification-banner">
       <span>
         Please verify your email address.{" "}
-        {sent ? (
+        {status === "sent" ? (
           <span>Verification email sent. Check your inbox.</span>
         ) : (
-          <button
-            className="ghost-btn"
-            type="button"
-            onClick={handleResend}
-            disabled={sending}
-          >
-            {sending ? "Sending..." : "Resend verification email"}
-          </button>
+          <>
+            <button
+              className="ghost-btn"
+              type="button"
+              onClick={handleResend}
+              disabled={sending}
+            >
+              {sending ? "Sending..." : "Resend verification email"}
+            </button>
+            {status === "error" ? (
+              <span> Failed to send. Try again.</span>
+            ) : null}
+          </>
         )}
       </span>
       <button
