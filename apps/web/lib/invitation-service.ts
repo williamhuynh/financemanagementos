@@ -3,7 +3,14 @@ import { Query, ID } from "node-appwrite";
 import { COLLECTIONS } from "./collection-names";
 import type { WorkspaceMemberRole } from "./workspace-types";
 
-const INVITATION_SECRET = process.env.INVITATION_SECRET || "default-invitation-secret";
+if (process.env.NODE_ENV === "production" && !process.env.INVITATION_SECRET) {
+  throw new Error(
+    "FATAL: INVITATION_SECRET environment variable is not set. " +
+    "Set INVITATION_SECRET to a random secret string before running in production."
+  );
+}
+
+const INVITATION_SECRET = process.env.INVITATION_SECRET || "default-invitation-secret-dev-only";
 const INVITATION_EXPIRY_DAYS = 7;
 
 export type WorkspaceInvitation = {

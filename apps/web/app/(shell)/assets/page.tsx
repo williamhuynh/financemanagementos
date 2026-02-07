@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import AssetsClient from "./AssetsClient";
-import { getAssetOverview } from "../../../lib/data";
+import { getAssetOverview, getWorkspaceOwnerOptions } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
 
 export default async function AssetsPage() {
@@ -10,7 +10,10 @@ export default async function AssetsPage() {
     redirect("/login");
   }
 
-  const overview = await getAssetOverview(context.workspaceId);
+  const [overview, ownerOptions] = await Promise.all([
+    getAssetOverview(context.workspaceId),
+    getWorkspaceOwnerOptions(context.workspaceId)
+  ]);
 
-  return <AssetsClient overview={overview} />;
+  return <AssetsClient overview={overview} ownerOptions={ownerOptions} />;
 }

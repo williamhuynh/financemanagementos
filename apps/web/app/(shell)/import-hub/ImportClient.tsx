@@ -105,7 +105,7 @@ const presets: Preset[] = [
   }
 ];
 
-const ownerOptions = ["William", "Peggy", "Joint"];
+// ownerOptions is now passed in as a prop from workspace members
 const headerOptions = [
   { value: "yes", label: "Yes, first row is headers" },
   { value: "no", label: "No, data starts immediately" }
@@ -260,9 +260,10 @@ type ImportMode = "csv" | "pdf";
 
 type ImportClientProps = {
   mode?: ImportMode;
+  ownerOptions: string[];
 };
 
-export default function ImportClient({ mode = "csv" }: ImportClientProps) {
+export default function ImportClient({ mode = "csv", ownerOptions }: ImportClientProps) {
   const [fileName, setFileName] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [hasHeader, setHasHeader] = useState(true);

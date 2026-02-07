@@ -6,7 +6,7 @@ import {
   spendByCategory
 } from "./mockData";
 import { getAppwriteClient } from "./appwriteClient";
-import { Client, Databases, Query } from "node-appwrite";
+import { Client, Databases, Query, Users } from "node-appwrite";
 
 const DEFAULT_CATEGORIES = [
   "Income - Primary",
@@ -159,7 +159,7 @@ export type AssetDefinition = {
   tone?: "glow" | "negative";
 };
 
-export type AssetOwner = "William" | "Peggy" | "Joint";
+export type AssetOwner = string;
 export type AssetStatus = "active" | "disposed";
 
 export type AssetEntity = {
@@ -1262,10 +1262,76 @@ export async function getCategories(workspaceId: string): Promise<string[]> {
 }
 
 export async function getStatCards(workspaceId: string): Promise<CardStat[]> {
-  // TODO: dashboard_cards collection doesn't have workspace_id field yet
-  // For now, return empty array. This should be refactored to calculate
-  // stats dynamically from workspace data (assets, transactions, etc.)
-  return [];
+  const serverClient = getServerAppwrite();
+  if (!serverClient) {
+    return [];
+  }
+
+  try {
+    const [assetOverview] = await Promise.all([
+      getAssetOverview(workspaceId)
+    ]);
+
+    const cards: CardStat[] = [];
+
+    for (const category of assetOverview.categories) {
+      cards.push({
+        title: category.label,
+        value: category.formattedValue,
+        sub: category.subLabel,
+        tone: category.tone
+      });
+    }
+
+    return cards;
+  } catch {
+    return [];
+  }
+}
+
+export async function getWorkspaceOwnerOptions(workspaceId: string): Promise<string[]> {
+  const endpoint =
+    process.env.APPWRITE_ENDPOINT ?? process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
+  const projectId =
+    process.env.APPWRITE_PROJECT_ID ?? process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
+  const databaseId =
+    process.env.APPWRITE_DATABASE_ID ?? process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+  const apiKey = process.env.APPWRITE_API_KEY;
+
+  if (!endpoint || !projectId || !databaseId || !apiKey) {
+    return ["Joint"];
+  }
+
+  try {
+    const client = new Client();
+    client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+    const databases = new Databases(client);
+    const users = new Users(client);
+
+    const membersResult = await databases.listDocuments(
+      databaseId,
+      "workspace_members",
+      [Query.equal("workspace_id", workspaceId)]
+    );
+
+    const names: string[] = [];
+    for (const member of membersResult.documents) {
+      try {
+        const user = await users.get(String(member.user_id));
+        const firstName = (user.name || "").split(" ")[0].trim();
+        if (firstName && !names.includes(firstName)) {
+          names.push(firstName);
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    names.push("Joint");
+    return names;
+  } catch {
+    return ["Joint"];
+  }
 }
 
 export async function getLedgerRows(

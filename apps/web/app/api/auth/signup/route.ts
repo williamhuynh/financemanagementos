@@ -70,6 +70,18 @@ export async function POST(request: Request) {
     session.isLoggedIn = true;
     await session.save();
 
+    // Send verification email (non-blocking — don't fail signup if this fails)
+    try {
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        request.headers.get("origin") ||
+        "http://localhost:3000";
+      const verifyUrl = `${origin}/verify-email`;
+      await sessionAccount.createVerification(verifyUrl);
+    } catch {
+      // Verification email is best-effort; user can request again later
+    }
+
     return NextResponse.json({
       success: true,
       user: {

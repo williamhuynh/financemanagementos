@@ -8,7 +8,8 @@ import AppShell from "./AppShell";
 import { AuthProvider } from "../../lib/auth-context";
 import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
-import { getApiContext } from "../../lib/api-auth";
+import { getApiContext, createSessionClient } from "../../lib/api-auth";
+import EmailVerificationBanner from "./EmailVerificationBanner";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -27,11 +28,24 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
   const navItems = await getNavItems();
   const monthlyCloseStatus = await getSidebarMonthlyCloseStatus(context.workspaceId);
 
+  // Check email verification status
+  let emailVerified = true;
+  try {
+    const sessionClient = await createSessionClient();
+    if (sessionClient) {
+      const user = await sessionClient.account.get();
+      emailVerified = user.emailVerification;
+    }
+  } catch {
+    // If we can't check, assume verified to avoid blocking the user
+  }
+
   return (
     <AuthProvider>
       <WorkspaceProvider>
         <NumberVisibilityProvider>
           <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>
+            <EmailVerificationBanner emailVerified={emailVerified} />
             <Suspense fallback={<div className="topbar" />}>
               <TopbarWithUser />
             </Suspense>

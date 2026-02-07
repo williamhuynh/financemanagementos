@@ -99,6 +99,11 @@ export default function LoginClient() {
           <p className="auth-error">{statusMessage}</p>
         ) : null}
         <p className="auth-hint">
+          <Link href="/forgot-password" className="auth-link">
+            Forgot your password?
+          </Link>
+        </p>
+        <p className="auth-hint">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="auth-link">
             Sign up
