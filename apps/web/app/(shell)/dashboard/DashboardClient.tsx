@@ -119,11 +119,18 @@ function buildPortfolioSegments(categories: AssetCategorySummary[]) {
   return { segments, legend };
 }
 
+function getSelectedMonthLabel(
+  monthOptions: Array<{ value: string; label: string }>,
+  selectedMonth: string
+): string {
+  const match = monthOptions.find((option) => option.value === selectedMonth);
+  return match?.label ?? selectedMonth;
+}
+
 export default function DashboardClient({
   assetOverview,
   breakdown,
   cashFlow,
-  statCards,
   availableCategories,
   selectedSpendCategories,
   spendTop
@@ -164,6 +171,10 @@ export default function DashboardClient({
     assetOverview.lastUpdatedLabel === "No updates yet"
       ? "No updates yet"
       : `Last update: ${assetOverview.lastUpdatedLabel}`;
+  const selectedMonthLabel = getSelectedMonthLabel(
+    breakdown.monthOptions,
+    breakdown.selectedMonth
+  );
 
   if (otherTotal > 0 && spendTotal > 0) {
     const otherPercent = Math.round((otherTotal / spendTotal) * 100);
@@ -181,6 +192,8 @@ export default function DashboardClient({
           { label: "Overview" }
         ]}
       />
+
+      {/* ── Position: where you stand (latest data) ── */}
       <div className="hero">
         <div>
           <div className="eyebrow">Net Worth</div>
@@ -188,11 +201,6 @@ export default function DashboardClient({
             {maskCurrencyValue(assetOverview.netWorthFormatted, isVisible)}
           </div>
           <div className="hero-sub">{heroSub}</div>
-        </div>
-        <div className="hero-meta">
-          <div className="meta-pill">
-            {maskCurrencyValue(breakdown.totalFormatted, isVisible)} spend
-          </div>
         </div>
       </div>
       <div className="dashboard-section">
@@ -211,53 +219,7 @@ export default function DashboardClient({
           />
         ))}
       </div>
-      {statCards.length > 0 ? (
-        <div className="grid cards">
-          {statCards.map((card: any, index: number) => (
-            <Card
-              key={card.title}
-              title={card.title}
-              value={maskCurrencyValue(card.value, isVisible)}
-              sub={card.sub}
-              tone={card.tone as "glow" | "negative"}
-              className={`card-${index}`}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">No dashboard stats yet.</div>
-      )}
       <div className="grid charts">
-        {spendSegments.length > 0 ? (
-          <DonutChart
-            title="Spend by Category"
-            actions={
-              <>
-                <Suspense fallback={<span className="pill">Loading...</span>}>
-                  <MonthSelector
-                    options={breakdown.monthOptions}
-                    selected={breakdown.selectedMonth}
-                    basePath="/dashboard"
-                  />
-                </Suspense>
-                <SpendByCategoryControls
-                  categories={availableCategories}
-                  selectedCategories={selectedSpendCategories}
-                  topCount={spendTop}
-                />
-              </>
-            }
-            segments={spendSegments}
-            legend={spendLegend}
-          />
-        ) : (
-          <article className="card chart">
-            <div className="chart-head">
-              <div className="card-title">Spend by Category</div>
-            </div>
-            <div className="empty-state">No spend data yet.</div>
-          </article>
-        )}
         {portfolioSplit.segments.length > 0 ? (
           <DonutChart
             title="Portfolio Split"
@@ -286,6 +248,46 @@ export default function DashboardClient({
             )}
           </div>
         </article>
+      </div>
+
+      {/* ── Activity: what happened this month (month-anchored) ── */}
+      <div className="dashboard-flow-header">
+        <div>
+          <div className="card-title">Activity</div>
+          <div className="card-sub">
+            Income, spending, and cash flow for {selectedMonthLabel}
+          </div>
+        </div>
+        <Suspense fallback={<span className="pill">Loading...</span>}>
+          <MonthSelector
+            options={breakdown.monthOptions}
+            selected={breakdown.selectedMonth}
+            basePath="/dashboard"
+          />
+        </Suspense>
+      </div>
+      <div className="grid charts">
+        {spendSegments.length > 0 ? (
+          <DonutChart
+            title="Spend by Category"
+            actions={
+              <SpendByCategoryControls
+                categories={availableCategories}
+                selectedCategories={selectedSpendCategories}
+                topCount={spendTop}
+              />
+            }
+            segments={spendSegments}
+            legend={spendLegend}
+          />
+        ) : (
+          <article className="card chart">
+            <div className="chart-head">
+              <div className="card-title">Spend by Category</div>
+            </div>
+            <div className="empty-state">No spend data for {selectedMonthLabel}.</div>
+          </article>
+        )}
         <WaterfallDrilldown cashFlow={cashFlow} />
       </div>
     </>
