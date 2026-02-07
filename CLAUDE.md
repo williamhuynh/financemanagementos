@@ -70,9 +70,36 @@ export async function POST(request: Request) {
 - Return `{ error: "…" }` (not `{ detail }`) from API routes — we're standardizing on this
 
 ## Testing
+
+### Test framework
 - Vitest + jsdom, tests in `lib/__tests__/*.test.ts`
 - Test pure logic: permissions, rate limiting, data transforms, collection names
-- Run `npm test` after changes to lib/ files
+
+### When to run tests
+**Before every commit:**
+```sh
+cd apps/web
+npm test              # Unit tests (fast, < 10s)
+npm run lint          # Code quality
+```
+
+**Before pushing (recommended):**
+```sh
+npx tsc --noEmit      # Type safety check
+npm run build         # Ensure production build works
+```
+
+**Automated in CI:**
+- GitHub Actions runs full test suite on every push and PR
+- Tests run in clean environment on Node 20.x
+- Workflow: `.github/workflows/test.yml`
+- Blocks merge if any check fails (tests, lint, type-check, build)
+
+### Test checklist
+- ✓ Add tests for new utility functions in `lib/`
+- ✓ Run `npm test` locally before committing
+- ✓ Verify CI passes before merging PRs
+- ✓ Update tests when changing logic in tested modules
 
 ## Env vars (never commit secrets)
 Required: `NEXT_PUBLIC_APPWRITE_ENDPOINT`, `NEXT_PUBLIC_APPWRITE_PROJECT_ID`,

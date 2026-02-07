@@ -106,12 +106,55 @@ export async function POST(request: Request) {
   for server-side error logging only
 
 ## Testing Guidelines
+
+### Test framework
 - Framework: Vitest with jsdom environment
 - Test files: `lib/__tests__/*.test.ts`
 - Run: `npm test` from `apps/web/`
 - Write tests for pure logic (permissions, rate limiting, data transforms)
 - API routes that depend on Appwrite are harder to unit test — focus on
   integration tests or mock the database client
+
+### Multi-layered testing strategy
+
+**Layer 1: Local testing (before commit)**
+```sh
+cd apps/web
+npm test              # Run unit tests (< 10s) — ALWAYS before commit
+npm run lint          # ESLint checks — catch style issues early
+```
+
+**Layer 2: Pre-push validation (recommended)**
+```sh
+npx tsc --noEmit      # Type-check entire codebase
+npm run build         # Verify production build succeeds
+```
+
+**Layer 3: CI automation (GitHub Actions)**
+- Workflow: `.github/workflows/test.yml`
+- Triggers: every push to main/develop/claude/*, all PRs
+- Runs: lint → type-check → tests → build
+- Environment: clean Ubuntu, Node 20.x
+- **Blocks merges if any step fails**
+
+### Testing checklist
+- ✓ Add unit tests for new functions in `lib/`
+- ✓ Run `npm test` locally before every commit
+- ✓ Verify type safety with `npx tsc --noEmit` before pushing
+- ✓ Check CI status before merging PRs (all checks must pass)
+- ✓ Update tests when modifying logic in existing tested modules
+
+### Optional: Pre-commit hooks
+Consider using [husky](https://typicode.github.io/husky/) to automatically run
+tests on `git commit`:
+
+```sh
+npm install --save-dev husky lint-staged
+npx husky init
+echo "cd apps/web && npm test && npm run lint" > .husky/pre-commit
+```
+
+This prevents committing broken code and keeps history clean.
 
 ## Security & Configuration
 Store secrets in environment variables. Never commit API keys.
