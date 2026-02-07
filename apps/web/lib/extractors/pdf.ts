@@ -9,7 +9,7 @@ import type {
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "xiaomi/mimo-v2-flash:free";
 
-function extractJsonArray(text: string): ExtractedRow[] | null {
+export function extractJsonArray(text: string): ExtractedRow[] | null {
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) return null;
   try {

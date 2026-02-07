@@ -23,7 +23,7 @@ export type CashLog = {
 
 export type Category = string;
 
-function safeParseParsedItems(json: string): ParsedItem[] | null {
+export function safeParseParsedItems(json: string): ParsedItem[] | null {
   try {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? parsed : null;

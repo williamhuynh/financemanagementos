@@ -631,7 +631,7 @@ function formatAmount(value: string, currency = "AUD") {
   }).format(numeric);
 }
 
-function formatCurrencyValue(amount: number, currency = "AUD") {
+export function formatCurrencyValue(amount: number, currency = "AUD") {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency
@@ -691,7 +691,7 @@ function getAssetTypeLabel(assetType: string, assetName?: string) {
   return assetType || "Asset";
 }
 
-function toSignedAssetValue(value: number, assetType: string) {
+export function toSignedAssetValue(value: number, assetType: string) {
   const normalized = Math.abs(value);
   return isLiabilityAssetType(assetType) ? -normalized : normalized;
 }
@@ -729,7 +729,7 @@ function formatMonthLabelFromDate(value: string) {
   return `Last update: ${getMonthLabel(parsed)}`;
 }
 
-function formatDirectionLabel(direction?: string, amount?: string) {
+export function formatDirectionLabel(direction?: string, amount?: string) {
   if (direction) {
     return direction === "credit" ? "Credit" : "Debit";
   }
@@ -742,7 +742,7 @@ function formatDirectionLabel(direction?: string, amount?: string) {
   return "Transaction";
 }
 
-function parseDateValue(value: string) {
+export function parseDateValue(value: string) {
   if (!value) {
     return null;
   }
@@ -831,7 +831,7 @@ function matchesMonthKey(value: string, monthKey: string) {
   return getMonthKey(parsed) === monthKey;
 }
 
-function parseAmountValue(value: string) {
+export function parseAmountValue(value: string) {
   const numeric = Number(value.replace(/,/g, ""));
   if (!Number.isFinite(numeric)) {
     return null;
@@ -839,7 +839,7 @@ function parseAmountValue(value: string) {
   return numeric;
 }
 
-function normalizeLedgerFilters(filters?: LedgerFilterParams) {
+export function normalizeLedgerFilters(filters?: LedgerFilterParams) {
   if (!filters) {
     return {};
   }
@@ -862,7 +862,7 @@ function normalizeLedgerFilters(filters?: LedgerFilterParams) {
   return normalized;
 }
 
-function normalizeReviewFilters(filters?: ReviewFilterParams) {
+export function normalizeReviewFilters(filters?: ReviewFilterParams) {
   if (!filters) {
     return {};
   }
@@ -967,11 +967,11 @@ function buildSpendByCategory(items: CategorySpendBase[], currency = "AUD") {
     });
 }
 
-function isTransferCategory(category: string) {
+export function isTransferCategory(category: string) {
   return category.toLowerCase().includes("transfer");
 }
 
-function isIncomeCategory(category: string) {
+export function isIncomeCategory(category: string) {
   const normalized = category.trim().toLowerCase();
   return normalized === "income" || normalized.startsWith("income -");
 }
