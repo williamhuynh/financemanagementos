@@ -1,4 +1,4 @@
-import { Card, SectionHead } from "@financelab/ui";
+import { SectionHead } from "@financelab/ui";
 import { redirect } from "next/navigation";
 import ReviewClient from "./ReviewClient";
 import ReviewFilters from "./ReviewFilters";
@@ -6,7 +6,6 @@ import TransferMatchClient from "./TransferMatchClient";
 import {
   getCategories,
   getReviewItems,
-  getTransferReviewData,
   type ReviewFilterParams
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
@@ -35,7 +34,6 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
     sort: resolvedSearchParams?.sort as ReviewFilterParams["sort"]
   });
   const categories = await getCategories(context.workspaceId);
-  const transferReviewData = await getTransferReviewData(context.workspaceId);
 
   return (
     <>
@@ -50,13 +48,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
       />
       <div className="review-stack">
         <ReviewClient items={reviewItems} categories={categories} />
-        <Card title="Transfer Matches">
-          <TransferMatchClient
-            suggestions={transferReviewData.suggestions}
-            unmatched={transferReviewData.unmatched}
-            paired={transferReviewData.paired}
-          />
-        </Card>
+        <TransferMatchClient />
       </div>
     </>
   );
