@@ -45,7 +45,7 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hideMonthControl =
-    pathname.startsWith("/ledger") || pathname.startsWith("/review");
+    pathname.startsWith("/ledger") || pathname.startsWith("/review") || pathname.startsWith("/assets");
   const options = buildMonthOptions();
   const currentMonth = getMonthKey(new Date());
   const selected = searchParams.get("month") ?? currentMonth;
