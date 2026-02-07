@@ -90,12 +90,7 @@ export default function ProfilePage() {
   return (
     <>
       <SectionHead
-        eyebrow="Account"
         title="Profile"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Profile" },
-        ]}
       />
       <div className="profile-card">
         <div className="profile-avatar-large" aria-hidden="true">

@@ -14,12 +14,7 @@ export default async function SettingsPage() {
   return (
     <>
       <SectionHead
-        eyebrow="Settings"
         title="Workspace"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Settings" }
-        ]}
       />
       <MembersSection
         workspaceId={ctx.workspaceId}

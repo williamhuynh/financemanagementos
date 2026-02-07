@@ -569,12 +569,7 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
   return (
     <>
       <SectionHead
-        eyebrow="Assets"
         title="Portfolio Snapshot"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Assets" }
-        ]}
       />
 
       <div className="hero">

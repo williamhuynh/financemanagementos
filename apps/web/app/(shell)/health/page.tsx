@@ -13,12 +13,7 @@ export default async function HealthPage() {
   return (
     <>
       <SectionHead
-        eyebrow="System"
         title="Health Check"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Health" }
-        ]}
         actions={
           <>
             <button className="pill" type="button">
