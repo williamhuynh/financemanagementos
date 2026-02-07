@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { appwriteEnabled } from "../../lib/appwriteClient";
 import { useAuth } from "../../lib/auth-context";
@@ -18,7 +18,18 @@ export default function AuthGate({ children }: AuthGateProps) {
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { needsOnboarding, loading: workspaceLoading } = useWorkspace();
-  const [authState, setAuthState] = useState<AuthState>("loading");
+
+  // Derive auth state directly — no useState avoids the stale "loading" flash
+  // on mount and on every soft navigation.
+  const authState = useMemo<AuthState>(() => {
+    if (!appwriteEnabled) return "authed";
+    if (authLoading) return "loading";
+    if (!user) return "guest";
+    // User is authenticated — don't block content on workspace loading.
+    // Only check onboarding once workspaces have actually loaded.
+    if (!workspaceLoading && needsOnboarding) return "needs-onboarding";
+    return "authed";
+  }, [authLoading, user, workspaceLoading, needsOnboarding]);
 
   const nextPath = useMemo(() => {
     if (!pathname || !pathname.startsWith("/")) {
@@ -27,61 +38,31 @@ export default function AuthGate({ children }: AuthGateProps) {
     return pathname;
   }, [pathname]);
 
+  // Handle redirects as side effects
   useEffect(() => {
-    if (authLoading || workspaceLoading) {
-      setAuthState("loading");
-      return;
-    }
-
-    if (!appwriteEnabled) {
-      setAuthState("authed");
-      return;
-    }
-
-    if (!user) {
-      setAuthState("guest");
+    if (authState === "guest") {
       router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
-      return;
-    }
-
-    // Check if user needs onboarding (no workspace)
-    if (needsOnboarding) {
-      setAuthState("needs-onboarding");
+    } else if (authState === "needs-onboarding") {
       router.replace("/onboarding");
-      return;
     }
+  }, [authState, nextPath, router]);
 
-    // Authenticated user with workspace
-    setAuthState("authed");
-  }, [user, authLoading, workspaceLoading, needsOnboarding, router, nextPath]);
-
-  if (authState === "loading" || authState === "needs-onboarding") {
-    return (
-      <div className="auth-loading">
-        <div className="card">
-          <div className="card-title">
-            {authState === "needs-onboarding" ? "Setting up" : "Authenticating"}
-          </div>
-          <div className="card-sub">
-            {authState === "needs-onboarding"
-              ? "Preparing your workspace..."
-              : "Checking your session..."}
-          </div>
-        </div>
-      </div>
-    );
+  if (authState === "authed") {
+    return <>{children}</>;
   }
 
-  if (authState !== "authed") {
-    return (
-      <div className="auth-loading">
-        <div className="card">
-          <div className="card-title">Authenticating</div>
-          <div className="card-sub">Checking your session...</div>
+  return (
+    <div className="auth-loading">
+      <div className="card">
+        <div className="card-title">
+          {authState === "needs-onboarding" ? "Setting up" : "Authenticating"}
+        </div>
+        <div className="card-sub">
+          {authState === "needs-onboarding"
+            ? "Preparing your workspace..."
+            : "Checking your session..."}
         </div>
       </div>
-    );
-  }
-
-  return <>{children}</>;
+    </div>
+  );
 }

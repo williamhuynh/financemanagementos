@@ -32,8 +32,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Use primitive user ID as dependency so the callback reference stays stable
+  // even if the user object reference changes across server re-renders.
+  const userId = user?.id ?? null;
+
   const fetchWorkspaces = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setWorkspaces([]);
       setCurrentWorkspaceId(null);
       setLoading(false);
@@ -74,7 +78,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     if (authLoading) {
