@@ -99,18 +99,30 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
           )}
           {workspaceSwitcher}
         </div>
-        {profileHref ? (
-          <a className="topbar-avatar" href={profileHref} aria-label="User profile">
-            {userInitials || (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            )}
-          </a>
-        ) : (
-          <div className="user-chip">{userLabel ?? "Signed in"}</div>
-        )}
+        <div className="topbar-right">
+          {onToggleNumberVisibility && (
+            <button
+              className="toggle-btn"
+              type="button"
+              onClick={onToggleNumberVisibility}
+              aria-label={numbersVisible ? "Hide numbers" : "Show numbers"}
+            >
+              {numbersVisible ? "👁️ Hide" : "👁️‍🗨️ Show"}
+            </button>
+          )}
+          {profileHref ? (
+            <a className="topbar-avatar" href={profileHref} aria-label="User profile">
+              {userInitials || (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </a>
+          ) : (
+            <div className="user-chip">{userLabel ?? "Signed in"}</div>
+          )}
+        </div>
       </div>
       {hideMonthControl ? null : (
         <div className="month-control">
@@ -162,18 +174,6 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
               {">"}
             </button>
           </div>
-        </div>
-      )}
-      {onToggleNumberVisibility && (
-        <div className="topbar-actions">
-          <button
-            className="toggle-btn"
-            type="button"
-            onClick={onToggleNumberVisibility}
-            aria-label={numbersVisible ? "Hide numbers" : "Show numbers"}
-          >
-            {numbersVisible ? "👁️ Hide" : "👁️‍🗨️ Show"}
-          </button>
         </div>
       )}
     </header>
