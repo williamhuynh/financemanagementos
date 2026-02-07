@@ -1464,7 +1464,47 @@ h3,
   white-space: nowrap;
 }
 
-.import-history .row-sub {
+.import-history-accordion {
+  background: rgba(20, 25, 35, 0.65);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.import-history-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  user-select: none;
+}
+
+.import-history-summary::-webkit-details-marker {
+  display: none;
+}
+
+.import-history-summary::marker {
+  content: "";
+}
+
+.import-history-chevron {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.import-history-body {
+  border-top: 1px solid var(--border);
+  padding: 16px;
+}
+
+.import-history-body .row-sub {
   margin-top: 6px;
 }
 

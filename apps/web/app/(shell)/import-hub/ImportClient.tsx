@@ -284,6 +284,8 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
   const [importHistory, setImportHistory] = useState<ImportHistoryItem[]>([]);
   const [historyStatus, setHistoryStatus] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [deletingImportId, setDeletingImportId] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [accountOptions, setAccountOptions] = useState<string[]>([]);
@@ -346,12 +348,14 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
       if (!response.ok) {
         setHistoryStatus(payload?.detail ?? "Failed to load import history.");
         setImportHistory([]);
+        setHistoryLoaded(false);
       } else {
         setImportHistory(payload?.imports ?? []);
       }
     } catch (error) {
       setHistoryStatus("Failed to load import history.");
       setImportHistory([]);
+      setHistoryLoaded(false);
     } finally {
       setHistoryLoading(false);
     }
@@ -373,8 +377,11 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
   }, [mode]);
 
   useEffect(() => {
-    loadImportHistory();
-  }, []);
+    if (historyOpen && !historyLoaded) {
+      setHistoryLoaded(true);
+      loadImportHistory();
+    }
+  }, [historyOpen, historyLoaded]);
 
   useEffect(() => {
     if (!selectedFile || isPdf) return;
@@ -681,7 +688,11 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
           });
         }
 
-        await loadImportHistory();
+        if (historyOpen) {
+          await loadImportHistory();
+        } else {
+          setHistoryLoaded(false);
+        }
       }
     } catch (error) {
       setProgressState("error");
@@ -967,47 +978,56 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
         </button>
       </div>
 
-      <div className="import-panel import-history">
-        <div className="import-title">Import History</div>
-        {historyLoading ? (
-          <div className="row-sub">Loading imports...</div>
-        ) : importHistory.length === 0 ? (
-          <div className="row-sub">No imports yet.</div>
-        ) : (
-          <div className="history-table">
-            <div className="history-header">
-              <span>File</span>
-              <span>Source</span>
-              <span>Owner</span>
-              <span>Rows</span>
-              <span>Status</span>
-              <span>Uploaded</span>
-              <span>Action</span>
-            </div>
-            {importHistory.map((item) => (
-              <div key={item.id} className="history-row">
-                <span>{item.file_name || `Untitled ${sourceName}`}</span>
-                <span>{item.source_name}</span>
-                <span>{item.source_owner || "-"}</span>
-                <span>{item.row_count}</span>
-                <span>{item.status}</span>
-                <span>{formatDate(item.uploaded_at)}</span>
-                <span>
-                  <button
-                    className="ghost-btn danger-btn"
-                    type="button"
-                    disabled={deletingImportId === item.id}
-                    onClick={() => handleDeleteImport(item.id)}
-                  >
-                    {deletingImportId === item.id ? "Deleting..." : "Delete"}
-                  </button>
-                </span>
+      <details
+        className="import-history-accordion"
+        open={historyOpen}
+        onToggle={(e) => setHistoryOpen((e.target as HTMLDetailsElement).open)}
+      >
+        <summary className="import-history-summary">
+          <span>Import History</span>
+          <span className="import-history-chevron">{historyOpen ? "−" : "+"}</span>
+        </summary>
+        <div className="import-history-body">
+          {historyLoading ? (
+            <div className="row-sub">Loading imports...</div>
+          ) : importHistory.length === 0 ? (
+            <div className="row-sub">No imports yet.</div>
+          ) : (
+            <div className="history-table">
+              <div className="history-header">
+                <span>File</span>
+                <span>Source</span>
+                <span>Owner</span>
+                <span>Rows</span>
+                <span>Status</span>
+                <span>Uploaded</span>
+                <span>Action</span>
               </div>
-            ))}
-          </div>
-        )}
-        {historyStatus ? <div className="row-sub">{historyStatus}</div> : null}
-      </div>
+              {importHistory.map((item) => (
+                <div key={item.id} className="history-row">
+                  <span>{item.file_name || `Untitled ${sourceName}`}</span>
+                  <span>{item.source_name}</span>
+                  <span>{item.source_owner || "-"}</span>
+                  <span>{item.row_count}</span>
+                  <span>{item.status}</span>
+                  <span>{formatDate(item.uploaded_at)}</span>
+                  <span>
+                    <button
+                      className="ghost-btn danger-btn"
+                      type="button"
+                      disabled={deletingImportId === item.id}
+                      onClick={() => handleDeleteImport(item.id)}
+                    >
+                      {deletingImportId === item.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {historyStatus ? <div className="row-sub">{historyStatus}</div> : null}
+        </div>
+      </details>
     </div>
   );
 }
