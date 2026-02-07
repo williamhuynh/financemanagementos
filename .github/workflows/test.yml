@@ -1,0 +1,68 @@
+name: Test & Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    name: Test, Lint & Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: cd apps/web && npm run lint
+        continue-on-error: false
+
+      - name: Run TypeScript type-check
+        run: cd apps/web && npx tsc --noEmit
+        continue-on-error: false
+
+      - name: Run Vitest unit tests
+        run: cd apps/web && npm test
+        continue-on-error: false
+
+      - name: Build production bundle
+        run: cd apps/web && npm run build
+        env:
+          # Stub required env vars for build (not used in tests)
+          NEXT_PUBLIC_APPWRITE_ENDPOINT: https://cloud.appwrite.io/v1
+          NEXT_PUBLIC_APPWRITE_PROJECT_ID: stub-project-id
+          NEXT_PUBLIC_APPWRITE_DATABASE_ID: stub-database-id
+          APPWRITE_API_KEY: stub-api-key
+          SESSION_SECRET: stub-session-secret-32-chars-min
+          INVITATION_SECRET: stub-invitation-secret
+        continue-on-error: false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: apps/web/coverage/
+          if-no-files-found: ignore
