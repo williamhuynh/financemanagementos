@@ -46,10 +46,47 @@ type ImportHistoryItem = {
   uploaded_at: string;
 };
 
+type StoredMapping = {
+  headers: string[];
+  mapping: Record<string, MappingKey>;
+  invertAmount: boolean;
+  timestamp: number;
+};
+
+const MAPPING_STORAGE_KEY = "financelab_recent_mappings";
+const MAX_STORED_MAPPINGS = 10;
+
+function loadRecentMappings(): StoredMapping[] {
+  try {
+    const raw = localStorage.getItem(MAPPING_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMapping(entry: StoredMapping) {
+  try {
+    const existing = loadRecentMappings();
+    existing.unshift(entry);
+    const trimmed = existing.slice(0, MAX_STORED_MAPPINGS);
+    localStorage.setItem(MAPPING_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 const presets: Preset[] = [
   {
     id: "auto",
     label: "Auto (heuristics)",
+    headerMap: {}
+  },
+  {
+    id: "llm",
+    label: "AI (LLM)",
     headerMap: {}
   },
   {
@@ -252,6 +289,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
   const [headerSamples, setHeaderSamples] = useState<Record<string, string>>(
     {}
   );
+  const [isSuggestingMapping, setIsSuggestingMapping] = useState(false);
 
   // PDF-specific state
   const [extractedRows, setExtractedRows] = useState<Record<string, string>[]>([]);
@@ -277,8 +315,18 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
     });
   }, [rows, mapping, invertAmount, isPdf]);
 
+  // PDF: apply invert to extracted rows if toggled
+  const pdfMappedRows = useMemo((): Record<string, string>[] => {
+    if (!isPdf || extractedRows.length === 0) return extractedRows;
+    if (!invertAmount) return extractedRows;
+    return extractedRows.map((row) => ({
+      ...row,
+      amount: applyAmountSign(row.amount, true),
+    }));
+  }, [extractedRows, invertAmount, isPdf]);
+
   // Unified mapped rows: CSV uses column mapping, PDF uses server-extracted rows
-  const mappedRows = isPdf ? extractedRows : csvMappedRows;
+  const mappedRows = isPdf ? pdfMappedRows : csvMappedRows;
 
   const canSubmit =
     mappedRows.length > 0 &&
@@ -320,6 +368,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
     setStatus("");
     setProgress(0);
     setProgressState("idle");
+    setInvertAmount(false);
   }, [mode]);
 
   useEffect(() => {
@@ -345,6 +394,55 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
     };
     loadAccounts();
   }, []);
+
+  // --- LLM-assisted column mapping ---
+  const requestLlmMapping = async (
+    activeHeaders: string[],
+    activeRows: ParsedRow[]
+  ) => {
+    setIsSuggestingMapping(true);
+    setStatus("AI is analysing columns...");
+
+    try {
+      // Build sample rows as string[][] for the API
+      const sampleRows = activeRows.slice(0, 5).map((row) =>
+        activeHeaders.map((header) => row[header] ?? "")
+      );
+
+      const recentMappings = loadRecentMappings().map((stored) => ({
+        headers: stored.headers,
+        mapping: stored.mapping,
+        invertAmount: stored.invertAmount,
+      }));
+
+      const response = await fetch("/api/suggest-mapping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headers: activeHeaders,
+          sampleRows,
+          recentMappings,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setStatus(payload?.detail ?? "AI mapping failed. Using heuristics.");
+        return null;
+      }
+
+      return payload as {
+        mapping: Record<string, MappingKey>;
+        invertAmount: boolean;
+      };
+    } catch {
+      setStatus("AI mapping failed. Using heuristics.");
+      return null;
+    } finally {
+      setIsSuggestingMapping(false);
+    }
+  };
 
   // --- PDF extraction ---
   const handlePdfExtract = async (file: File) => {
@@ -388,7 +486,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
       setExtractWarnings(payload.warnings ?? []);
       setStatus(
         rows.length > 0
-          ? `Extracted ${rows.length} transactions from PDF.`
+          ? `Extracted ${rows.length} transactions from PDF. Review below before importing.`
           : "No transactions found in PDF."
       );
     } catch (error) {
@@ -431,9 +529,10 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
         if (includeHeader) {
           const fileHeaders = result.meta.fields?.filter(Boolean) ?? [];
           setHeaders(fileHeaders);
-          setRows(result.data as ParsedRow[]);
+          const parsedRows = result.data as ParsedRow[];
+          setRows(parsedRows);
           setHeaderSamples({});
-          applyPreset("auto", fileHeaders);
+          applyPreset("auto", fileHeaders, parsedRows);
           setStatus(`Parsed ${result.data.length} rows.`);
           return;
         }
@@ -464,7 +563,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
         setHeaders(fileHeaders);
         setRows(normalizedRows);
         setHeaderSamples(samples);
-        applyPreset("auto", fileHeaders);
+        applyPreset("auto", fileHeaders, normalizedRows);
         setStatus(`Parsed ${normalizedRows.length} rows.`);
       },
       error: () => {
@@ -499,14 +598,40 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
     }
   };
 
-  const applyPreset = (nextPresetId: string, activeHeaders = headers) => {
+  const applyPreset = async (
+    nextPresetId: string,
+    activeHeaders = headers,
+    activeRows = rows
+  ) => {
+    setPresetId(nextPresetId);
+
+    if (nextPresetId === "llm") {
+      const result = await requestLlmMapping(activeHeaders, activeRows);
+      if (result) {
+        setMapping(result.mapping);
+        setInvertAmount(result.invertAmount);
+        setStatus(
+          result.invertAmount
+            ? "AI mapped columns and detected reversed amount signs."
+            : "AI mapped columns."
+        );
+      } else {
+        // Fallback to heuristics
+        const inferredMapping: Record<string, MappingKey> = {};
+        activeHeaders.forEach((header) => {
+          inferredMapping[header] = inferMapping(header);
+        });
+        setMapping(inferredMapping);
+      }
+      return;
+    }
+
     const selectedPreset = presets.find((preset) => preset.id === nextPresetId);
     const presetMap = selectedPreset?.headerMap ?? {};
     const inferredMapping: Record<string, MappingKey> = {};
     activeHeaders.forEach((header) => {
       inferredMapping[header] = presetMap[header] ?? inferMapping(header);
     });
-    setPresetId(nextPresetId);
     setMapping(inferredMapping);
   };
 
@@ -544,6 +669,17 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
         setProgressState("success");
         setProgress(100);
         setStatus(`Import saved. Batch ${payload.importId}.`);
+
+        // Save confirmed mapping to localStorage for future LLM few-shot examples
+        if (!isPdf && headers.length > 0) {
+          saveMapping({
+            headers,
+            mapping,
+            invertAmount,
+            timestamp: Date.now(),
+          });
+        }
+
         await loadImportHistory();
       }
     } catch (error) {
@@ -663,15 +799,31 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
 
       {isPdf ? (
         <div className="import-panel">
-          <div className="import-title">2. Extracted Transactions</div>
+          <div className="import-title">2. Review Extracted Transactions</div>
           {extractedRows.length === 0 ? (
             <div className="row-sub">
               Upload a PDF statement. Transactions will be automatically extracted.
             </div>
           ) : (
-            <div className="row-sub">
-              {extractedRows.length} transactions extracted. Review them below before importing.
-            </div>
+            <>
+              <div className="row-sub">
+                {extractedRows.length} transactions extracted. Review the preview below and confirm before importing.
+              </div>
+              <div className="preset-row">
+                <span className="row-title">Amount sign</span>
+                <button
+                  className="pill"
+                  type="button"
+                  aria-pressed={invertAmount}
+                  onClick={() => setInvertAmount((prev) => !prev)}
+                >
+                  {invertAmount ? "Reverse: On" : "Reverse: Off"}
+                </button>
+              </div>
+              <div className="row-sub">
+                Toggle if purchases show as positive numbers in your statement.
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -709,6 +861,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
                 <select
                   className="mapping-select"
                   value={presetId}
+                  disabled={isSuggestingMapping}
                   onChange={(event) => applyPreset(event.target.value)}
                 >
                   {presets.map((preset) => (
@@ -717,6 +870,9 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
                     </option>
                   ))}
                 </select>
+                {isSuggestingMapping ? (
+                  <span className="row-sub">Analysing...</span>
+                ) : null}
               </div>
               <div className="preset-row">
                 <span className="row-title">Amount sign</span>
@@ -763,7 +919,7 @@ export default function ImportClient({ mode = "csv" }: ImportClientProps) {
       )}
 
       <div className="import-panel">
-        <div className="import-title">3. Preview Rows</div>
+        <div className="import-title">3. Preview &amp; Import</div>
         {previewRows.length === 0 ? (
           <div className="row-sub">Mapped rows will appear here.</div>
         ) : (
