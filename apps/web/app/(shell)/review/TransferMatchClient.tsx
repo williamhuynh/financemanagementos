@@ -11,19 +11,9 @@ type TransferReviewResponse = {
   paired: TransferPairReview[];
   suggestions: TransferSuggestion[];
   unmatched: TransferTransaction[];
-  page: number;
-  totalPages: number;
-  totalItems: number;
-  counts: {
-    paired: number;
-    suggestions: number;
-    unmatched: number;
-  };
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
-
-const PAGE_SIZE = 25;
 
 export default function TransferMatchClient() {
   const [loaded, setLoaded] = useState(false);
@@ -34,22 +24,15 @@ export default function TransferMatchClient() {
   const [suggestions, setSuggestions] = useState<TransferSuggestion[]>([]);
   const [unmatched, setUnmatched] = useState<TransferTransaction[]>([]);
 
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [counts, setCounts] = useState({ paired: 0, suggestions: 0, unmatched: 0 });
-
   const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
   const [unpairState, setUnpairState] = useState<Record<string, SaveState>>({});
   const [status, setStatus] = useState("");
 
-  const fetchPage = useCallback(async (pageNum: number) => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(
-        `/api/transfer-review?page=${pageNum}&limit=${PAGE_SIZE}`
-      );
+      const response = await fetch("/api/transfer-review");
       if (!response.ok) {
         throw new Error("Failed to load transfer data");
       }
@@ -57,10 +40,6 @@ export default function TransferMatchClient() {
       setPaired(data.paired);
       setSuggestions(data.suggestions);
       setUnmatched(data.unmatched);
-      setPage(data.page);
-      setTotalPages(data.totalPages);
-      setTotalItems(data.totalItems);
-      setCounts(data.counts);
       setLoaded(true);
     } catch {
       setError("Unable to load transfer matches.");
@@ -71,13 +50,8 @@ export default function TransferMatchClient() {
 
   const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
     if (e.currentTarget.open && !loaded) {
-      fetchPage(1);
+      fetchData();
     }
-  };
-
-  const goToPage = (p: number) => {
-    if (p < 1 || p > totalPages || p === page) return;
-    fetchPage(p);
   };
 
   const formatDelta = (amount: number, currency: string) =>
@@ -129,11 +103,10 @@ export default function TransferMatchClient() {
     }
   };
 
+  const totalCount = paired.length + suggestions.length + unmatched.length;
   const summaryLabel = loaded
-    ? `${counts.paired} paired · ${counts.suggestions} suggested · ${counts.unmatched} unmatched`
+    ? `${paired.length} paired · ${suggestions.length} suggested · ${unmatched.length} unmatched`
     : "";
-
-  const hasContent = paired.length > 0 || suggestions.length > 0 || unmatched.length > 0;
 
   return (
     <details className="report-accordion" onToggle={handleToggle}>
@@ -146,173 +119,145 @@ export default function TransferMatchClient() {
           <div className="empty-state">Loading transfer data…</div>
         ) : error ? (
           <div className="empty-state">{error}</div>
-        ) : loaded && !hasContent && totalItems === 0 ? (
+        ) : loaded && totalCount === 0 ? (
           <div className="empty-state">No transfer pairs to review.</div>
         ) : (
-          <>
-            <div className="transfer-stack">
-              {paired.length > 0 && (
-                <div className="transfer-table">
-                  <div className="transfer-subtitle">Paired transfers</div>
-                  <div className="transfer-header">
-                    <span>Outflow</span>
-                    <span>Inflow</span>
-                    <span>Matched</span>
-                    <span></span>
-                    <span>Action</span>
-                  </div>
-                  {paired.map((pair) => {
-                    const state = unpairState[pair.id] ?? "idle";
-                    return (
-                      <div key={pair.id} className="transfer-row">
-                        <div>
-                          <div className="row-title">{pair.outflow.description}</div>
-                          <div className="row-sub">
-                            {pair.outflow.date} - {pair.outflow.accountName} -{" "}
-                            {pair.outflow.amount}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="row-title">{pair.inflow.description}</div>
-                          <div className="row-sub">
-                            {pair.inflow.date} - {pair.inflow.accountName} -{" "}
-                            {pair.inflow.amount}
-                          </div>
-                        </div>
-                        <span className="row-sub">{pair.matchedAt || "-"}</span>
-                        <span className="row-sub"> </span>
-                        <button
-                          className="pill"
-                          type="button"
-                          onClick={() => handleUnpair(pair)}
-                          disabled={state === "saving"}
-                        >
-                          {state === "saving"
-                            ? "Removing..."
-                            : state === "error"
-                              ? "Retry"
-                              : "Unpair"}
-                        </button>
-                      </div>
-                    );
-                  })}
+          <div className="transfer-stack">
+            {paired.length > 0 && (
+              <div className="transfer-table">
+                <div className="transfer-subtitle">Paired transfers</div>
+                <div className="transfer-header">
+                  <span>Outflow</span>
+                  <span>Inflow</span>
+                  <span>Matched</span>
+                  <span></span>
+                  <span>Action</span>
                 </div>
-              )}
-
-              {suggestions.length > 0 && (
-                <div className="transfer-table">
-                  <div className="transfer-subtitle">Suggested matches</div>
-                  <div className="transfer-header">
-                    <span>Outflow</span>
-                    <span>Inflow</span>
-                    <span>Delta</span>
-                    <span>Window</span>
-                    <span>Action</span>
-                  </div>
-                  {suggestions.map((suggestion) => {
-                    const state = saveState[suggestion.id] ?? "idle";
-                    const deltaLabel = formatDelta(
-                      suggestion.amountDiff,
-                      suggestion.outflow.currency
-                    );
-                    const windowLabel = `${suggestion.dateDiffDays}d`;
-                    return (
-                      <div key={suggestion.id} className="transfer-row">
-                        <div>
-                          <div className="row-title">
-                            {suggestion.outflow.description}
-                          </div>
-                          <div className="row-sub">
-                            {suggestion.outflow.date} -{" "}
-                            {suggestion.outflow.accountName} -{" "}
-                            {suggestion.outflow.amount}
-                          </div>
+                {paired.map((pair) => {
+                  const state = unpairState[pair.id] ?? "idle";
+                  return (
+                    <div key={pair.id} className="transfer-row">
+                      <div>
+                        <div className="row-title">{pair.outflow.description}</div>
+                        <div className="row-sub">
+                          {pair.outflow.date} - {pair.outflow.accountName} -{" "}
+                          {pair.outflow.amount}
                         </div>
-                        <div>
-                          <div className="row-title">
-                            {suggestion.inflow.description}
-                          </div>
-                          <div className="row-sub">
-                            {suggestion.inflow.date} -{" "}
-                            {suggestion.inflow.accountName} -{" "}
-                            {suggestion.inflow.amount}
-                          </div>
-                        </div>
-                        <span className="row-sub">{deltaLabel}</span>
-                        <span className="row-sub">{windowLabel}</span>
-                        <button
-                          className="pill"
-                          type="button"
-                          onClick={() => handleConfirm(suggestion)}
-                          disabled={state === "saving"}
-                        >
-                          {state === "saving"
-                            ? "Saving..."
-                            : state === "saved"
-                              ? "Saved"
-                              : state === "error"
-                                ? "Retry"
-                                : "Confirm"}
-                        </button>
                       </div>
-                    );
-                  })}
-                  {status ? <div className="row-sub">{status}</div> : null}
-                </div>
-              )}
-
-              {unmatched.length > 0 && (
-                <div className="transfer-unmatched">
-                  <div className="transfer-subtitle">Unmatched transfers</div>
-                  <div className="transfer-unmatched-table">
-                    <div className="transfer-unmatched-header">
-                      <span>Transaction</span>
-                      <span>Amount</span>
-                      <span>Date</span>
-                      <span>Account</span>
+                      <div>
+                        <div className="row-title">{pair.inflow.description}</div>
+                        <div className="row-sub">
+                          {pair.inflow.date} - {pair.inflow.accountName} -{" "}
+                          {pair.inflow.amount}
+                        </div>
+                      </div>
+                      <span className="row-sub">{pair.matchedAt || "-"}</span>
+                      <span className="row-sub"> </span>
+                      <button
+                        className="pill"
+                        type="button"
+                        onClick={() => handleUnpair(pair)}
+                        disabled={state === "saving"}
+                      >
+                        {state === "saving"
+                          ? "Removing..."
+                          : state === "error"
+                            ? "Retry"
+                            : "Unpair"}
+                      </button>
                     </div>
-                    {unmatched.map((item) => (
-                      <div key={item.id} className="transfer-unmatched-row">
-                        <span className="row-title">{item.description}</span>
-                        <span className="row-sub">{item.amount}</span>
-                        <span className="row-sub">{item.date}</span>
-                        <span className="row-sub">
-                          {item.accountName}
-                          {item.debugReason ? ` · ${item.debugReason}` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  className="pagination-btn"
-                  type="button"
-                  onClick={() => goToPage(page - 1)}
-                  disabled={page <= 1 || loading}
-                  aria-label="Previous page"
-                >
-                  ‹
-                </button>
-                <span className="pagination-info">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  className="pagination-btn"
-                  type="button"
-                  onClick={() => goToPage(page + 1)}
-                  disabled={page >= totalPages || loading}
-                  aria-label="Next page"
-                >
-                  ›
-                </button>
+                  );
+                })}
               </div>
             )}
-          </>
+
+            {suggestions.length > 0 && (
+              <div className="transfer-table">
+                <div className="transfer-subtitle">Suggested matches</div>
+                <div className="transfer-header">
+                  <span>Outflow</span>
+                  <span>Inflow</span>
+                  <span>Delta</span>
+                  <span>Window</span>
+                  <span>Action</span>
+                </div>
+                {suggestions.map((suggestion) => {
+                  const state = saveState[suggestion.id] ?? "idle";
+                  const deltaLabel = formatDelta(
+                    suggestion.amountDiff,
+                    suggestion.outflow.currency
+                  );
+                  const windowLabel = `${suggestion.dateDiffDays}d`;
+                  return (
+                    <div key={suggestion.id} className="transfer-row">
+                      <div>
+                        <div className="row-title">
+                          {suggestion.outflow.description}
+                        </div>
+                        <div className="row-sub">
+                          {suggestion.outflow.date} -{" "}
+                          {suggestion.outflow.accountName} -{" "}
+                          {suggestion.outflow.amount}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="row-title">
+                          {suggestion.inflow.description}
+                        </div>
+                        <div className="row-sub">
+                          {suggestion.inflow.date} -{" "}
+                          {suggestion.inflow.accountName} -{" "}
+                          {suggestion.inflow.amount}
+                        </div>
+                      </div>
+                      <span className="row-sub">{deltaLabel}</span>
+                      <span className="row-sub">{windowLabel}</span>
+                      <button
+                        className="pill"
+                        type="button"
+                        onClick={() => handleConfirm(suggestion)}
+                        disabled={state === "saving"}
+                      >
+                        {state === "saving"
+                          ? "Saving..."
+                          : state === "saved"
+                            ? "Saved"
+                            : state === "error"
+                              ? "Retry"
+                              : "Confirm"}
+                      </button>
+                    </div>
+                  );
+                })}
+                {status ? <div className="row-sub">{status}</div> : null}
+              </div>
+            )}
+
+            {unmatched.length > 0 && (
+              <div className="transfer-unmatched">
+                <div className="transfer-subtitle">Unmatched transfers</div>
+                <div className="transfer-unmatched-table">
+                  <div className="transfer-unmatched-header">
+                    <span>Transaction</span>
+                    <span>Amount</span>
+                    <span>Date</span>
+                    <span>Account</span>
+                  </div>
+                  {unmatched.map((item) => (
+                    <div key={item.id} className="transfer-unmatched-row">
+                      <span className="row-title">{item.description}</span>
+                      <span className="row-sub">{item.amount}</span>
+                      <span className="row-sub">{item.date}</span>
+                      <span className="row-sub">
+                        {item.accountName}
+                        {item.debugReason ? ` · ${item.debugReason}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </details>
