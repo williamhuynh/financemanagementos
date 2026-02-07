@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 
 /**
  * User type based on server session data
@@ -20,19 +20,26 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+interface AuthProviderProps {
+  children: ReactNode;
+  /** Pre-verified user from the server layout — skips the client-side /api/auth/session fetch */
+  serverUser?: User;
+}
+
+export function AuthProvider({ children, serverUser }: AuthProviderProps) {
+  // If serverUser is provided, initialise as already authenticated (no loading state)
+  const [user, setUser] = useState<User>(serverUser ?? null);
+  const [loading, setLoading] = useState(!serverUser);
 
   /**
    * Check authentication by calling our server session API
    * This reads from iron-session (server-side) instead of Appwrite client SDK
    */
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/session', {
         method: 'GET',
-        credentials: 'include', // Send cookies
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -50,11 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // Skip initial fetch when server already provided the user
+    if (serverUser) return;
     checkAuth();
-  }, []);
+  }, [serverUser, checkAuth]);
 
   return (
     <AuthContext.Provider value={{ user, loading, refreshAuth: checkAuth }}>

@@ -28,12 +28,16 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   }
 
   const resolvedSearchParams = await searchParams;
-  const reviewItems = await getReviewItems(context.workspaceId, {
-    account: resolvedSearchParams?.account,
-    month: resolvedSearchParams?.month,
-    sort: resolvedSearchParams?.sort as ReviewFilterParams["sort"]
-  });
-  const categories = await getCategories(context.workspaceId);
+
+  // Fetch review items and categories in parallel
+  const [reviewItems, categories] = await Promise.all([
+    getReviewItems(context.workspaceId, {
+      account: resolvedSearchParams?.account,
+      month: resolvedSearchParams?.month,
+      sort: resolvedSearchParams?.sort as ReviewFilterParams["sort"]
+    }),
+    getCategories(context.workspaceId),
+  ]);
 
   return (
     <>

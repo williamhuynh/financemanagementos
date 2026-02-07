@@ -8,40 +8,40 @@ import AppShell from "./AppShell";
 import { AuthProvider } from "../../lib/auth-context";
 import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
-import { getApiContext, createSessionClient } from "../../lib/api-auth";
+import { getApiContext } from "../../lib/api-auth";
 import EmailVerificationBanner from "./EmailVerificationBanner";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 type ShellLayoutProps = {
   children: ReactNode;
 };
 
 export default async function ShellLayout({ children }: ShellLayoutProps) {
-  // Authenticate and get workspace context
+  // Authenticate and get workspace context (cached per render pass via React cache())
   const context = await getApiContext();
   if (!context) {
     redirect("/login");
   }
 
-  const navItems = await getNavItems();
-  const monthlyCloseStatus = await getSidebarMonthlyCloseStatus(context.workspaceId);
+  // Fetch nav items and sidebar status in parallel
+  // getNavItems() is a static return so it's instant, but we parallelize
+  // getSidebarMonthlyCloseStatus to avoid sequential await chains.
+  const [navItems, monthlyCloseStatus] = await Promise.all([
+    getNavItems(),
+    getSidebarMonthlyCloseStatus(context.workspaceId),
+  ]);
 
-  // Check email verification status
-  let emailVerified = true;
-  try {
-    const sessionClient = await createSessionClient();
-    if (sessionClient) {
-      const user = await sessionClient.account.get();
-      emailVerified = user.emailVerification;
-    }
-  } catch {
-    // If we can't check, assume verified to avoid blocking the user
-  }
+  // Email verification is already available from getApiContext() — no extra API call needed
+  const emailVerified = context.user.emailVerification ?? true;
+
+  // Pass server-verified user to AuthProvider so it skips the client-side session fetch
+  const serverUser = {
+    id: context.user.$id,
+    email: context.user.email,
+    name: context.user.name,
+  };
 
   return (
-    <AuthProvider>
+    <AuthProvider serverUser={serverUser}>
       <WorkspaceProvider>
         <NumberVisibilityProvider>
           <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>

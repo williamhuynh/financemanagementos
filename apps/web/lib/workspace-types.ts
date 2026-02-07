@@ -34,6 +34,7 @@ export interface AuthenticatedUser {
   $id: string;
   email: string;
   name: string;
+  emailVerification?: boolean;
 }
 
 export interface ApiConfig {

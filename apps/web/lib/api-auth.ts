@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Client, Account, Databases, Query } from "node-appwrite";
 import { getSession } from "./session";
 import { COLLECTIONS } from "./collection-names";
@@ -74,8 +75,11 @@ export async function createSessionClient() {
  * 4. Handles missing workspace (for legacy users or first login)
  * 5. Uses API key client to validate workspace membership
  * 6. Returns context with API key databases client (for data access)
+ *
+ * Wrapped with React cache() to deduplicate calls within the same
+ * server render pass (e.g. layout + page both calling getApiContext()).
  */
-export async function getApiContext(): Promise<ApiContext | null> {
+export const getApiContext = cache(async (): Promise<ApiContext | null> => {
   const config = getServerConfig();
   if (!config) {
     return null;
@@ -87,11 +91,11 @@ export async function getApiContext(): Promise<ApiContext | null> {
     return null;
   }
 
-  // 2. Get authenticated user from Appwrite (using session from iron-session)
-  const user = await sessionClient.account.get();
-
-  // 3. Get user preferences (activeWorkspaceId) from Appwrite account
-  const prefs = await sessionClient.account.getPrefs();
+  // 2-3. Get user and preferences in parallel (saves a round-trip)
+  const [user, prefs] = await Promise.all([
+    sessionClient.account.get(),
+    sessionClient.account.getPrefs(),
+  ]);
   let activeWorkspaceId = prefs.activeWorkspaceId;
 
   // 4. Handle missing workspace (for legacy users or first login)
@@ -146,12 +150,13 @@ export async function getApiContext(): Promise<ApiContext | null> {
       $id: user.$id,
       email: user.email,
       name: user.name,
+      emailVerification: user.emailVerification,
     },
     workspaceId: activeWorkspaceId,
     role: membership.documents[0].role as WorkspaceMemberRole,
     databases: adminDatabases,
   };
-}
+});
 
 /**
  * Create a server-side Appwrite databases client.
