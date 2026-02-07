@@ -63,12 +63,9 @@ export default async function CashPage({ searchParams }: CashPageProps) {
 
   const resolvedSearchParams = await searchParams;
   const selectedMonth = resolvedSearchParams?.month || getCurrentMonth();
-  console.log("[CASH-PAGE] Selected month:", selectedMonth);
   const logs = await fetchCashLogs(context.workspaceId, selectedMonth);
-  console.log("[CASH-PAGE] Received", logs.length, "logs");
   const categories = await fetchCategories(context.workspaceId);
   const monthOptions = buildMonthOptions(6);
-  console.log("[CASH-PAGE] Month options:", monthOptions.map(o => o.value).join(", "));
 
   return (
     <>

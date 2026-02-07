@@ -54,7 +54,6 @@ export default function OnboardingClient() {
           router.replace("/login");
         }
       } catch (error) {
-        console.error("[ONBOARDING] Session check failed:", error);
         router.replace("/login");
       }
     };
@@ -71,8 +70,7 @@ export default function OnboardingClient() {
       });
       // Session destroyed server-side
       router.replace("/login");
-    } catch (error) {
-      console.error("Error logging out:", error);
+    } catch {
       setIsLoggingOut(false);
     }
   };
@@ -92,8 +90,6 @@ export default function OnboardingClient() {
     setStatusMessage(null);
 
     try {
-      console.log('[ONBOARDING] Creating workspace...');
-
       // Session cookie sent automatically by the browser
       const response = await fetch("/api/workspaces", {
         method: "POST",
@@ -106,8 +102,6 @@ export default function OnboardingClient() {
           currency
         })
       });
-
-      console.log('[ONBOARDING] Response:', response.status, response.statusText);
 
       if (response.status === 401) {
         setFormState("error");

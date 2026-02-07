@@ -250,7 +250,6 @@ export default function TransferMatchClient() {
                       <span className="row-sub">{item.date}</span>
                       <span className="row-sub">
                         {item.accountName}
-                        {item.debugReason ? ` · ${item.debugReason}` : ""}
                       </span>
                     </div>
                   ))}

@@ -97,34 +97,26 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currency: string = 'AUD'
   ): Promise<Workspace | null> => {
     try {
-      console.log(`[CLIENT] Creating workspace: name="${name}", currency="${currency}"`);
-
-      // Cookies are sent automatically by the browser - no manual headers needed!
       const response = await fetch('/api/workspaces', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include', // Ensure cookies are included
+        credentials: 'include',
         body: JSON.stringify({ name, currency })
       });
 
-      console.log(`[CLIENT] Response status: ${response.status} ${response.statusText}`);
-
       if (response.status === 401) {
-        console.error('[CLIENT] Unauthorized (401) - session may be invalid or expired');
         throw new Error('Your session has expired. Please log out and log back in to continue.');
       }
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('[CLIENT] Error response:', errorData);
         throw new Error(`Failed to create workspace: ${response.status} ${errorData.detail || response.statusText}`);
       }
 
       const data = await response.json();
       const newWorkspace = data.workspace;
-      console.log('[CLIENT] Workspace created successfully:', newWorkspace.id);
 
       setWorkspaces((prev) => [...prev, newWorkspace]);
       setCurrentWorkspaceId(newWorkspace.id);
@@ -132,8 +124,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       return newWorkspace;
     } catch (error) {
-      console.error('[CLIENT] Error creating workspace:', error);
-      throw error; // Re-throw to let the UI handle it
+      throw error;
     }
   }, []);
 

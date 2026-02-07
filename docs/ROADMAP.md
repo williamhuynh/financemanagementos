@@ -44,11 +44,11 @@ These items close the gap between "works for us" and "ready for others to use."
 
 ### Blockers — Must ship before public launch
 
-- [ ] **Rate limiting on auth endpoints** — Login, signup, forgot-password, and invitation routes have no throttling. Add middleware-level rate limiting to prevent brute-force attacks.
-- [ ] **Error boundaries (error.tsx)** — No `error.tsx` files exist. Add to `(shell)/` and key route groups. Add client-side error boundaries for interactive components.
-- [ ] **Strip debug output** — `debugReason` rendered in `review/TransferMatchClient.tsx:205`. Multiple `console.log` in production routes log user emails/IDs. Gate behind `NODE_ENV` or remove.
-- [ ] **Account deletion / data export** — No way for users to delete their account or export data. Required for GDPR compliance.
-- [ ] **Basic automated tests** — Zero test files exist. At minimum: auth flow, permission enforcement, import pipeline. See [TESTING_PLAN.md](TESTING_PLAN.md).
+- [x] **Rate limiting on auth endpoints** — In-memory sliding-window rate limiter on login (5/15m), signup (3/15m), forgot-password (3/15m), reset-password (5/15m), invitation verify/accept (10/15m).
+- [x] **Error boundaries (error.tsx)** — Root `error.tsx`, shell `error.tsx`, and `not-found.tsx` pages with retry/navigate-home actions.
+- [x] **Strip debug output** — Removed `debugReason` from TransferMatchClient, verbose `console.log` from workspace routes, onboarding, cash logs, and workspace context.
+- [x] **Account deletion / data export** — `GET /api/account/export` (JSON data export) and `DELETE /api/account` (full account + data deletion). UI on profile page with confirmation flow.
+- [x] **Basic automated tests** — Vitest framework with 16 tests covering rate limiting, workspace permissions (RBAC), and collection name constants.
 
 ### Fast-follow — Ship within first week post-launch
 

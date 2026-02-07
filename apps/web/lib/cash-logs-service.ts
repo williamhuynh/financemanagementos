@@ -68,15 +68,11 @@ export async function fetchCashLogs(
       queries.push(Query.equal("status", status));
     }
 
-    console.log("[CASH-LOGS-SERVICE] Querying with filters:", { month, status, workspaceId });
-
     const response = await databases.listDocuments(
       config.databaseId,
       COLLECTIONS.CASH_LOGS,
       queries
     );
-
-    console.log("[CASH-LOGS-SERVICE] Found", response.documents.length, "documents");
 
     const logs = response.documents.map((doc) => ({
       id: doc.$id,
@@ -129,7 +125,6 @@ export async function fetchCategories(workspaceId: string): Promise<Category[]> 
   const config = getServerConfig();
 
   if (!config) {
-    console.log("[CASH-LOGS-SERVICE] No Appwrite client, returning default categories");
     return DEFAULT_CATEGORIES;
   }
 
@@ -148,7 +143,6 @@ export async function fetchCategories(workspaceId: string): Promise<Category[]> 
 
     const categories = names.length > 0 ? names : DEFAULT_CATEGORIES;
 
-    console.log("[CASH-LOGS-SERVICE] Fetched", categories.length, "categories");
     return categories;
   } catch (error) {
     console.error("[CASH-LOGS-SERVICE] Failed to fetch categories:", error);
