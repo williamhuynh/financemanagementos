@@ -1,6 +1,8 @@
 # Multi-Workspace Feature - Deployment Readiness
 
-## 🎯 Executive Summary
+> See [docs/ROADMAP.md](../docs/ROADMAP.md) for the master plan and current priorities.
+
+## Executive Summary
 
 The multi-workspace feature is **READY FOR PRODUCTION DEPLOYMENT** pending manual testing execution.
 
