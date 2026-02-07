@@ -45,7 +45,11 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hideMonthControl =
-    pathname.startsWith("/ledger") || pathname.startsWith("/review") || pathname.startsWith("/assets");
+    pathname.startsWith("/ledger") ||
+    pathname.startsWith("/review") ||
+    pathname.startsWith("/assets") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/cash");
   const options = buildMonthOptions();
   const currentMonth = getMonthKey(new Date());
   const selected = searchParams.get("month") ?? currentMonth;
@@ -64,10 +68,6 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
     }
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
-  };
-
-  const handleImportClick = () => {
-    router.push("/import-hub");
   };
 
   return (
@@ -164,8 +164,8 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
           </div>
         </div>
       )}
-      <div className="topbar-actions">
-        {onToggleNumberVisibility && (
+      {onToggleNumberVisibility && (
+        <div className="topbar-actions">
           <button
             className="toggle-btn"
             type="button"
@@ -174,11 +174,8 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
           >
             {numbersVisible ? "👁️ Hide" : "👁️‍🗨️ Show"}
           </button>
-        )}
-        <button className="primary-btn" type="button" onClick={handleImportClick}>
-          Import
-        </button>
-      </div>
+        </div>
+      )}
     </header>
   );
 }
