@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Client, Account } from "node-appwrite";
+import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
  * Sends a recovery email via Appwrite with a link to the reset page.
  */
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, AUTH_RATE_LIMITS.forgotPassword);
+  if (blocked) return blocked;
+
   try {
     const { email } = await request.json();
 

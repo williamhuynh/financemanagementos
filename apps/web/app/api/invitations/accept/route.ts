@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Client, Databases, Account } from "node-appwrite";
 import { verifyInvitationToken, acceptInvitation } from "../../../../lib/invitation-service";
 import { createSessionClient } from "../../../../lib/api-auth";
+import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const projectId = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
@@ -14,6 +15,9 @@ const apiKey = process.env.APPWRITE_API_KEY!;
  * Requires authentication
  */
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, AUTH_RATE_LIMITS.invitation);
+  if (blocked) return blocked;
+
   try {
     const body = await request.json();
     const { token } = body;

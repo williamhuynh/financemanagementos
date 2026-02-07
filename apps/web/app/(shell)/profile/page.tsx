@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { SectionHead } from "@financelab/ui";
 import { useAuth } from "../../../lib/auth-context";
 
-type SignOutState = "idle" | "working" | "error";
+type ActionState = "idle" | "working" | "error";
+type DeleteError = string | null;
 
 function parseUserName(name: string | undefined | null) {
   if (!name || !name.trim()) {
@@ -21,7 +22,12 @@ function parseUserName(name: string | undefined | null) {
 export default function ProfilePage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [signOutState, setSignOutState] = useState<SignOutState>("idle");
+  const [signOutState, setSignOutState] = useState<ActionState>("idle");
+  const [exportState, setExportState] = useState<ActionState>("idle");
+  const [deleteState, setDeleteState] = useState<ActionState>("idle");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState<DeleteError>(null);
 
   const { firstName, lastName } = parseUserName(user?.name);
   const initials =
@@ -34,6 +40,50 @@ export default function ProfilePage() {
       router.replace("/login");
     } catch {
       setSignOutState("error");
+    }
+  };
+
+  const handleExport = async () => {
+    setExportState("working");
+    try {
+      const response = await fetch("/api/account/export");
+      if (!response.ok) throw new Error("Export failed");
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `financelab-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setExportState("idle");
+    } catch {
+      setExportState("error");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+
+    setDeleteState("working");
+    setDeleteError(null);
+    try {
+      const response = await fetch("/api/account", { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          data.error || "Deletion failed. Please try again."
+        );
+      }
+      router.replace("/login");
+    } catch (err) {
+      setDeleteState("error");
+      setDeleteError(
+        err instanceof Error ? err.message : "Deletion failed. Please try again."
+      );
     }
   };
 
@@ -67,6 +117,18 @@ export default function ProfilePage() {
         </div>
         <div className="profile-actions">
           <button
+            className="ghost-btn"
+            type="button"
+            onClick={handleExport}
+            disabled={exportState === "working"}
+          >
+            {exportState === "working"
+              ? "Exporting\u2026"
+              : exportState === "error"
+                ? "Export failed \u2014 retry"
+                : "Export my data"}
+          </button>
+          <button
             className="ghost-btn danger-btn"
             type="button"
             onClick={handleSignOut}
@@ -77,6 +139,75 @@ export default function ProfilePage() {
           {signOutState === "error" && (
             <div className="row-sub">
               We could not sign you out. Try again.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="profile-card" style={{ marginTop: 24, borderColor: "rgba(226, 106, 90, 0.3)" }}>
+        <div className="profile-info">
+          <div className="profile-field">
+            <span className="profile-label" style={{ color: "var(--liability)" }}>
+              Danger zone
+            </span>
+            <span className="profile-value" style={{ fontSize: 14 }}>
+              Permanently delete your account and all associated data. This
+              action cannot be undone.
+            </span>
+          </div>
+        </div>
+        <div className="profile-actions">
+          {!showDeleteConfirm ? (
+            <button
+              className="ghost-btn danger-btn"
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete my account
+            </button>
+          ) : (
+            <div style={{ display: "grid", gap: 12, width: "100%" }}>
+              <p className="row-sub">
+                Type <strong>DELETE</strong> to confirm account deletion.
+              </p>
+              <input
+                className="text-input"
+                type="text"
+                placeholder="Type DELETE to confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoFocus
+              />
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  className="danger-btn ghost-btn"
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={
+                    deleteConfirmText !== "DELETE" ||
+                    deleteState === "working"
+                  }
+                >
+                  {deleteState === "working"
+                    ? "Deleting\u2026"
+                    : "Permanently delete"}
+                </button>
+                <button
+                  className="ghost-btn"
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText("");
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {deleteState === "error" && deleteError && (
+                <div className="row-sub" style={{ color: "var(--liability)" }}>
+                  {deleteError}
+                </div>
+              )}
             </div>
           )}
         </div>

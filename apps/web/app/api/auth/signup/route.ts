@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Client, Account, ID } from "node-appwrite";
 import { getSession } from "../../../../lib/session";
+import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/signup - Create user account and session
  */
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, AUTH_RATE_LIMITS.signup);
+  if (blocked) return blocked;
+
   try {
     const { name, email, password } = await request.json();
 
