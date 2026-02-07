@@ -5,10 +5,12 @@ import { Topbar } from "@financelab/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useNumberVisibility } from "../../lib/number-visibility-context";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import { useDrawer } from "./AppShell";
 
 export default function TopbarWithUser() {
   const { user } = useAuth();
   const { isVisible, toggleVisibility } = useNumberVisibility();
+  const { toggle } = useDrawer();
 
   const userLabel = useMemo(() => {
     if (!user) {
@@ -24,6 +26,7 @@ export default function TopbarWithUser() {
       onToggleNumberVisibility={toggleVisibility}
       numbersVisible={isVisible}
       workspaceSwitcher={<WorkspaceSwitcher />}
+      onMenuToggle={toggle}
     />
   );
 }

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavIcon } from "./NavIcon";
 
 type NavItem = {
   id: string;
   label: string;
   href: string;
+  icon?: string;
 };
 
 type SidebarProps = {
@@ -36,6 +38,7 @@ export function Sidebar({ navItems, monthlyCloseData }: SidebarProps) {
             className={`nav-btn ${pathname === item.href ? "active" : ""}`}
             href={item.href}
           >
+            {item.icon && <NavIcon name={item.icon} />}
             {item.label}
           </Link>
         ))}
