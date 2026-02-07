@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { BottomDrawer } from "@financelab/ui";
+import { BottomDrawer } from "@tandemly/ui";
 
 type LedgerFiltersProps = {
   categories: string[];
