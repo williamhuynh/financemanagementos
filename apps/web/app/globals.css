@@ -296,6 +296,151 @@ h3,
   border-right: 1px solid var(--border);
 }
 
+/* Bottom Drawer */
+.bottom-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.bottom-drawer-overlay.bottom-drawer-open {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.bottom-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 20, 0);
+  border: none;
+  padding: 0;
+  cursor: default;
+  transition: background 0.3s ease;
+}
+
+.bottom-drawer-open .bottom-drawer-backdrop {
+  background: rgba(8, 12, 20, 0.6);
+}
+
+.bottom-drawer-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 901;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-drawer-open .bottom-drawer-panel {
+  transform: translateY(0);
+}
+
+.bottom-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  margin: 10px auto 0;
+  flex-shrink: 0;
+}
+
+.bottom-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.bottom-drawer-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bottom-drawer-body {
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bottom-drawer-body .pill-select {
+  width: 100%;
+  text-align: left;
+}
+
+.bottom-drawer-body .pill-month-control {
+  width: 100%;
+}
+
+.bottom-drawer-body .pill-month-control .pill-select {
+  flex: 1;
+}
+
+.filter-drawer-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.filter-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-icon-btn:hover {
+  border-color: rgba(242, 164, 59, 0.5);
+  color: var(--text-primary);
+}
+
+.filter-icon-btn.has-filters {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--base-900);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
 .main {
   padding: 30px 34px 80px;
   max-width: 100%;

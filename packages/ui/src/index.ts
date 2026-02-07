@@ -1,3 +1,4 @@
+export { BottomDrawer } from "./components/BottomDrawer";
 export { Card } from "./components/Card";
 export { DonutChart } from "./components/DonutChart";
 export { Drawer } from "./components/Drawer";
