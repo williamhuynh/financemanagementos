@@ -47,6 +47,7 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
   const hideMonthControl =
     pathname.startsWith("/ledger") ||
     pathname.startsWith("/review") ||
+    pathname.startsWith("/assets") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/cash");
   const options = buildMonthOptions();
