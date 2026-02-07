@@ -23,9 +23,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const assetOverview = await getAssetOverview(context.workspaceId);
-  const breakdown = await getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month);
-  const cashFlow = await getCashFlowWaterfall(context.workspaceId, resolvedSearchParams?.month);
+
+  // Fetch all dashboard data in parallel instead of sequentially
+  const [assetOverview, breakdown, cashFlow] = await Promise.all([
+    getAssetOverview(context.workspaceId),
+    getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month),
+    getCashFlowWaterfall(context.workspaceId, resolvedSearchParams?.month),
+  ]);
   const spendByCategory = breakdown.categories;
   const availableCategories = spendByCategory.map((category) => category.name);
   const defaultSpendCategories = availableCategories.filter(

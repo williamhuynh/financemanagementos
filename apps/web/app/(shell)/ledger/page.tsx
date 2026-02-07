@@ -56,14 +56,17 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
     }
   }
 
-  const ledgerRows = await getLedgerRows(context.workspaceId, {
-    account: resolvedSearchParams?.account,
-    category: resolvedSearchParams?.category,
-    amount: resolvedSearchParams?.amount as LedgerFilterParams["amount"],
-    month: resolvedSearchParams?.month,
-    sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
-  });
-  const categories = await getCategories(context.workspaceId);
+  // Fetch ledger data and categories in parallel
+  const [ledgerRows, categories] = await Promise.all([
+    getLedgerRows(context.workspaceId, {
+      account: resolvedSearchParams?.account,
+      category: resolvedSearchParams?.category,
+      amount: resolvedSearchParams?.amount as LedgerFilterParams["amount"],
+      month: resolvedSearchParams?.month,
+      sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
+    }),
+    getCategories(context.workspaceId),
+  ]);
 
   return (
     <>

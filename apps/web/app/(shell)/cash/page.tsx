@@ -4,8 +4,6 @@ import CashLogClient from "./CashLogClient";
 import { fetchCashLogs, fetchCategories } from "../../../lib/cash-logs-service";
 import { getApiContext } from "../../../lib/api-auth";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 function getCurrentMonth() {
   // Use ISO date string to avoid timezone issues
@@ -63,8 +61,12 @@ export default async function CashPage({ searchParams }: CashPageProps) {
 
   const resolvedSearchParams = await searchParams;
   const selectedMonth = resolvedSearchParams?.month || getCurrentMonth();
-  const logs = await fetchCashLogs(context.workspaceId, selectedMonth);
-  const categories = await fetchCategories(context.workspaceId);
+
+  // Fetch logs and categories in parallel
+  const [logs, categories] = await Promise.all([
+    fetchCashLogs(context.workspaceId, selectedMonth),
+    fetchCategories(context.workspaceId),
+  ]);
   const monthOptions = buildMonthOptions(6);
 
   return (
