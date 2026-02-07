@@ -383,6 +383,12 @@ h3,
   letter-spacing: 0.08em;
 }
 
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .topbar-actions {
   display: flex;
   align-items: center;
