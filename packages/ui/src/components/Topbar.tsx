@@ -72,31 +72,45 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
 
   return (
     <header className="topbar">
-      <div className="topbar-left">
-        {onMenuToggle && (
-          <button
-            className="menu-toggle"
-            type="button"
-            onClick={onMenuToggle}
-            aria-label="Open menu"
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              aria-hidden="true"
+      <div className="topbar-header-row">
+        <div className="topbar-left">
+          {onMenuToggle && (
+            <button
+              className="menu-toggle"
+              type="button"
+              onClick={onMenuToggle}
+              aria-label="Open menu"
             >
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+          )}
+          {workspaceSwitcher}
+        </div>
+        {profileHref ? (
+          <a className="topbar-avatar" href={profileHref} aria-label="User profile">
+            {userInitials || (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            )}
+          </a>
+        ) : (
+          <div className="user-chip">{userLabel ?? "Signed in"}</div>
         )}
-        {workspaceSwitcher}
       </div>
       {hideMonthControl ? null : (
         <div className="month-control">
@@ -164,18 +178,6 @@ export function Topbar({ userLabel, userInitials, profileHref, onToggleNumberVis
         <button className="primary-btn" type="button" onClick={handleImportClick}>
           Import
         </button>
-        {profileHref ? (
-          <a className="topbar-avatar" href={profileHref} aria-label="User profile">
-            {userInitials || (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            )}
-          </a>
-        ) : (
-          <div className="user-chip">{userLabel ?? "Signed in"}</div>
-        )}
       </div>
     </header>
   );
