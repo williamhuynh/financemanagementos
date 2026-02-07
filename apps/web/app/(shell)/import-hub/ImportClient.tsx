@@ -348,12 +348,14 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
       if (!response.ok) {
         setHistoryStatus(payload?.detail ?? "Failed to load import history.");
         setImportHistory([]);
+        setHistoryLoaded(false);
       } else {
         setImportHistory(payload?.imports ?? []);
       }
     } catch (error) {
       setHistoryStatus("Failed to load import history.");
       setImportHistory([]);
+      setHistoryLoaded(false);
     } finally {
       setHistoryLoading(false);
     }
