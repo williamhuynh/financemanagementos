@@ -16,10 +16,10 @@ export const navItems: NavItem[] = [
 ];
 
 export const statCards = [
-  { title: "Cash", value: "$72,279", sub: "+1.1% MoM", tone: "glow" },
-  { title: "Investments", value: "$548,194", sub: "+3.4% MoM", tone: "glow" },
-  { title: "Property", value: "$2,053,240", sub: "Stable", tone: "glow" },
-  { title: "Liabilities", value: "$1,786,974", sub: "Mortgage + credit", tone: "negative" }
+  { title: "Cash", value: "$10,000", sub: "+1.1% MoM", tone: "glow" },
+  { title: "Investments", value: "$50,000", sub: "+3.4% MoM", tone: "glow" },
+  { title: "Property", value: "$500,000", sub: "Stable", tone: "glow" },
+  { title: "Liabilities", value: "$350,000", sub: "Mortgage + credit", tone: "negative" }
 ];
 
 export const ledgerRows = [
@@ -38,7 +38,7 @@ export const ledgerRows = [
     tone: "negative"
   },
   {
-    title: "OSKO Payment Pui Kwan Peggy",
+    title: "OSKO Payment - Transfer",
     sub: "31 Jul 2024 - Savings - Westpac Offset",
     category: "Transfer",
     amount: "$133.90",
@@ -78,10 +78,10 @@ export const reviewItems = [
 ];
 
 export const assetCards = [
-  { title: "Property", value: "$2,053,240", sub: "Last update: Mar 2025" },     
-  { title: "Stocks", value: "$277,247", sub: "CMC Markets" },
-  { title: "Managed Funds", value: "$42,360", sub: "Vanguard" },
-  { title: "Superannuation", value: "$226,926", sub: "AustralianSuper" }        
+  { title: "Property", value: "$500,000", sub: "Last update: Mar 2025" },
+  { title: "Stocks", value: "$25,000", sub: "Broker" },
+  { title: "Managed Funds", value: "$10,000", sub: "Index Fund" },
+  { title: "Superannuation", value: "$45,000", sub: "Super Fund" }
 ];
 
 

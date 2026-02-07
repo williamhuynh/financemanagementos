@@ -9,13 +9,14 @@ import { maskCurrencyValue } from "../../../lib/data";
 
 type AssetsClientProps = {
   overview: AssetOverview;
+  ownerOptions: string[];
 };
 
 type AssetFormState = {
   id?: string;
   name: string;
   type: string;
-  owner: "William" | "Peggy" | "Joint";
+  owner: string;
   currency: string;
 };
 
@@ -137,7 +138,7 @@ function parseCurrencyInput(value: string) {
   return value.replace(/[^0-9.]/g, "");
 }
 
-export default function AssetsClient({ overview }: AssetsClientProps) {
+export default function AssetsClient({ overview, ownerOptions }: AssetsClientProps) {
   const { isVisible } = useNumberVisibility();
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
@@ -731,13 +732,15 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                           onChange={(event) =>
                             setAssetForm((prev) => ({
                               ...prev,
-                              owner: event.target.value as AssetFormState["owner"]
+                              owner: event.target.value
                             }))
                           }
                         >
-                          <option value="William">William</option>
-                          <option value="Peggy">Peggy</option>
-                          <option value="Joint">Joint</option>
+                          {ownerOptions.map((owner) => (
+                            <option key={owner} value={owner}>
+                              {owner}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div className="field">
@@ -911,14 +914,15 @@ export default function AssetsClient({ overview }: AssetsClientProps) {
                                     onChange={(event) =>
                                       setAssetForm((prev) => ({
                                         ...prev,
-                                        owner:
-                                          event.target.value as AssetFormState["owner"]
+                                        owner: event.target.value
                                       }))
                                     }
                                   >
-                                    <option value="William">William</option>
-                                    <option value="Peggy">Peggy</option>
-                                    <option value="Joint">Joint</option>
+                                    {ownerOptions.map((owner) => (
+                                      <option key={owner} value={owner}>
+                                        {owner}
+                                      </option>
+                                    ))}
                                   </select>
                                 </div>
                                 <div className="field">

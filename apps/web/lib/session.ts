@@ -9,16 +9,18 @@ export interface SessionData {
   isLoggedIn: boolean;
 }
 
-// Warn if SESSION_SECRET is not set in production
+// Fail-fast if SESSION_SECRET is not set in production
 if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
-  console.warn(
-    "WARNING: SESSION_SECRET environment variable is not set. Using default password. " +
-    "Please set SESSION_SECRET to a random 32+ character string in production!"
+  throw new Error(
+    "FATAL: SESSION_SECRET environment variable is not set. " +
+    "Set SESSION_SECRET to a random 32+ character string before running in production."
   );
 }
 
+const SESSION_PASSWORD = process.env.SESSION_SECRET || "complex_password_at_least_32_characters_long_for_dev_only";
+
 export const sessionOptions: SessionOptions = {
-  password: process.env.SESSION_SECRET || "complex_password_at_least_32_characters_long_for_production",
+  password: SESSION_PASSWORD,
   cookieName: "financelab_session",
   cookieOptions: {
     httpOnly: true,

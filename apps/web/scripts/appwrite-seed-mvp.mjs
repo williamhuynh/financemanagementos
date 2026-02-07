@@ -43,7 +43,7 @@ const seed = {
       tone: "negative"
     },
     {
-      title: "OSKO Payment Pui Kwan Peggy",
+      title: "OSKO Payment - Transfer",
       sub: "31 Jul 2024 - Savings - Westpac Offset",
       category: "Transfer",
       amount: "$133.90",
@@ -66,10 +66,10 @@ const seed = {
     }
   ],
   asset_cards: [
-    { title: "Property", value: "$2,053,240", sub: "Last update: Mar 2025" },
-    { title: "Stocks", value: "$277,247", sub: "CMC Markets" },
-    { title: "Managed Funds", value: "$42,360", sub: "Vanguard" },
-    { title: "Superannuation", value: "$226,926", sub: "AustralianSuper" }
+    { title: "Property", value: "$500,000", sub: "Last update: Mar 2025" },
+    { title: "Stocks", value: "$25,000", sub: "Broker" },
+    { title: "Managed Funds", value: "$10,000", sub: "Index Fund" },
+    { title: "Superannuation", value: "$45,000", sub: "Super Fund" }
   ],
   report_stats: [
     { title: "Income", value: "$19,398", sub: "Primary + secondary" },

@@ -1922,3 +1922,24 @@ h3,
     padding: 16px 12px 60px;
   }
 }
+
+.verification-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #2a2520;
+  border: 1px solid #f5a62340;
+  border-radius: 8px;
+  color: #f5a623;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.verification-banner .ghost-btn {
+  color: #f5a623;
+  text-decoration: underline;
+  font-size: 13px;
+  white-space: nowrap;
+}

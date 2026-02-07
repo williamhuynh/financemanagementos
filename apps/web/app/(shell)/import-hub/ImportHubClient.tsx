@@ -10,7 +10,11 @@ const modes: { value: ImportMode; label: string }[] = [
   { value: "pdf", label: "PDF" },
 ];
 
-export default function ImportHubClient() {
+type ImportHubClientProps = {
+  ownerOptions: string[];
+};
+
+export default function ImportHubClient({ ownerOptions }: ImportHubClientProps) {
   const [mode, setMode] = useState<ImportMode>("csv");
 
   return (
@@ -27,7 +31,7 @@ export default function ImportHubClient() {
           </button>
         ))}
       </div>
-      <ImportClient mode={mode} />
+      <ImportClient mode={mode} ownerOptions={ownerOptions} />
     </>
   );
 }
