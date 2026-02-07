@@ -1010,6 +1010,16 @@ h3,
   margin: 18px 0 12px;
 }
 
+.dashboard-flow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 32px 0 16px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
 .breadcrumbs {
   display: flex;
   align-items: center;

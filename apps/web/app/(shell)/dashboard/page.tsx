@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import {
   getAssetOverview,
   getCashFlowWaterfall,
-  getExpenseBreakdown,
-  getStatCards
+  getExpenseBreakdown
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
 import DashboardClient from "./DashboardClient";
@@ -24,7 +23,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const statCards = await getStatCards(context.workspaceId);
   const assetOverview = await getAssetOverview(context.workspaceId);
   const breakdown = await getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month);
   const cashFlow = await getCashFlowWaterfall(context.workspaceId, resolvedSearchParams?.month);
@@ -53,7 +51,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       assetOverview={assetOverview}
       breakdown={breakdown}
       cashFlow={cashFlow}
-      statCards={statCards}
       availableCategories={availableCategories}
       selectedSpendCategories={selectedSpendCategories}
       spendTop={spendTop}
