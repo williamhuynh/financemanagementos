@@ -21,7 +21,7 @@ const SESSION_PASSWORD = process.env.SESSION_SECRET || "complex_password_at_leas
 
 export const sessionOptions: SessionOptions = {
   password: SESSION_PASSWORD,
-  cookieName: "financelab_session",
+  cookieName: "tandemly_session",
   cookieOptions: {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

@@ -1,4 +1,4 @@
-import { SectionHead } from "@financelab/ui";
+import { SectionHead } from "@tandemly/ui";
 import { redirect } from "next/navigation";
 import ReviewClient from "./ReviewClient";
 import ReviewFilters from "./ReviewFilters";

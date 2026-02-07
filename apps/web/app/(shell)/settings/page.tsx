@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card, SectionHead } from "@financelab/ui";
+import { Card, SectionHead } from "@tandemly/ui";
 import { getApiContext } from "../../../lib/api-auth";
 import MembersSection from "./MembersSection";
 

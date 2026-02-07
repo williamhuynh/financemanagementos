@@ -25,9 +25,9 @@ export function Sidebar({ navItems, monthlyCloseData }: SidebarProps) {
   return (
     <aside className="rail">
       <div className="brand">
-        <div className="brand-badge">FL</div>
+        <div className="brand-badge">T</div>
         <div>
-          <div className="brand-name">FinanceLab</div>
+          <div className="brand-name">Tandemly</div>
           <div className="brand-sub">Family Wealth OS</div>
         </div>
       </div>

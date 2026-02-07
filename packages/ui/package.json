@@ -1,5 +1,5 @@
 {
-  "name": "@financelab/ui",
+  "name": "@tandemly/ui",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",

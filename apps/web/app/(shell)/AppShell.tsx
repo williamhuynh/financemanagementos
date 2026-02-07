@@ -3,7 +3,7 @@
 import { useState, useCallback, createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { Sidebar, Drawer } from "@financelab/ui";
+import { Sidebar, Drawer } from "@tandemly/ui";
 
 type NavItem = {
   id: string;

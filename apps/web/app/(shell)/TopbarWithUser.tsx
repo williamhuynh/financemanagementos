@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Topbar } from "@financelab/ui";
+import { Topbar } from "@tandemly/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useNumberVisibility } from "../../lib/number-visibility-context";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";

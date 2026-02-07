@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { SectionHead } from "@financelab/ui";
+import { SectionHead } from "@tandemly/ui";
 import CashLogClient from "./CashLogClient";
 import { fetchCashLogs, fetchCategories } from "../../../lib/cash-logs-service";
 import { getApiContext } from "../../../lib/api-auth";

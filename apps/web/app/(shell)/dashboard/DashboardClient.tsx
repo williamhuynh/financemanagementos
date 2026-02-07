@@ -4,7 +4,7 @@ import {
   Card,
   DonutChart,
   SectionHead
-} from "@financelab/ui";
+} from "@tandemly/ui";
 import { Suspense } from "react";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue } from "../../../lib/data";

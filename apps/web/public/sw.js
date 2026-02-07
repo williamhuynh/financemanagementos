@@ -1,4 +1,4 @@
-const CACHE_NAME = "financelab-static-v1";
+const CACHE_NAME = "tandemly-static-v1";
 const CORE_ASSETS = [
   "/",
   "/manifest.webmanifest",

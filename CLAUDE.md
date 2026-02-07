@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-Project instructions for Claude Code sessions working on FinanceLab.
+Project instructions for Claude Code sessions working on Tandemly.
 
 ## What is this project?
-FinanceLab — a family finance and wealth management PWA. Ingests CSV/PDF bank
+Tandemly — a family finance and wealth management PWA. Ingests CSV/PDF bank
 statements, normalizes into a unified ledger, categorizes transactions (rules +
 AI), detects transfers, and tracks asset values. Multi-tenant with RBAC
 (owner / admin / editor / viewer). See `docs/ROADMAP.md` for current status.
@@ -16,19 +16,21 @@ apps/web/            Next.js 16 PWA (App Router)
   lib/               Auth, services, permissions, rate limiting
   lib/__tests__/     Vitest unit tests
   middleware.ts      Edge session guard
-packages/ui/         Shared component library (@financelab/ui)
+packages/ui/         Shared component library (@tandemly/ui)
 docs/                Architecture, design, data model, roadmap
 ```
 
 ## Commands
-All commands run from `apps/web/`:
+All commands **must** run from `apps/web/` (not from root):
 ```sh
+cd apps/web
 npm run dev          # Dev server
 npm run build        # Production build
 npm test             # Vitest test suite
 npm run test:watch   # Tests in watch mode
-npm run lint         # ESLint
-npx tsc --noEmit     # Type-check (must run from apps/web/, not root)
+npx eslint app/ lib/ # ESLint (DO NOT use `npm run lint` — `next lint` is
+                     #   broken in this Next.js 16 workspace setup)
+npx tsc --noEmit     # Type-check
 ```
 
 ## Key patterns — follow these
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
 ```sh
 cd apps/web
 npm test              # Unit tests (fast, < 10s)
-npm run lint          # Code quality
+npx eslint app/ lib/  # Code quality (not `npm run lint`, see note above)
 ```
 
 **Before pushing (recommended):**

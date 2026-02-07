@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-FinanceLab is a family finance and wealth management PWA. It ingests monthly
+Tandemly is a family finance and wealth management PWA. It ingests monthly
 CSV/PDF statements from multiple institutions, normalizes them into a single
 ledger, supports categorization (rules + AI via OpenRouter) and transfer
 detection, and tracks asset values over time. Design and UX favor fast month-end
@@ -30,7 +30,7 @@ apps/web/          Next.js 16 PWA (App Router, React Server Components)
   lib/             Shared utilities, services, auth, permissions
     __tests__/     Vitest unit tests (co-located)
   middleware.ts    Edge middleware (session guard)
-packages/ui/       Shared React component library (@financelab/ui)
+packages/ui/       Shared React component library (@tandemly/ui)
 docs/              Product/design/architecture documentation
 screenshots/       Design inspirations and references
 ```
@@ -43,15 +43,18 @@ Key documentation:
 - `docs/MULTI_WORKSPACE_FEATURE.md`, `docs/TESTING_PLAN.md`
 
 ## Build, Test, and Development Commands
-Run from `apps/web/`:
+All commands **must** run from `apps/web/` (not from root):
 
 ```sh
+cd apps/web
 npm run dev          # Start local dev server
 npm run build        # Production build
 npm run start        # Serve production build
 npm test             # Run Vitest test suite
 npm run test:watch   # Run tests in watch mode
-npm run lint         # ESLint
+npx eslint app/ lib/ # ESLint (DO NOT use `npm run lint` — `next lint` is
+                     #   broken in this Next.js 16 workspace setup)
+npx tsc --noEmit     # Type-check
 ```
 
 Tests are co-located in `lib/__tests__/*.test.ts` using Vitest with jsdom.
@@ -121,7 +124,7 @@ export async function POST(request: Request) {
 ```sh
 cd apps/web
 npm test              # Run unit tests (< 10s) — ALWAYS before commit
-npm run lint          # ESLint checks — catch style issues early
+npx eslint app/ lib/  # ESLint checks (not `npm run lint`, see note above)
 ```
 
 **Layer 2: Pre-push validation (recommended)**
@@ -151,7 +154,7 @@ tests on `git commit`:
 ```sh
 npm install --save-dev husky lint-staged
 npx husky init
-echo "cd apps/web && npm test && npm run lint" > .husky/pre-commit
+echo "cd apps/web && npm test && npx eslint app/ lib/" > .husky/pre-commit
 ```
 
 This prevents committing broken code and keeps history clean.

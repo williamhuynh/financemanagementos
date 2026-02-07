@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@financelab/ui";
+import { Card } from "@tandemly/ui";
 
 type SignOutState = "idle" | "working" | "error";
 

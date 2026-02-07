@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Card, SectionHead } from "@financelab/ui";
+import { Card, SectionHead } from "@tandemly/ui";
 import ImportHubClient from "./ImportHubClient";
 import { getWorkspaceOwnerOptions } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";

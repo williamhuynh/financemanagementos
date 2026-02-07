@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { WaterfallChart, type WaterfallStep } from "@financelab/ui";
+import { WaterfallChart, type WaterfallStep } from "@tandemly/ui";
 import type { CashFlowWaterfall, CashFlowTransaction } from "../../../lib/data";
 
 type WaterfallDrilldownProps = {

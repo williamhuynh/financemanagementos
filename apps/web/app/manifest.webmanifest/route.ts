@@ -2,8 +2,8 @@ export const runtime = "nodejs";
 
 export function GET() {
   const manifest = {
-    name: "FinanceLab",
-    short_name: "FinanceLab",
+    name: "Tandemly",
+    short_name: "Tandemly",
     description: "Family finance and wealth management",
     start_url: "/",
     scope: "/",

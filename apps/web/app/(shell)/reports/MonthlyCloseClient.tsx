@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, DonutChart, ListRow } from "@financelab/ui";
+import { Card, DonutChart, ListRow } from "@tandemly/ui";
 import ExpenseCategoryList from "./expenses/ExpenseCategoryList";
 import type { ExpenseBreakdown, MonthlyCloseSummary } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";

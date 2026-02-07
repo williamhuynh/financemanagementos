@@ -1,4 +1,4 @@
-import { SectionHead } from "@financelab/ui";
+import { SectionHead } from "@tandemly/ui";
 import { redirect } from "next/navigation";
 import LedgerClient from "./LedgerClient";
 import LedgerFilters from "./LedgerFilters";

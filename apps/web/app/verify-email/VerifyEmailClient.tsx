@@ -52,7 +52,7 @@ export default function VerifyEmailClient() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="eyebrow">FinanceLab</div>
+          <div className="eyebrow">Tandemly</div>
           <h1 className="auth-title">Verifying email...</h1>
           <p className="auth-sub">Please wait while we verify your email address.</p>
         </div>
@@ -64,7 +64,7 @@ export default function VerifyEmailClient() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="eyebrow">FinanceLab</div>
+          <div className="eyebrow">Tandemly</div>
           <h1 className="auth-title">Email verified</h1>
           <p className="auth-success">{message}</p>
           <p className="auth-hint">
@@ -81,7 +81,7 @@ export default function VerifyEmailClient() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="eyebrow">FinanceLab</div>
+          <div className="eyebrow">Tandemly</div>
           <h1 className="auth-title">Verification failed</h1>
           <p className="auth-error">{message}</p>
           <p className="auth-hint">
@@ -99,7 +99,7 @@ export default function VerifyEmailClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Email verification</h1>
         <p className="auth-sub">
           Check your inbox for a verification link, or go to your dashboard to request a new one.

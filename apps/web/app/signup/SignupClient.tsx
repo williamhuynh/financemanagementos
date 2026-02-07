@@ -78,7 +78,7 @@ export default function SignupClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Create account</h1>
         <p className="auth-sub">Sign up to start managing your finances.</p>
         <form onSubmit={handleSubmit}>

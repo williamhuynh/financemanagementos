@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card } from "@financelab/ui";
+import { Card } from "@tandemly/ui";
 
 type Member = {
   id: string;
