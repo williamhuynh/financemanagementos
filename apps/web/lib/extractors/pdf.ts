@@ -41,7 +41,7 @@ export class PdfExtractor implements TransactionExtractor {
     }
 
     // 1. Extract raw text from PDF
-    const parser = new PDFParse({ data: new Uint8Array(input) });
+    const parser = new PDFParse({ data: input });
     const textResult = await parser.getText();
     const rawText = textResult.text;
 
