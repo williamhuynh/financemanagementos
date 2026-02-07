@@ -69,7 +69,7 @@ export default function ResetPasswordClient() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="eyebrow">FinanceLab</div>
+          <div className="eyebrow">Tandemly</div>
           <h1 className="auth-title">Invalid link</h1>
           <p className="auth-sub">
             This password reset link is invalid or has expired.
@@ -88,7 +88,7 @@ export default function ResetPasswordClient() {
     return (
       <div className="auth-page">
         <div className="card auth-card">
-          <div className="eyebrow">FinanceLab</div>
+          <div className="eyebrow">Tandemly</div>
           <h1 className="auth-title">Password reset</h1>
           <p className="auth-success">{statusMessage}</p>
           <p className="auth-hint">
@@ -104,7 +104,7 @@ export default function ResetPasswordClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Set new password</h1>
         <p className="auth-sub">Enter your new password below.</p>
         <form onSubmit={handleSubmit}>

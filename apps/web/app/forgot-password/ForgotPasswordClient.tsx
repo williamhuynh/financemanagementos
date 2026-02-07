@@ -44,7 +44,7 @@ export default function ForgotPasswordClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Reset password</h1>
         <p className="auth-sub">
           Enter your email address and we&apos;ll send you a link to reset your password.

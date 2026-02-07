@@ -17,7 +17,7 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "FinanceLab",
+  title: "Tandemly",
   description: "Family finance and wealth management",
   manifest: "/manifest.webmanifest",
   themeColor: "#121417",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "FinanceLab",
+    title: "Tandemly",
     statusBarStyle: "black-translucent"
   }
 };

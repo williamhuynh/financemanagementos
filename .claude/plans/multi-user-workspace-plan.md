@@ -1293,7 +1293,7 @@ These questions need answers before implementation begins:
 - ⚠️ **TODO:** Add Origin header verification
 
 **Session Cookie Details:**
-- Cookie name: `financelab_session` (see `session.ts` line 22)
+- Cookie name: `tandemly_session` (see `session.ts` line 22)
 - Max age: 7 days (see `session.ts` line 27)
 - Encrypted with: `SESSION_SECRET` environment variable
 - Contains: `{ appwriteSession, userId, email, name, isLoggedIn }`

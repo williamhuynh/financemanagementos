@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-Project instructions for Claude Code sessions working on FinanceLab.
+Project instructions for Claude Code sessions working on Tandemly.
 
 ## What is this project?
-FinanceLab — a family finance and wealth management PWA. Ingests CSV/PDF bank
+Tandemly — a family finance and wealth management PWA. Ingests CSV/PDF bank
 statements, normalizes into a unified ledger, categorizes transactions (rules +
 AI), detects transfers, and tracks asset values. Multi-tenant with RBAC
 (owner / admin / editor / viewer). See `docs/ROADMAP.md` for current status.
@@ -16,7 +16,7 @@ apps/web/            Next.js 16 PWA (App Router)
   lib/               Auth, services, permissions, rate limiting
   lib/__tests__/     Vitest unit tests
   middleware.ts      Edge session guard
-packages/ui/         Shared component library (@financelab/ui)
+packages/ui/         Shared component library (@tandemly/ui)
 docs/                Architecture, design, data model, roadmap
 ```
 

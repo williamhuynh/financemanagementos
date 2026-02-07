@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ListRow } from "@financelab/ui";
+import { ListRow } from "@tandemly/ui";
 import type { ExpenseCategoryBreakdown } from "../../../../lib/data";
 
 type ExpenseCategoryListProps = {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Card, ListRow, SectionHead } from "@financelab/ui";
+import { Card, ListRow, SectionHead } from "@tandemly/ui";
 import { getExpenseBreakdown } from "../../../../../../lib/data";
 import { getApiContext } from "../../../../../../lib/api-auth";
 import MonthSelector from "../../MonthSelector";

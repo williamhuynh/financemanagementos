@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Card, SectionHead } from "@financelab/ui";
+import { Card, SectionHead } from "@tandemly/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue } from "../../../lib/data";

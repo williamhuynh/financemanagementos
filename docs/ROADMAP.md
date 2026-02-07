@@ -1,6 +1,6 @@
 # Roadmap
 
-Reviewed Feb 2026. Master plan for FinanceLab — tracks what's shipped, what's next, and what's planned.
+Reviewed Feb 2026. Master plan for Tandemly — tracks what's shipped, what's next, and what's planned.
 
 ---
 

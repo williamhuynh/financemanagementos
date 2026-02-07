@@ -140,7 +140,7 @@ export default function OnboardingClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card" style={{ maxWidth: "480px" }}>
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Welcome{userName ? `, ${userName}` : ""}!</h1>
         <p className="auth-sub">
           Let&apos;s set up your workspace to start tracking your finances.

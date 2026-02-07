@@ -53,7 +53,7 @@ type StoredMapping = {
   timestamp: number;
 };
 
-const MAPPING_STORAGE_KEY = "financelab_recent_mappings";
+const MAPPING_STORAGE_KEY = "tandemly_recent_mappings";
 const MAX_STORED_MAPPINGS = 10;
 
 function loadRecentMappings(): StoredMapping[] {

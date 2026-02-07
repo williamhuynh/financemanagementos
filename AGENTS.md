@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-FinanceLab is a family finance and wealth management PWA. It ingests monthly
+Tandemly is a family finance and wealth management PWA. It ingests monthly
 CSV/PDF statements from multiple institutions, normalizes them into a single
 ledger, supports categorization (rules + AI via OpenRouter) and transfer
 detection, and tracks asset values over time. Design and UX favor fast month-end
@@ -30,7 +30,7 @@ apps/web/          Next.js 16 PWA (App Router, React Server Components)
   lib/             Shared utilities, services, auth, permissions
     __tests__/     Vitest unit tests (co-located)
   middleware.ts    Edge middleware (session guard)
-packages/ui/       Shared React component library (@financelab/ui)
+packages/ui/       Shared React component library (@tandemly/ui)
 docs/              Product/design/architecture documentation
 screenshots/       Design inspirations and references
 ```

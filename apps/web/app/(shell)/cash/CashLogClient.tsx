@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card } from "@financelab/ui";
+import { Card } from "@tandemly/ui";
 import VoiceInput from "./VoiceInput";
 
 type CashLog = {

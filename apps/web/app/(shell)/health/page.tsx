@@ -1,4 +1,4 @@
-import { Card, SectionHead } from "@financelab/ui";
+import { Card, SectionHead } from "@tandemly/ui";
 import { getHealthChecks } from "../../../lib/health";
 
 const statusLabels = {

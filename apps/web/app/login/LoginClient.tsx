@@ -63,7 +63,7 @@ export default function LoginClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Sign in</h1>
         <p className="auth-sub">Enter your email and password to sign in.</p>
         <form onSubmit={handleSubmit}>

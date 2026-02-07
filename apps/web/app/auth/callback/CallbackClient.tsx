@@ -29,7 +29,7 @@ export default function CallbackClient() {
   return (
     <div className="auth-page">
       <div className="card auth-card">
-        <div className="eyebrow">FinanceLab</div>
+        <div className="eyebrow">Tandemly</div>
         <h1 className="auth-title">Signing you in</h1>
         <p className={state === "error" ? "auth-error" : "auth-sub"}>{message}</p>
         {state === "error" ? (

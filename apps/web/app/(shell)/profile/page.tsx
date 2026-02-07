@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SectionHead } from "@financelab/ui";
+import { SectionHead } from "@tandemly/ui";
 import { useAuth } from "../../../lib/auth-context";
 
 type ActionState = "idle" | "working" | "error";
@@ -53,7 +53,7 @@ export default function ProfilePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `financelab-export-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `tandemly-export-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

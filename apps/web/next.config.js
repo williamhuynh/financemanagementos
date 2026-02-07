@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   distDir: "../../.next",
-  transpilePackages: ["@financelab/ui"]
+  transpilePackages: ["@tandemly/ui"]
 };
 
 export default nextConfig;
