@@ -57,6 +57,13 @@ export async function POST(request: Request) {
 - Appwrite `Query.limit()` caps at 5000 — paginate with `Query.cursorAfter()` for exports/bulk ops
 - Delete asset_valuations BEFORE assets (valuations keyed by asset_id, not workspace_id)
 
+### Extractors (`lib/extractors/`)
+- `pdf.ts` uses `pdf-parse` which depends on `pdfjs-dist` — runs **server-side only**
+- `pdfjs-dist` expects browser APIs (`DOMMatrix`); a polyfill at the top of `pdf.ts`
+  handles this. Do NOT move the polyfill below the `pdf-parse` import or remove it.
+- When adding new extractors, watch for browser-only APIs in npm deps that will
+  crash in Node.js/edge server environments — polyfill or pick a server-safe library.
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`
