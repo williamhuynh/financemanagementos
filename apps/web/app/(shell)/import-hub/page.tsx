@@ -15,12 +15,7 @@ export default async function ImportHubPage() {
   return (
     <>
       <SectionHead
-        eyebrow="Import Hub"
         title="Upload Statement"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Import Hub" }
-        ]}
       />
       <div className="import-grid">
         <Card title="Import Flow">

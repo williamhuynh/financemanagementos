@@ -70,12 +70,7 @@ export default async function CashPage({ searchParams }: CashPageProps) {
   return (
     <>
       <SectionHead
-        eyebrow="Cash Log"
         title="Quick Entry"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Cash Log" }
-        ]}
       />
       <CashLogClient
         initialLogs={logs}

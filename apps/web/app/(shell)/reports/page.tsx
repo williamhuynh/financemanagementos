@@ -24,16 +24,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   return (
     <>
       <SectionHead
-        eyebrow="Reports"
         title="Monthly Close"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Reports" }
-        ]}
-        actions={
-          <>
-          </>
-        }
       />
       <MonthlyCloseClient summary={summary} expenseBreakdown={expenseBreakdown} />
     </>

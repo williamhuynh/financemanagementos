@@ -35,14 +35,7 @@ export default async function CategoryExpensePage({
   return (
     <>
       <SectionHead
-        eyebrow="Reports"
         title="Expense Category"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Reports", href: "/reports" },
-          { label: "Expenses", href: "/reports" },
-          { label: categoryName }
-        ]}
         actions={
           <>
             <Link className="pill" href={backLink}>

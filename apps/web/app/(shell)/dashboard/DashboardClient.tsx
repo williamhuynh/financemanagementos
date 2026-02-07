@@ -185,12 +185,7 @@ export default function DashboardClient({
   return (
     <>
       <SectionHead
-        eyebrow="Dashboard"
         title="Household Overview"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Overview" }
-        ]}
       />
 
       {/* ── Position: where you stand (latest data) ── */}

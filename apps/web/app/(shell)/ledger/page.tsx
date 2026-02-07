@@ -68,12 +68,7 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
   return (
     <>
       <SectionHead
-        eyebrow="Ledger"
         title="All Transactions"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Ledger" }
-        ]}
         actions={<LedgerFilters categories={categories} />}
       />
       <LedgerClient rows={ledgerRows} categories={categories} />

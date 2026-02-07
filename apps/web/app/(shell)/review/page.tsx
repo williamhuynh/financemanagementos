@@ -38,12 +38,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   return (
     <>
       <SectionHead
-        eyebrow="Review Queue"
         title="Unresolved Items"
-        breadcrumbs={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Review Queue" }
-        ]}
         actions={<ReviewFilters />}
       />
       <div className="review-stack">
