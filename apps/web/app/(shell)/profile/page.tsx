@@ -6,6 +6,7 @@ import { SectionHead } from "@financelab/ui";
 import { useAuth } from "../../../lib/auth-context";
 
 type ActionState = "idle" | "working" | "error";
+type DeleteError = string | null;
 
 function parseUserName(name: string | undefined | null) {
   if (!name || !name.trim()) {
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [deleteState, setDeleteState] = useState<ActionState>("idle");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState<DeleteError>(null);
 
   const { firstName, lastName } = parseUserName(user?.name);
   const initials =
@@ -67,12 +69,21 @@ export default function ProfilePage() {
     if (deleteConfirmText !== "DELETE") return;
 
     setDeleteState("working");
+    setDeleteError(null);
     try {
       const response = await fetch("/api/account", { method: "DELETE" });
-      if (!response.ok) throw new Error("Deletion failed");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          data.error || "Deletion failed. Please try again."
+        );
+      }
       router.replace("/login");
-    } catch {
+    } catch (err) {
       setDeleteState("error");
+      setDeleteError(
+        err instanceof Error ? err.message : "Deletion failed. Please try again."
+      );
     }
   };
 
@@ -192,9 +203,9 @@ export default function ProfilePage() {
                   Cancel
                 </button>
               </div>
-              {deleteState === "error" && (
+              {deleteState === "error" && deleteError && (
                 <div className="row-sub" style={{ color: "var(--liability)" }}>
-                  Deletion failed. Please try again.
+                  {deleteError}
                 </div>
               )}
             </div>

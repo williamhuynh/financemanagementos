@@ -55,16 +55,33 @@ export async function GET() {
         continue;
       }
 
-      // Fetch all collections for this workspace (paginate with limit 5000)
+      // Fetch all documents in a collection, paginating to avoid truncation
       const fetchAll = async (collection: string) => {
-        const results = await databases.listDocuments(databaseId, collection, [
-          Query.equal("workspace_id", workspaceId),
-          Query.limit(5000),
-        ]);
-        return results.documents.map((doc) => {
-          const { $collectionId, $databaseId, $permissions, ...rest } = doc;
-          return rest;
-        });
+        const PAGE_SIZE = 100;
+        const all: Record<string, unknown>[] = [];
+        let lastId: string | undefined;
+
+        while (true) {
+          const queries = [
+            Query.equal("workspace_id", workspaceId),
+            Query.limit(PAGE_SIZE),
+          ];
+          if (lastId) {
+            queries.push(Query.cursorAfter(lastId));
+          }
+
+          const page = await databases.listDocuments(databaseId, collection, queries);
+
+          for (const doc of page.documents) {
+            const { $collectionId, $databaseId, $permissions, ...rest } = doc;
+            all.push(rest);
+          }
+
+          if (page.documents.length < PAGE_SIZE) break;
+          lastId = page.documents[page.documents.length - 1].$id;
+        }
+
+        return all;
       };
 
       const [transactions, categories, assets, cashLogs, imports, transferPairs, snapshots] =

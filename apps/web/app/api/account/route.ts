@@ -47,15 +47,26 @@ export async function DELETE() {
         Query.limit(100),
       ]);
 
-      const otherOwners = allMembers.documents.filter(
-        (m) => m.user_id !== user.$id && m.role === "owner"
+      const otherMembers = allMembers.documents.filter(
+        (m) => m.user_id !== user.$id
       );
+      const otherOwners = otherMembers.filter((m) => m.role === "owner");
 
-      if (otherOwners.length === 0 && allMembers.documents.length === 1) {
-        // Sole member — delete all workspace data
+      if (otherMembers.length > 0 && otherOwners.length === 0) {
+        // Sole owner but other members exist — cannot leave workspace ownerless
+        return NextResponse.json(
+          {
+            error: `You are the sole owner of a workspace with other members. Transfer ownership before deleting your account.`,
+            workspaceId,
+          },
+          { status: 409 }
+        );
+      }
+
+      if (otherMembers.length === 0) {
+        // Sole member — delete all workspace data and the workspace itself
         await deleteWorkspaceData(databases, databaseId, workspaceId);
 
-        // Delete the workspace itself
         try {
           await databases.deleteDocument(databaseId, COLLECTIONS.WORKSPACES, workspaceId);
         } catch {
@@ -63,7 +74,7 @@ export async function DELETE() {
         }
       }
 
-      // Remove the membership
+      // Remove the user's membership
       try {
         await databases.deleteDocument(databaseId, COLLECTIONS.WORKSPACE_MEMBERS, membership.$id);
       } catch {
@@ -112,6 +123,28 @@ async function deleteWorkspaceData(
   databaseId: string,
   workspaceId: string
 ) {
+  // Delete asset valuations BEFORE deleting assets (valuations are keyed by asset_id)
+  try {
+    const assets = await databases.listDocuments(databaseId, COLLECTIONS.ASSETS, [
+      Query.equal("workspace_id", workspaceId),
+      Query.limit(5000),
+    ]);
+    for (const asset of assets.documents) {
+      const valuations = await databases.listDocuments(databaseId, "asset_valuations", [
+        Query.equal("asset_id", asset.$id),
+        Query.limit(5000),
+      ]);
+      await Promise.all(
+        valuations.documents.map((v) =>
+          databases.deleteDocument(databaseId, "asset_valuations", v.$id).catch(() => {})
+        )
+      );
+    }
+  } catch {
+    // Non-critical — continue cleanup
+  }
+
+  // Now delete all workspace-scoped collections (including assets)
   const collectionsToClean = [
     COLLECTIONS.TRANSACTIONS,
     COLLECTIONS.CATEGORIES,
@@ -125,7 +158,6 @@ async function deleteWorkspaceData(
 
   for (const collection of collectionsToClean) {
     try {
-      // Delete in batches
       let hasMore = true;
       while (hasMore) {
         const docs = await databases.listDocuments(databaseId, collection, [
@@ -147,26 +179,5 @@ async function deleteWorkspaceData(
     } catch {
       // Continue cleaning other collections even if one fails
     }
-  }
-
-  // Delete asset valuations (keyed by asset_id)
-  try {
-    const assets = await databases.listDocuments(databaseId, COLLECTIONS.ASSETS, [
-      Query.equal("workspace_id", workspaceId),
-      Query.limit(5000),
-    ]);
-    for (const asset of assets.documents) {
-      const valuations = await databases.listDocuments(databaseId, "asset_valuations", [
-        Query.equal("asset_id", asset.$id),
-        Query.limit(5000),
-      ]);
-      await Promise.all(
-        valuations.documents.map((v) =>
-          databases.deleteDocument(databaseId, "asset_valuations", v.$id).catch(() => {})
-        )
-      );
-    }
-  } catch {
-    // Non-critical
   }
 }
