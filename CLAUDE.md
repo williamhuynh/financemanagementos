@@ -59,10 +59,15 @@ export async function POST(request: Request) {
 
 ### Extractors (`lib/extractors/`)
 - `pdf.ts` uses `pdf-parse` which depends on `pdfjs-dist` — runs **server-side only**
-- `pdfjs-dist` expects browser APIs (`DOMMatrix`); a polyfill at the top of `pdf.ts`
-  handles this. Do NOT move the polyfill below the `pdf-parse` import or remove it.
+- `pdfjs-dist` expects browser APIs (`DOMMatrix`); the polyfill lives in
+  `server-polyfills.ts` and is registered via `instrumentation.ts` at server
+  startup. `pdf.ts` uses a **dynamic import** (`await import("pdf-parse")`)
+  instead of a static import so the polyfill is guaranteed to run first.
+  Do NOT convert this back to a static import.
 - When adding new extractors, watch for browser-only APIs in npm deps that will
   crash in Node.js/edge server environments — polyfill or pick a server-safe library.
+  Use dynamic imports for deps that need polyfills (static imports are hoisted
+  above module-level code by the bundler).
 
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
