@@ -2,6 +2,16 @@
 // API.  Polyfill it for Node.js / edge-server environments.  Only text
 // extraction is used — no canvas rendering — so a minimal stub suffices.
 
+// Pre-load the pdfjs worker module so that pdfjs-dist finds it on
+// globalThis.pdfjsWorker.WorkerMessageHandler instead of dynamically
+// importing pdf.worker.mjs at runtime.  The dynamic import inside pdfjs-dist
+// uses /*webpackIgnore*/ which prevents bundlers (and Vercel's file tracer)
+// from discovering the worker file, causing "Cannot find module" errors in
+// production Lambdas.  This static import makes the file traceable AND
+// supplies the handler directly so the dynamic import is never attempted.
+import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+(globalThis as Record<string, unknown>).pdfjsWorker = pdfjsWorker;
+
 if (typeof globalThis.DOMMatrix === "undefined") {
   // @ts-expect-error -- intentionally incomplete stub
   globalThis.DOMMatrix = class DOMMatrix {

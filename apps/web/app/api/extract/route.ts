@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { detail: "No file provided." },
+        { error: "No file provided." },
         { status: 400 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     if (!extractor) {
       return NextResponse.json(
         {
-          detail: `Unsupported file type: ${ext || file.type}. Supported types: PDF.`,
+          error: `Unsupported file type: ${ext || file.type}. Supported types: PDF.`,
         },
         { status: 400 }
       );
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       }
       if (error.message.includes("OpenRouter")) {
         return NextResponse.json(
-          { detail: error.message },
+          { error: error.message },
           { status: 502 }
         );
       }
