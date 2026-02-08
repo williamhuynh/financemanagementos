@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { normalizeDateToISO } from "../../../lib/data";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AppwriteDocument = { $id: string; [key: string]: any };
@@ -122,7 +123,23 @@ function extractHistoryMatches(text: string): HistoryMatch[] | null {
 
 function parseDate(value: string | undefined): Date | null {
   if (!value) return null;
-  const parsed = new Date(value);
+  const trimmed = value.trim();
+
+  // Handle DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (common in AU bank exports)
+  const ddmmMatch = trimmed.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if (ddmmMatch) {
+    const day = Number(ddmmMatch[1]);
+    const month = Number(ddmmMatch[2]);
+    const year = Number(
+      ddmmMatch[3].length === 2 ? `20${ddmmMatch[3]}` : ddmmMatch[3]
+    );
+    if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year)) {
+      const d = new Date(year, month - 1, day);
+      if (!Number.isNaN(d.valueOf())) return d;
+    }
+  }
+
+  const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -308,10 +325,11 @@ export async function POST(request: Request) {
         ? "Uncategorised"
         : rawCategory;
     const transactionId = ID.unique();
+    const normalizedDate = normalizeDateToISO(row.date ?? "");
     const transactionDoc = {
       workspace_id: workspaceId,
       import_id: importId,
-      date: row.date ?? "",
+      date: normalizedDate,
       description: row.description ?? "",
       amount,
       currency: row.currency ?? "AUD",
@@ -334,7 +352,7 @@ export async function POST(request: Request) {
 
     createdTransactions.push({
       id: transactionId,
-      date: row.date ?? "",
+      date: normalizedDate,
       description: row.description ?? "",
       amount,
       account: row.account ?? body.sourceAccount ?? "Unassigned"
