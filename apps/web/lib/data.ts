@@ -1514,6 +1514,7 @@ export async function getLedgerRowsWithTotal(
 
     return { rows, total, hasMore };
   } catch (error) {
+    console.error("getLedgerRowsWithTotal failed:", error);
     return { rows: [], total: 0, hasMore: false };
   }
 }

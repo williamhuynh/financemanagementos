@@ -6,6 +6,9 @@ import {
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
@@ -52,12 +55,19 @@ export async function GET(request: Request) {
       sort: sort as LedgerFilterParams["sort"]
     });
 
-    return NextResponse.json({
-      items: result.rows,
-      total: result.total,
-      nextOffset: offset + result.rows.length,
-      hasMore: result.hasMore
-    });
+    return NextResponse.json(
+      {
+        items: result.rows,
+        total: result.total,
+        nextOffset: offset + result.rows.length,
+        hasMore: result.hasMore
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, max-age=0"
+        }
+      }
+    );
   } catch (error: any) {
     if (error.message?.includes('not member')) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
