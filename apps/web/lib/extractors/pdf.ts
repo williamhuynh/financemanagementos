@@ -84,12 +84,13 @@ export class PdfExtractor implements TransactionExtractor {
       text,
     ].join("\n");
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const response = await fetch(OPENROUTER_ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
+        "HTTP-Referer": appUrl,
         "X-Title": "Finance Mgmt Tool",
       },
       body: JSON.stringify({
@@ -103,7 +104,20 @@ export class PdfExtractor implements TransactionExtractor {
     });
 
     if (!response.ok) {
-      throw new Error(`OpenRouter request failed: ${response.status}`);
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = body?.error?.message || JSON.stringify(body);
+      } catch {
+        /* no parseable body */
+      }
+      console.error(
+        `OpenRouter request failed: ${response.status}`,
+        detail ? `— ${detail}` : ""
+      );
+      throw new Error(
+        `OpenRouter request failed: ${response.status}${detail ? ` — ${detail}` : ""}`
+      );
     }
 
     const payload = (await response.json()) as {

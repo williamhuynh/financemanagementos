@@ -149,12 +149,13 @@ export async function POST(request: Request) {
         : []),
     ].join("\n");
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const response = await fetch(OPENROUTER_ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${openRouterKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
+        "HTTP-Referer": appUrl,
         "X-Title": "Finance Mgmt Tool",
       },
       body: JSON.stringify({
