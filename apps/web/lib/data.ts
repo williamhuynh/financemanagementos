@@ -388,6 +388,7 @@ export type CashFlowWaterfall = {
   incomeTotal: number;
   expenseTotal: number;
   netTotal: number;
+  previousMonthNetTotal: number | null;
   steps: CashFlowStep[];
 };
 
@@ -1112,6 +1113,50 @@ function buildExpenseBreakdown(
   };
 }
 
+function getPreviousMonthKey(monthKey: string): string {
+  const [yearStr, monthStr] = monthKey.split("-");
+  let year = parseInt(yearStr, 10);
+  let month = parseInt(monthStr, 10) - 1;
+  if (month === 0) {
+    month = 12;
+    year -= 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function computePreviousMonthNet(
+  prepared: PreparedExpenseTransaction[],
+  selectedMonth: string
+): number | null {
+  const prevMonth = getPreviousMonthKey(selectedMonth);
+  let hasData = false;
+  let prevIncome = 0;
+  let prevExpense = 0;
+
+  for (const txn of prepared) {
+    if (txn.monthKey !== prevMonth) continue;
+    const amountValue = txn.amountValue;
+    if (amountValue === null) continue;
+    const categoryName = txn.category.trim() || "Uncategorised";
+    if (isTransferCategory(categoryName)) continue;
+    const amount = Math.abs(amountValue);
+    if (amount === 0) continue;
+    hasData = true;
+    const isIncome = isIncomeCategory(categoryName);
+    const isCredit = txn.direction
+      ? txn.direction === "credit"
+      : amountValue > 0;
+    const signedAmount = isCredit ? amount : -amount;
+    if (isIncome) {
+      prevIncome += signedAmount;
+    } else {
+      prevExpense += signedAmount;
+    }
+  }
+
+  return hasData ? prevIncome + prevExpense : null;
+}
+
 function buildCashFlowWaterfall(
   transactions: ExpenseTransactionRaw[],
   selectedMonth?: string
@@ -1186,6 +1231,9 @@ function buildCashFlowWaterfall(
       transactions: expenseTransactionsByCategory.get(label) ?? []
     }));
 
+  // Compute previous month's net total for comparison
+  const previousMonthNetTotal = computePreviousMonthNet(prepared, selected);
+
   if (incomeTransactions.length === 0 && expenseSteps.length === 0) {
     return {
       monthOptions,
@@ -1193,6 +1241,7 @@ function buildCashFlowWaterfall(
       incomeTotal: 0,
       expenseTotal: 0,
       netTotal: 0,
+      previousMonthNetTotal,
       steps: []
     };
   }
@@ -1205,6 +1254,7 @@ function buildCashFlowWaterfall(
     incomeTotal,
     expenseTotal,
     netTotal,
+    previousMonthNetTotal,
     steps: [
       {
         label: "Income",
@@ -1231,6 +1281,7 @@ function buildEmptyCashFlowWaterfall(selectedMonth?: string): CashFlowWaterfall 
     incomeTotal: 0,
     expenseTotal: 0,
     netTotal: 0,
+    previousMonthNetTotal: null,
     steps: []
   };
 }
