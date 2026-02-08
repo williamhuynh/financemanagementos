@@ -167,12 +167,13 @@ async function fetchCategorySuggestions(
     JSON.stringify(transactions, null, 2)
   ].join("\n");
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const response = await fetch(OPENROUTER_ENDPOINT, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:3000",
+      "HTTP-Referer": appUrl,
       "X-Title": "Finance Mgmt Tool"
     },
     body: JSON.stringify({
@@ -218,12 +219,13 @@ async function fetchHistoryMatches(
     JSON.stringify(incoming, null, 2)
   ].join("\n");
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const response = await fetch(OPENROUTER_ENDPOINT, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "http://localhost:3000",
+      "HTTP-Referer": appUrl,
       "X-Title": "Finance Mgmt Tool"
     },
     body: JSON.stringify({
