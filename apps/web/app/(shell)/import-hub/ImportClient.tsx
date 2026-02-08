@@ -706,12 +706,12 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
     }
   };
 
-  const handleDeleteImport = async (importId: string) => {
-    if (deletingImportId) return;
+  const handleDeleteImport = async (importId: string): Promise<boolean> => {
+    if (deletingImportId) return false;
     const confirmed = window.confirm(
       "Delete this import and all associated transactions?"
     );
-    if (!confirmed) return;
+    if (!confirmed) return false;
     setDeletingImportId(importId);
     setHistoryStatus("");
     try {
@@ -721,12 +721,15 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
       const payload = await response.json();
       if (!response.ok) {
         setHistoryStatus(payload?.detail ?? "Failed to delete import.");
+        return false;
       } else {
         setHistoryStatus(`Deleted import ${importId}.`);
         await loadImportHistory();
+        return true;
       }
     } catch (error) {
       setHistoryStatus("Failed to delete import.");
+      return false;
     } finally {
       setDeletingImportId(null);
     }
@@ -1084,10 +1087,11 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
                 className="ghost-btn danger-btn"
                 type="button"
                 disabled={deletingImportId === selectedImport.id}
-                onClick={() => {
-                  handleDeleteImport(selectedImport.id).then(() => {
+                onClick={async () => {
+                  const deleted = await handleDeleteImport(selectedImport.id);
+                  if (deleted) {
                     setSelectedImport(null);
-                  });
+                  }
                 }}
               >
                 {deletingImportId === selectedImport.id
