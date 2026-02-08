@@ -94,6 +94,18 @@ export async function POST(request: Request) {
 - Reference implementation: `app/api/cash-logs/process/route.ts` (dynamic referer,
   graceful fallback parsing when AI fails).
 
+### Date handling
+- **Storage format**: Always store dates as ISO `YYYY-MM-DD` strings in Appwrite.
+  The `date` attribute is a string field and Appwrite sorts it lexicographically —
+  ISO is the only format where string sort = chronological sort. The import API
+  (`app/api/imports/route.ts`) normalises all incoming dates via `normalizeDateToISO()`.
+- **Display format**: Show dates in Australian DD/MM/YYYY format in the UI.
+  `parseDateValue()` in `lib/data.ts` handles parsing both formats (and others)
+  back into `Date` objects for display and month-matching.
+- **Why not DD/MM/YYYY for storage?** It breaks ledger pagination — `"01/02/2025"`
+  (Feb 1) sorts before `"15/01/2025"` (Jan 15) lexicographically, scattering months
+  across the sort order and causing the offset-based batch pagination to miss rows.
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`

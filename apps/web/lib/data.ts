@@ -771,6 +771,25 @@ export function parseDateValue(value: string) {
   return null;
 }
 
+/** Normalise any parseable date string to ISO YYYY-MM-DD for storage.
+ *  Appwrite sorts the `date` string field lexicographically — ISO is the
+ *  only format where string sort equals chronological sort. */
+export function normalizeDateToISO(value: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+
+  // Already ISO YYYY-MM-DD — keep as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parsed = parseDateValue(trimmed);
+  if (!parsed) return value; // keep original if unparseable
+
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function getMonthKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");

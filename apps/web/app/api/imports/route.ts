@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { normalizeDateToISO } from "../../../lib/data";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AppwriteDocument = { $id: string; [key: string]: any };
@@ -140,24 +141,6 @@ function parseDate(value: string | undefined): Date | null {
 
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-/** Normalise any parseable date string to YYYY-MM-DD so Appwrite string
- *  sorting produces correct chronological order. */
-function normalizeDateToISO(value: string): string {
-  if (!value) return "";
-  const trimmed = value.trim();
-
-  // Already ISO YYYY-MM-DD — keep as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-
-  const parsed = parseDate(trimmed);
-  if (!parsed) return value; // keep original if unparseable
-
-  const y = parsed.getFullYear();
-  const m = String(parsed.getMonth() + 1).padStart(2, "0");
-  const d = String(parsed.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }
 
 function getReferenceDate(rows: ImportRow[]): Date | null {

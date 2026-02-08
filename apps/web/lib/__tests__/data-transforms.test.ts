@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseAmountValue,
   parseDateValue,
+  normalizeDateToISO,
   isTransferCategory,
   isIncomeCategory,
   maskCurrencyValue,
@@ -257,5 +258,67 @@ describe("formatDirectionLabel", () => {
 
   it("returns 'Transaction' when neither direction nor amount given", () => {
     expect(formatDirectionLabel(undefined, undefined)).toBe("Transaction");
+  });
+});
+
+describe("normalizeDateToISO", () => {
+  it("converts DD/MM/YYYY to YYYY-MM-DD", () => {
+    expect(normalizeDateToISO("15/01/2025")).toBe("2025-01-15");
+  });
+
+  it("converts DD-MM-YYYY to YYYY-MM-DD", () => {
+    expect(normalizeDateToISO("15-03-2024")).toBe("2024-03-15");
+  });
+
+  it("converts DD.MM.YY to YYYY-MM-DD", () => {
+    expect(normalizeDateToISO("05.06.24")).toBe("2024-06-05");
+  });
+
+  it("converts D/M/YYYY (single-digit day/month)", () => {
+    expect(normalizeDateToISO("5/1/2025")).toBe("2025-01-05");
+  });
+
+  it("keeps ISO YYYY-MM-DD unchanged", () => {
+    expect(normalizeDateToISO("2025-01-15")).toBe("2025-01-15");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(normalizeDateToISO("")).toBe("");
+  });
+
+  it("returns original string for unparseable input", () => {
+    expect(normalizeDateToISO("not-a-date")).toBe("not-a-date");
+  });
+
+  it("handles whitespace around the date", () => {
+    expect(normalizeDateToISO("  15/01/2025  ")).toBe("2025-01-15");
+  });
+
+  it("all normalised dates sort chronologically as strings", () => {
+    const inputs = [
+      "31/01/2025",
+      "01/02/2025",
+      "15/01/2025",
+      "2025-01-20",
+      "01/01/2025",
+      "2025-02-10",
+    ];
+    const normalised = inputs.map(normalizeDateToISO);
+    const sorted = [...normalised].sort();
+    expect(sorted).toEqual([
+      "2025-01-01",
+      "2025-01-15",
+      "2025-01-20",
+      "2025-01-31",
+      "2025-02-01",
+      "2025-02-10",
+    ]);
+  });
+
+  it("CSV and PDF dates for the same day produce the same output", () => {
+    const csv = normalizeDateToISO("15/01/2025");
+    const pdf = normalizeDateToISO("2025-01-15");
+    expect(csv).toBe(pdf);
+    expect(csv).toBe("2025-01-15");
   });
 });
