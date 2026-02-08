@@ -69,6 +69,31 @@ export async function POST(request: Request) {
   Use dynamic imports for deps that need polyfills (static imports are hoisted
   above module-level code by the bundler).
 
+### OpenRouter / external API calls
+- **Referer header**: Always use `process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"`
+  for `HTTP-Referer`. Never hardcode `"http://localhost:3000"` — OpenRouter free-tier
+  models enforce data-policy settings tied to the referer, so a mismatch causes 404s
+  in production.
+- **Error handling**: When an external API returns a non-OK response, always read and
+  log the response body *before* throwing. Status codes alone (e.g. 404) are not
+  debuggable — the body contains the real reason (model removed, policy violation, etc.).
+  ```typescript
+  if (!response.ok) {
+    let detail = "";
+    try { const b = await response.json(); detail = b?.error?.message || JSON.stringify(b); } catch {}
+    console.error(`API failed: ${response.status}`, detail);
+    throw new Error(`API failed: ${response.status}${detail ? ` — ${detail}` : ""}`);
+  }
+  ```
+- **Logging at the route level**: If a catch block returns an error response to the
+  client, it must also `console.error` so the message appears in Vercel / server logs.
+  Silently returning a 502 with no log makes production issues invisible.
+- **Model availability**: Free-tier models on OpenRouter can be removed or renamed
+  without notice. The default model is set in `OPENROUTER_MODEL` env var (fallback
+  `xiaomi/mimo-v2-flash:free`). If it starts 404-ing, check the OpenRouter models page.
+- Reference implementation: `app/api/cash-logs/process/route.ts` (dynamic referer,
+  graceful fallback parsing when AI fails).
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`
