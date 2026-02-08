@@ -8,6 +8,7 @@ import AppShell from "./AppShell";
 import { AuthProvider } from "../../lib/auth-context";
 import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
+import { ViewProvider } from "../../lib/view-context";
 import { getApiContext } from "../../lib/api-auth";
 import EmailVerificationBanner from "./EmailVerificationBanner";
 
@@ -49,13 +50,15 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     <AuthProvider serverUser={serverUser}>
       <WorkspaceProvider>
         <NumberVisibilityProvider>
-          <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>
-            <EmailVerificationBanner emailVerified={emailVerified} />
-            <Suspense fallback={<div className="topbar" />}>
-              <TopbarWithUser />
-            </Suspense>
-            <AuthGate>{children}</AuthGate>
-          </AppShell>
+          <ViewProvider>
+            <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>
+              <EmailVerificationBanner emailVerified={emailVerified} />
+              <Suspense fallback={<div className="topbar" />}>
+                <TopbarWithUser />
+              </Suspense>
+              <AuthGate>{children}</AuthGate>
+            </AppShell>
+          </ViewProvider>
         </NumberVisibilityProvider>
       </WorkspaceProvider>
     </AuthProvider>

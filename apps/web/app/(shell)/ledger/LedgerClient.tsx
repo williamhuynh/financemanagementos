@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { LedgerRow } from "../../../lib/data";
+import { useView } from "../../../lib/view-context";
 
 type LedgerClientProps = {
   rows: LedgerRow[];
@@ -13,8 +14,17 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 const TRANSFER_CATEGORY = "Transfer";
 const PAGE_SIZE = 50;
 
+function getOwnerBadgeLabel(owner?: string): string {
+  if (!owner || owner === "Joint") return "J";
+  const parts = owner.trim().split(/\s+/);
+  return (
+    (parts[0]?.charAt(0) ?? "") + (parts[1]?.charAt(0) ?? "")
+  ).toUpperCase() || owner.charAt(0).toUpperCase();
+}
+
 export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const searchParams = useSearchParams();
+  const { isVisibleOwner } = useView();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<LedgerRow[]>(rows);
   const [offset, setOffset] = useState(rows.length);
@@ -214,13 +224,17 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     }
   };
 
-  if (items.length === 0 && !isLoading) {
+  const visibleItems = useMemo(() => {
+    return items.filter((row) => isVisibleOwner(row.sourceOwner ?? ""));
+  }, [items, isVisibleOwner]);
+
+  if (visibleItems.length === 0 && !isLoading) {
     return <div className="empty-state">No ledger transactions yet.</div>;
   }
 
   return (
     <div className="list">
-      {items.map((row) => {
+      {visibleItems.map((row) => {
         const currentState = saveState[row.id] ?? "idle";
         const transferCurrentState = transferState[row.id] ?? "idle";
         const isTransfer = transferMap[row.id] ?? false;
@@ -231,7 +245,18 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
             className={row.highlight ? "list-row highlight" : "list-row"}
           >
             <div>
-              <div className="row-title">{row.title}</div>
+              <div className="row-title">
+                {row.title}
+                {row.sourceOwner && (
+                  <span
+                    className={`owner-badge${!row.sourceOwner || row.sourceOwner === "Joint" ? " owner-badge-joint" : ""}`}
+                    title={row.sourceOwner === "Joint" ? "Joint" : row.sourceOwner}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {getOwnerBadgeLabel(row.sourceOwner)}
+                  </span>
+                )}
+              </div>
               <div className="row-sub">{row.sub}</div>
             </div>
             <div className="row-meta row-meta-edit">

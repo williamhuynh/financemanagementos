@@ -4,12 +4,14 @@ import { useMemo } from "react";
 import { Topbar } from "@tandemly/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useNumberVisibility } from "../../lib/number-visibility-context";
+import { useView } from "../../lib/view-context";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import { useDrawer } from "./AppShell";
 
 export default function TopbarWithUser() {
   const { user } = useAuth();
   const { isVisible, toggleVisibility } = useNumberVisibility();
+  const { mode, toggleMode } = useView();
   const { toggle } = useDrawer();
 
   const userInitials = useMemo(() => {
@@ -26,6 +28,8 @@ export default function TopbarWithUser() {
       userInitials={userInitials}
       onToggleNumberVisibility={toggleVisibility}
       numbersVisible={isVisible}
+      viewMode={mode}
+      onToggleViewMode={toggleMode}
       workspaceSwitcher={<WorkspaceSwitcher />}
       onMenuToggle={toggle}
     />
