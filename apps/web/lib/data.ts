@@ -117,6 +117,7 @@ export type LedgerRow = {
   account?: string;
   direction?: string;
   amountValue?: number | null;
+  sourceOwner?: string;
 };
 
 export type LedgerFilterParams = {
@@ -1484,6 +1485,8 @@ export async function getLedgerRowsWithTotal(
             ? `Source: ${sourceAccount}`
             : "";
 
+        const sourceOwner = String(doc.source_owner ?? "").trim() || undefined;
+
         rows.push({
           id: String(doc.$id ?? ""),
           title: String(doc.description ?? "Transaction"),
@@ -1498,7 +1501,8 @@ export async function getLedgerRowsWithTotal(
           date,
           account,
           direction,
-          amountValue
+          amountValue,
+          sourceOwner
         });
       }
 
