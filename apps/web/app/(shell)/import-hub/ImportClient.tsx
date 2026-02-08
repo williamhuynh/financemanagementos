@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { RightDrawer } from "@tandemly/ui";
 import Papa from "papaparse";
 
 type ParsedRow = Record<string, string>;
@@ -287,6 +288,7 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [deletingImportId, setDeletingImportId] = useState<string | null>(null);
+  const [selectedImport, setSelectedImport] = useState<ImportHistoryItem | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
   const [accountOptions, setAccountOptions] = useState<string[]>([]);
   const [headerSamples, setHeaderSamples] = useState<Record<string, string>>(
@@ -1004,7 +1006,19 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
                 <span>Action</span>
               </div>
               {importHistory.map((item) => (
-                <div key={item.id} className="history-row">
+                <div
+                  key={item.id}
+                  className="history-row history-row-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedImport(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedImport(item);
+                    }
+                  }}
+                >
                   <span>{item.file_name || `Untitled ${sourceName}`}</span>
                   <span>{item.source_name}</span>
                   <span>{item.source_owner || "-"}</span>
@@ -1016,7 +1030,10 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
                       className="ghost-btn danger-btn"
                       type="button"
                       disabled={deletingImportId === item.id}
-                      onClick={() => handleDeleteImport(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImport(item.id);
+                      }}
                     >
                       {deletingImportId === item.id ? "Deleting..." : "Delete"}
                     </button>
@@ -1028,6 +1045,59 @@ export default function ImportClient({ mode = "csv", ownerOptions }: ImportClien
           {historyStatus ? <div className="row-sub">{historyStatus}</div> : null}
         </div>
       </details>
+
+      <RightDrawer
+        open={selectedImport !== null}
+        onClose={() => setSelectedImport(null)}
+        title="Import Details"
+      >
+        {selectedImport ? (
+          <>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">File</span>
+              <span className="right-drawer-value">
+                {selectedImport.file_name || `Untitled ${sourceName}`}
+              </span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Source</span>
+              <span className="right-drawer-value">{selectedImport.source_name}</span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Owner</span>
+              <span className="right-drawer-value">{selectedImport.source_owner || "-"}</span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Rows</span>
+              <span className="right-drawer-value">{selectedImport.row_count}</span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Status</span>
+              <span className="right-drawer-value">{selectedImport.status}</span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Uploaded</span>
+              <span className="right-drawer-value">{formatDate(selectedImport.uploaded_at)}</span>
+            </div>
+            <div className="right-drawer-actions">
+              <button
+                className="ghost-btn danger-btn"
+                type="button"
+                disabled={deletingImportId === selectedImport.id}
+                onClick={() => {
+                  handleDeleteImport(selectedImport.id).then(() => {
+                    setSelectedImport(null);
+                  });
+                }}
+              >
+                {deletingImportId === selectedImport.id
+                  ? "Deleting..."
+                  : "Delete Import"}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </RightDrawer>
     </div>
   );
 }
