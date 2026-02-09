@@ -106,6 +106,14 @@ export async function POST(request: Request) {
   (Feb 1) sorts before `"15/01/2025"` (Jan 15) lexicographically, scattering months
   across the sort order and causing the offset-based batch pagination to miss rows.
 
+### Naming: "Ledger" vs "Transactions"
+- The backend code, API routes, URL paths, and database collections still use **"ledger"**
+  (e.g. `/ledger`, `/api/ledger`, `getLedgerRows()`, `LedgerRow` type).
+- The **user-facing UI** calls it **"Transactions"** (nav label, page title, empty states,
+  buttons). Do NOT show the word "Ledger" to users.
+- When adding new UI text, use "Transactions". When working with backend/data code,
+  continue using "ledger". A full backend rename is deferred.
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`

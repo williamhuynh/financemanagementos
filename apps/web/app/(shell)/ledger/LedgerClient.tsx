@@ -229,7 +229,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   }, [items, isVisibleOwner]);
 
   if (visibleItems.length === 0 && !isLoading) {
-    return <div className="empty-state">No ledger transactions yet.</div>;
+    return <div className="empty-state">No transactions yet.</div>;
   }
 
   return (

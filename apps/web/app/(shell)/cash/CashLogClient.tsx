@@ -1132,7 +1132,7 @@ export default function CashLogClient({
 
       {/* Committed Logs */}
       {committedLogs.length > 0 && (
-        <Card title="Committed to Ledger">
+        <Card title="Committed to Transactions">
           <div className="logs-list">
             {committedLogs.map((log) => (
               <div
@@ -1279,7 +1279,7 @@ export default function CashLogClient({
                     onClick={handleCommit}
                     disabled={isCommitting}
                   >
-                    {isCommitting ? "Committing..." : "Commit to Ledger"}
+                    {isCommitting ? "Committing..." : "Commit to Transactions"}
                   </button>
                 </div>
               </>
