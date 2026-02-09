@@ -118,6 +118,10 @@ export type LedgerRow = {
   direction?: string;
   amountValue?: number | null;
   sourceOwner?: string;
+  notes?: string;
+  sourceAccount?: string;
+  currency?: string;
+  needsReview?: boolean;
 };
 
 export type LedgerFilterParams = {
@@ -1521,7 +1525,11 @@ export async function getLedgerRowsWithTotal(
           account,
           direction,
           amountValue,
-          sourceOwner
+          sourceOwner,
+          notes: String(doc.notes ?? "").trim() || undefined,
+          sourceAccount: sourceAccount || undefined,
+          currency: String(doc.currency ?? "AUD"),
+          needsReview
         });
       }
 

@@ -1,5 +1,6 @@
 export { BottomDrawer } from "./components/BottomDrawer";
 export { Card } from "./components/Card";
+export { DetailPanel } from "./components/DetailPanel";
 export { DonutChart } from "./components/DonutChart";
 export { Drawer } from "./components/Drawer";
 export { Hero } from "./components/Hero";

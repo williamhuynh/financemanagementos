@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { DetailPanel } from "@tandemly/ui";
 import type { LedgerRow } from "../../../lib/data";
 import { useView } from "../../../lib/view-context";
+import TransactionDetail from "./TransactionDetail";
 
 type LedgerClientProps = {
   rows: LedgerRow[];
@@ -39,6 +41,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const [transferState, setTransferState] = useState<Record<string, SaveState>>(
     {}
   );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sortedCategories = useMemo(() => {
     return [...categories].sort((a, b) => a.localeCompare(b));
@@ -102,6 +105,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     setCategoryMap(nextCategoryMap);
     setTransferMap(nextTransferMap);
     setLastCategoryMap(nextLastCategoryMap);
+    setSelectedId(null);
   }, [rows]);
 
   const loadMore = useCallback(async () => {
@@ -224,111 +228,171 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     }
   };
 
+  const handleRowClick = useCallback((id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id));
+  }, []);
+
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent, id: string) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleRowClick(id);
+      }
+    },
+    [handleRowClick]
+  );
+
   const visibleItems = useMemo(() => {
     return items.filter((row) => isVisibleOwner(row.sourceOwner ?? ""));
   }, [items, isVisibleOwner]);
+
+  const selectedRow = useMemo(() => {
+    if (!selectedId) return null;
+    return visibleItems.find((r) => r.id === selectedId) ?? null;
+  }, [selectedId, visibleItems]);
 
   if (visibleItems.length === 0 && !isLoading) {
     return <div className="empty-state">No transactions yet.</div>;
   }
 
   return (
-    <div className="list">
-      {visibleItems.map((row) => {
-        const currentState = saveState[row.id] ?? "idle";
-        const transferCurrentState = transferState[row.id] ?? "idle";
-        const isTransfer = transferMap[row.id] ?? false;
-        const isMatched = row.isTransferMatched;
-        return (
-          <div
-            key={row.id}
-            className={row.highlight ? "list-row highlight" : "list-row"}
-          >
-            <div>
-              <div className="row-title">
-                {row.title}
-                {row.sourceOwner && (
-                  <span
-                    className={`owner-badge${!row.sourceOwner || row.sourceOwner === "Joint" ? " owner-badge-joint" : ""}`}
-                    title={row.sourceOwner === "Joint" ? "Joint" : row.sourceOwner}
-                    style={{ marginLeft: 8 }}
+    <div className="ledger-layout">
+      <div className="ledger-content">
+        <div className="list">
+          {visibleItems.map((row) => {
+            const currentState = saveState[row.id] ?? "idle";
+            const transferCurrentState = transferState[row.id] ?? "idle";
+            const isTransfer = transferMap[row.id] ?? false;
+            const isMatched = row.isTransferMatched;
+            const isSelected = selectedId === row.id;
+            return (
+              <div
+                key={row.id}
+                className={
+                  `list-row${row.highlight ? " highlight" : ""}${isSelected ? " selected" : ""}`
+                }
+                onClick={() => handleRowClick(row.id)}
+                onKeyDown={(e) => handleRowKeyDown(e, row.id)}
+                role="button"
+                tabIndex={0}
+                style={{ cursor: "pointer" }}
+              >
+                <div>
+                  <div className="row-title">
+                    {row.title}
+                    {row.sourceOwner && (
+                      <span
+                        className={`owner-badge${!row.sourceOwner || row.sourceOwner === "Joint" ? " owner-badge-joint" : ""}`}
+                        title={row.sourceOwner === "Joint" ? "Joint" : row.sourceOwner}
+                        style={{ marginLeft: 8 }}
+                      >
+                        {getOwnerBadgeLabel(row.sourceOwner)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="row-sub">{row.sub}</div>
+                </div>
+                <div
+                  className="row-meta row-meta-edit"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <select
+                    className="category-select"
+                    value={
+                      isTransfer
+                        ? TRANSFER_CATEGORY
+                        : categoryMap[row.id] ?? "Uncategorised"
+                    }
+                    onChange={(event) =>
+                      {
+                        const nextValue = event.target.value;
+                        setCategoryMap((prev) => ({
+                          ...prev,
+                          [row.id]: nextValue
+                        }));
+                        setSaveState((prev) => ({ ...prev, [row.id]: "idle" }));
+                      }
+                    }
+                    disabled={isTransfer}
                   >
-                    {getOwnerBadgeLabel(row.sourceOwner)}
-                  </span>
-                )}
+                    {[TRANSFER_CATEGORY, ...sortedCategories]
+                      .filter((value, index, array) => array.indexOf(value) === index)
+                      .map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="pill"
+                    type="button"
+                    onClick={() => handleSave(row.id)}
+                    disabled={currentState === "saving"}
+                  >
+                    {currentState === "saving"
+                      ? "Saving..."
+                      : currentState === "saved"
+                      ? "Saved"
+                      : currentState === "error"
+                      ? "Retry"
+                      : "Update"}
+                  </button>
+                  <button
+                    className={`pill${isTransfer ? " active" : ""}${isMatched ? " confirmed" : ""}`}
+                    type="button"
+                    onClick={() => handleTransferToggle(row.id)}
+                    disabled={
+                      transferCurrentState === "saving" ||
+                      (isTransfer && isMatched)
+                    }
+                  >
+                    {transferCurrentState === "saving"
+                      ? "Saving..."
+                      : transferCurrentState === "error"
+                      ? "Retry"
+                      : isTransfer && isMatched
+                      ? "Transfer ✓"
+                      : isTransfer
+                      ? "Transfer"
+                      : "Mark transfer"}
+                  </button>
+                  <span className={`amount ${row.tone}`}>{row.amount}</span>
+                </div>
               </div>
-              <div className="row-sub">{row.sub}</div>
-            </div>
-            <div className="row-meta row-meta-edit">
-              <select
-                className="category-select"
-                value={
-                  isTransfer
-                    ? TRANSFER_CATEGORY
-                    : categoryMap[row.id] ?? "Uncategorised"
-                }
-                onChange={(event) =>
-                  {
-                    const nextValue = event.target.value;
-                    setCategoryMap((prev) => ({
-                      ...prev,
-                      [row.id]: nextValue
-                    }));
-                    setSaveState((prev) => ({ ...prev, [row.id]: "idle" }));
-                  }
-                }
-                disabled={isTransfer}
-              >
-                {[TRANSFER_CATEGORY, ...sortedCategories]
-                  .filter((value, index, array) => array.indexOf(value) === index)
-                  .map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="pill"
-                type="button"
-                onClick={() => handleSave(row.id)}
-                disabled={currentState === "saving"}
-              >
-                {currentState === "saving"
-                  ? "Saving..."
-                  : currentState === "saved"
-                  ? "Saved"
-                  : currentState === "error"
-                  ? "Retry"
-                  : "Update"}
-              </button>
-              <button
-                className={`pill${isTransfer ? " active" : ""}${isMatched ? " confirmed" : ""}`}
-                type="button"
-                onClick={() => handleTransferToggle(row.id)}
-                disabled={
-                  transferCurrentState === "saving" ||
-                  (isTransfer && isMatched)
-                }
-              >
-                {transferCurrentState === "saving"
-                  ? "Saving..."
-                  : transferCurrentState === "error"
-                  ? "Retry"
-                  : isTransfer && isMatched
-                  ? "Transfer ✓"
-                  : isTransfer
-                  ? "Transfer"
-                  : "Mark transfer"}
-              </button>
-              <span className={`amount ${row.tone}`}>{row.amount}</span>
-            </div>
-          </div>
-        );
-      })}
-      {isLoading ? (
-        <div className="empty-state">Loading more transactions...</div>
-      ) : null}
-      <div ref={loadMoreRef} />
+            );
+          })}
+          {isLoading ? (
+            <div className="empty-state">Loading more transactions...</div>
+          ) : null}
+          <div ref={loadMoreRef} />
+        </div>
+      </div>
+      <DetailPanel
+        open={!!selectedRow}
+        onClose={() => setSelectedId(null)}
+        title="Transaction Details"
+      >
+        {selectedRow ? (
+          <TransactionDetail
+            row={selectedRow}
+            categories={sortedCategories}
+            currentCategory={categoryMap[selectedRow.id] ?? "Uncategorised"}
+            isTransfer={transferMap[selectedRow.id] ?? false}
+            isTransferMatched={selectedRow.isTransferMatched}
+            saveState={saveState[selectedRow.id] ?? "idle"}
+            transferState={transferState[selectedRow.id] ?? "idle"}
+            onCategoryChange={(value) => {
+              setCategoryMap((prev) => ({
+                ...prev,
+                [selectedRow.id]: value
+              }));
+              setSaveState((prev) => ({ ...prev, [selectedRow.id]: "idle" }));
+            }}
+            onSave={() => handleSave(selectedRow.id)}
+            onTransferToggle={() => handleTransferToggle(selectedRow.id)}
+          />
+        ) : null}
+      </DetailPanel>
     </div>
   );
 }
