@@ -35,6 +35,8 @@ export function DetailPanel({ open, onClose, title, children }: DetailPanelProps
       document.addEventListener("keydown", handleKeyDown);
       if (isMobile) {
         document.body.style.overflow = "hidden";
+      } else {
+        document.body.classList.add("detail-panel-active");
       }
     }
     return () => {
@@ -42,6 +44,7 @@ export function DetailPanel({ open, onClose, title, children }: DetailPanelProps
       if (isMobile) {
         document.body.style.overflow = "";
       }
+      document.body.classList.remove("detail-panel-active");
     };
   }, [open, handleKeyDown, isMobile]);
 

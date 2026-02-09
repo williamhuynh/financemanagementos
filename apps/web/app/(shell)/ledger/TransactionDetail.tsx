@@ -15,7 +15,6 @@ type TransactionDetailProps = {
   saveState: SaveState;
   transferState: SaveState;
   onCategoryChange: (category: string) => void;
-  onSave: () => void;
   onTransferToggle: () => void;
 };
 
@@ -44,7 +43,6 @@ export default function TransactionDetail({
   saveState,
   transferState,
   onCategoryChange,
-  onSave,
   onTransferToggle,
 }: TransactionDetailProps) {
   const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
@@ -107,7 +105,7 @@ export default function TransactionDetail({
             className="category-select"
             value={isTransfer ? TRANSFER_CATEGORY : currentCategory}
             onChange={(e) => onCategoryChange(e.target.value)}
-            disabled={isTransfer}
+            disabled={isTransfer || saveState === "saving"}
           >
             {[TRANSFER_CATEGORY, ...sortedCategories]
               .filter((value, index, array) => array.indexOf(value) === index)
@@ -118,20 +116,6 @@ export default function TransactionDetail({
               ))}
           </select>
         </div>
-        <button
-          className="pill"
-          type="button"
-          onClick={onSave}
-          disabled={saveState === "saving"}
-        >
-          {saveState === "saving"
-            ? "Saving..."
-            : saveState === "saved"
-              ? "Saved"
-              : saveState === "error"
-                ? "Retry"
-                : "Update"}
-        </button>
         <button
           className={`pill${isTransfer ? " active" : ""}${isTransferMatched ? " confirmed" : ""}`}
           type="button"

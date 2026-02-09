@@ -44,13 +44,13 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
     return [...categories].sort((a, b) => a.localeCompare(b));
   }, [categories]);
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: string, category: string) => {
     setSaveState((prev) => ({ ...prev, [id]: "saving" }));
     try {
       const response = await fetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: categoryMap[id] })
+        body: JSON.stringify({ category })
       });
       if (!response.ok) {
         throw new Error("Update failed");
@@ -134,10 +134,10 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
                       ...prev,
                       [item.id]: nextValue
                     }));
-                    setSaveState((prev) => ({ ...prev, [item.id]: "idle" }));
+                    handleSave(item.id, nextValue);
                   }
                 }
-                disabled={isTransfer}
+                disabled={isTransfer || currentState === "saving"}
               >
                 {[TRANSFER_CATEGORY, ...sortedCategories]
                   .filter(
@@ -149,20 +149,6 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
                   </option>
                 ))}
               </select>
-              <button
-                className="pill"
-                type="button"
-                onClick={() => handleSave(item.id)}
-                disabled={currentState === "saving"}
-              >
-                {currentState === "saving"
-                  ? "Saving..."
-                  : currentState === "saved"
-                  ? "Saved"
-                  : currentState === "error"
-                  ? "Retry"
-                  : "Update"}
-              </button>
               <button
                 className={`pill${isTransfer ? " active" : ""}${
                   isMatched ? " confirmed" : ""

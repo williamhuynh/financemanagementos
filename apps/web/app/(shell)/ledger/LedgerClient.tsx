@@ -172,13 +172,13 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     };
   }, [loadMore]);
 
-  const handleSave = async (id: string) => {
+  const handleSave = async (id: string, category: string) => {
     setSaveState((prev) => ({ ...prev, [id]: "saving" }));
     try {
       const response = await fetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: categoryMap[id] })
+        body: JSON.stringify({ category })
       });
       if (!response.ok) {
         throw new Error("Update failed");
@@ -310,10 +310,10 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
                           ...prev,
                           [row.id]: nextValue
                         }));
-                        setSaveState((prev) => ({ ...prev, [row.id]: "idle" }));
+                        handleSave(row.id, nextValue);
                       }
                     }
-                    disabled={isTransfer}
+                    disabled={isTransfer || currentState === "saving"}
                   >
                     {[TRANSFER_CATEGORY, ...sortedCategories]
                       .filter((value, index, array) => array.indexOf(value) === index)
@@ -323,20 +323,6 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
                       </option>
                     ))}
                   </select>
-                  <button
-                    className="pill"
-                    type="button"
-                    onClick={() => handleSave(row.id)}
-                    disabled={currentState === "saving"}
-                  >
-                    {currentState === "saving"
-                      ? "Saving..."
-                      : currentState === "saved"
-                      ? "Saved"
-                      : currentState === "error"
-                      ? "Retry"
-                      : "Update"}
-                  </button>
                   <button
                     className={`pill${isTransfer ? " active" : ""}${isMatched ? " confirmed" : ""}`}
                     type="button"
@@ -386,9 +372,8 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
                 ...prev,
                 [selectedRow.id]: value
               }));
-              setSaveState((prev) => ({ ...prev, [selectedRow.id]: "idle" }));
+              handleSave(selectedRow.id, value);
             }}
-            onSave={() => handleSave(selectedRow.id)}
             onTransferToggle={() => handleTransferToggle(selectedRow.id)}
           />
         ) : null}
