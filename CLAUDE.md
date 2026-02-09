@@ -114,6 +114,23 @@ export async function POST(request: Request) {
 - When adding new UI text, use "Transactions". When working with backend/data code,
   continue using "ledger". A full backend rename is deferred.
 
+### Detail Panel (right-side push panel)
+- Use `<DetailPanel>` from `@tandemly/ui` whenever a page needs a right-side detail
+  view (e.g. clicking a row to see more info). Do NOT create custom drawers or overlays.
+- **Desktop (>720px)**: Panel animates open via `width` transition (0 → 380px) and adds
+  `body.detail-panel-active` which applies `margin-right: 380px` to `.app-shell`,
+  pushing the main content left. No backdrop.
+- **Mobile (≤720px)**: Panel slides in as an overlay (`translateX`) with a backdrop.
+  Body scroll is locked.
+- The component handles mobile detection, Escape key, and body class management
+  internally — just pass `open`, `onClose`, `title`, and `children`.
+- For field content inside the panel, use the shared CSS classes:
+  `right-drawer-detail`, `right-drawer-label`, `right-drawer-value`,
+  `right-drawer-actions`. These are defined in `globals.css` and used across
+  all detail panel instances (Transactions, Import Details, etc.).
+- Reference implementations: `app/(shell)/ledger/LedgerClient.tsx` (Transactions),
+  `app/(shell)/import-hub/ImportClient.tsx` (Import Details).
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`

@@ -4,7 +4,6 @@ export { DetailPanel } from "./components/DetailPanel";
 export { DonutChart } from "./components/DonutChart";
 export { Drawer } from "./components/Drawer";
 export { Hero } from "./components/Hero";
-export { RightDrawer } from "./components/RightDrawer";
 export { ListRow } from "./components/ListRow";
 export { NavIcon } from "./components/NavIcon";
 export { ReviewCard } from "./components/ReviewCard";

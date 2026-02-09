@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RightDrawer } from "@tandemly/ui";
+import { DetailPanel } from "@tandemly/ui";
 import Papa from "papaparse";
 
 type ParsedRow = Record<string, string>;
@@ -1031,7 +1031,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
         </div>
       </details>
 
-      <RightDrawer
+      <DetailPanel
         open={selectedImport !== null}
         onClose={() => setSelectedImport(null)}
         title="Import Details"
@@ -1083,7 +1083,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
             </div>
           </>
         ) : null}
-      </RightDrawer>
+      </DetailPanel>
     </div>
   );
 }
