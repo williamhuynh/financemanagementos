@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
@@ -366,115 +366,120 @@ export async function POST(request: Request) {
     return normalized === "unknown" || normalized === "uncategorised";
   });
 
+  // Defer auto-categorization to run AFTER the response is sent.
+  // This prevents the progress bar from getting stuck on "Importing..."
+  // while the (slow) OpenRouter AI calls complete.
   if (shouldAutoCategorize && openRouterKey) {
-    try {
-      const categories = await loadWorkspaceCategories(databases, config.databaseId, workspaceId);
-      const categorizedIds = new Set<string>();
-      let remainingTransactions = createdTransactions;
+    after(async () => {
+      try {
+        const categories = await loadWorkspaceCategories(databases, config.databaseId, workspaceId);
+        const categorizedIds = new Set<string>();
+        let remainingTransactions = createdTransactions;
 
-      if (referenceDate && sourceAccount) {
-        const range = getPreviousMonthRange(referenceDate);
-        const historyResponse = await databases.listDocuments(
-          config.databaseId,
-          "transactions",
-          [
-            Query.equal("workspace_id", workspaceId),
-            Query.equal("source_account", sourceAccount),
-            Query.orderDesc("date"),
-            Query.limit(400)
-          ]
-        );
-        type HistoryItem = { id: string; date: string; description: string; amount: string; category: string };
-        const history: HistoryItem[] = historyResponse.documents
-          .map((doc: AppwriteDocument) => ({
-            id: doc.$id,
-            date: String(doc.date ?? ""),
-            description: String(doc.description ?? ""),
-            amount: String(doc.amount ?? ""),
-            category: String(doc.category_name ?? "Uncategorised")
-          }))
-          .filter((doc: HistoryItem) => doc.category !== "Uncategorised")
-          .filter((doc: HistoryItem) => {
-            const parsed = parseDate(doc.date);
-            if (!parsed) return false;
-            return parsed >= range.start && parsed <= range.end;
-          });
+        if (referenceDate && sourceAccount) {
+          const range = getPreviousMonthRange(referenceDate);
+          const historyResponse = await databases.listDocuments(
+            config.databaseId,
+            "transactions",
+            [
+              Query.equal("workspace_id", workspaceId),
+              Query.equal("source_account", sourceAccount),
+              Query.orderDesc("date"),
+              Query.limit(400)
+            ]
+          );
+          type HistoryItem = { id: string; date: string; description: string; amount: string; category: string };
+          const history: HistoryItem[] = historyResponse.documents
+            .map((doc: AppwriteDocument) => ({
+              id: doc.$id,
+              date: String(doc.date ?? ""),
+              description: String(doc.description ?? ""),
+              amount: String(doc.amount ?? ""),
+              category: String(doc.category_name ?? "Uncategorised")
+            }))
+            .filter((doc: HistoryItem) => doc.category !== "Uncategorised")
+            .filter((doc: HistoryItem) => {
+              const parsed = parseDate(doc.date);
+              if (!parsed) return false;
+              return parsed >= range.start && parsed <= range.end;
+            });
 
-        if (history.length) {
-          const matches = await fetchHistoryMatches(
-            createdTransactions,
-            history,
+          if (history.length) {
+            const matches = await fetchHistoryMatches(
+              createdTransactions,
+              history,
+              openRouterKey,
+              openRouterModel
+            );
+            const historyMap = new Map(history.map((item) => [item.id, item]));
+            for (const match of matches) {
+              if (!match?.id || !match.match_id) continue;
+              if ((match.confidence ?? 0) < 0.8) continue;
+              const matched = historyMap.get(match.match_id);
+              if (!matched) continue;
+              const normalizedCategory = normalizeCategory(
+                matched.category,
+                categories
+              );
+              if (normalizedCategory === "Uncategorised") continue;
+              await databases.updateDocument(
+                config.databaseId,
+                "transactions",
+                match.id,
+                {
+                  category_name: normalizedCategory,
+                  needs_review: false
+                }
+              );
+              categorizedIds.add(match.id);
+            }
+          }
+        }
+
+        if (categorizedIds.size) {
+          remainingTransactions = createdTransactions.filter(
+            (txn) => !categorizedIds.has(txn.id)
+          );
+        }
+
+        if (remainingTransactions.length) {
+          const suggestions = await fetchCategorySuggestions(
+            remainingTransactions,
+            categories,
             openRouterKey,
             openRouterModel
           );
-          const historyMap = new Map(history.map((item) => [item.id, item]));
-          for (const match of matches) {
-            if (!match?.id || !match.match_id) continue;
-            if ((match.confidence ?? 0) < 0.8) continue;
-            const matched = historyMap.get(match.match_id);
-            if (!matched) continue;
+          const suggestionMap = new Map(
+            suggestions
+              .filter((item) => typeof item?.id === "string")
+              .map((item) => [item.id, item.category ?? "Unknown"])
+          );
+
+          for (const transaction of remainingTransactions) {
+            const suggestedCategory = suggestionMap.get(transaction.id);
+            if (!suggestedCategory) continue;
             const normalizedCategory = normalizeCategory(
-              matched.category,
+              suggestedCategory,
               categories
             );
-            if (normalizedCategory === "Uncategorised") continue;
+            if (normalizedCategory === "Uncategorised") {
+              continue;
+            }
             await databases.updateDocument(
               config.databaseId,
               "transactions",
-              match.id,
+              transaction.id,
               {
                 category_name: normalizedCategory,
-                needs_review: false
+                needs_review: normalizedCategory === "Uncategorised"
               }
             );
-            categorizedIds.add(match.id);
           }
         }
+      } catch (error) {
+        console.error("Auto-categorization failed:", error);
       }
-
-      if (categorizedIds.size) {
-        remainingTransactions = createdTransactions.filter(
-          (txn) => !categorizedIds.has(txn.id)
-        );
-      }
-
-      if (remainingTransactions.length) {
-        const suggestions = await fetchCategorySuggestions(
-          remainingTransactions,
-          categories,
-          openRouterKey,
-          openRouterModel
-        );
-        const suggestionMap = new Map(
-          suggestions
-            .filter((item) => typeof item?.id === "string")
-            .map((item) => [item.id, item.category ?? "Unknown"])
-        );
-
-        for (const transaction of remainingTransactions) {
-          const suggestedCategory = suggestionMap.get(transaction.id);
-          if (!suggestedCategory) continue;
-          const normalizedCategory = normalizeCategory(
-            suggestedCategory,
-            categories
-          );
-          if (normalizedCategory === "Uncategorised") {
-            continue;
-          }
-          await databases.updateDocument(
-            config.databaseId,
-            "transactions",
-            transaction.id,
-            {
-              category_name: normalizedCategory,
-              needs_review: normalizedCategory === "Uncategorised"
-            }
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Auto-categorization failed:", error);
-    }
+    });
   }
 
     return NextResponse.json({ importId });
