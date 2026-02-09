@@ -677,6 +677,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
         cache: "no-store"
       });
       const payload = await response.json();
+      window.clearInterval(progressTimer);
       if (!response.ok) {
         setProgressState("error");
         setProgress(100);
@@ -703,6 +704,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
         }
       }
     } catch (error) {
+      window.clearInterval(progressTimer);
       setProgressState("error");
       setProgress(100);
       setStatus("Import failed.");
