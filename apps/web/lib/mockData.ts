@@ -8,7 +8,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: "dashboard" },
   { id: "cash", label: "Cash Log", href: "/cash", icon: "cash" },
-  { id: "ledger", label: "Ledger", href: "/ledger", icon: "ledger" },
+  { id: "ledger", label: "Transactions", href: "/ledger", icon: "ledger" },
   { id: "review", label: "Review Queue", href: "/review", icon: "review" },
   { id: "assets", label: "Assets", href: "/assets", icon: "assets" },
   { id: "reports", label: "Reports", href: "/reports", icon: "reports" },
