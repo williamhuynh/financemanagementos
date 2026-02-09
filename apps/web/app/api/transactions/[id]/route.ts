@@ -3,6 +3,52 @@ import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const ctx = await getApiContext();
+    if (!ctx) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { databases, config, workspaceId, user } = ctx;
+
+    await requireWorkspacePermission(workspaceId, user.$id, "delete");
+
+    const { id } = await params;
+
+    const existing = await databases.listDocuments(
+      config.databaseId,
+      "transactions",
+      [Query.equal("$id", id), Query.equal("workspace_id", workspaceId), Query.limit(1)]
+    );
+
+    if (existing.documents.length === 0) {
+      return NextResponse.json(
+        { error: "Transaction not found or access denied." },
+        { status: 404 }
+      );
+    }
+
+    await databases.deleteDocument(config.databaseId, "transactions", id);
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes("not member")) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+      if (error.message.includes("Insufficient permission")) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+      }
+    }
+    console.error("Transaction DELETE error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

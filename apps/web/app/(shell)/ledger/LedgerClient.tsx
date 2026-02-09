@@ -228,6 +228,25 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     }
   };
 
+  const [deleteState, setDeleteState] = useState<SaveState>("idle");
+
+  const handleDelete = async (id: string) => {
+    setDeleteState("saving");
+    try {
+      const response = await fetch(`/api/transactions/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Delete failed");
+      }
+      setItems((prev) => prev.filter((r) => r.id !== id));
+      setSelectedId(null);
+      setDeleteState("idle");
+    } catch {
+      setDeleteState("error");
+    }
+  };
+
   const handleRowClick = useCallback((id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   }, []);
@@ -375,6 +394,8 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
               handleSave(selectedRow.id, value);
             }}
             onTransferToggle={() => handleTransferToggle(selectedRow.id)}
+            deleteState={deleteState}
+            onDelete={() => handleDelete(selectedRow.id)}
           />
         ) : null}
       </DetailPanel>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { LedgerRow } from "../../../lib/data";
 import { parseDateValue } from "../../../lib/data";
 
@@ -16,6 +17,8 @@ type TransactionDetailProps = {
   transferState: SaveState;
   onCategoryChange: (category: string) => void;
   onTransferToggle: () => void;
+  deleteState: SaveState;
+  onDelete: () => void;
 };
 
 function formatDisplayDate(iso: string): string {
@@ -44,7 +47,10 @@ export default function TransactionDetail({
   transferState,
   onCategoryChange,
   onTransferToggle,
+  deleteState,
+  onDelete,
 }: TransactionDetailProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
   const sortedCategories = [...categories].sort((a, b) => a.localeCompare(b));
 
   return (
@@ -134,6 +140,49 @@ export default function TransactionDetail({
                   ? "Transfer"
                   : "Mark transfer"}
         </button>
+      </div>
+
+      <div className="right-drawer-delete">
+        {!showConfirm ? (
+          <button
+            className="btn-delete"
+            type="button"
+            onClick={() => setShowConfirm(true)}
+            disabled={deleteState === "saving"}
+          >
+            Delete Transaction
+          </button>
+        ) : (
+          <div className="delete-confirm">
+            <p className="delete-confirm-text">
+              Are you sure? This cannot be undone.
+            </p>
+            <div className="delete-confirm-actions">
+              <button
+                className="btn-delete-confirm"
+                type="button"
+                onClick={() => {
+                  setShowConfirm(false);
+                  onDelete();
+                }}
+                disabled={deleteState === "saving"}
+              >
+                {deleteState === "saving" ? "Deleting..." : "Yes, delete"}
+              </button>
+              <button
+                className="btn-delete-cancel"
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                disabled={deleteState === "saving"}
+              >
+                Cancel
+              </button>
+            </div>
+            {deleteState === "error" && (
+              <p className="delete-error">Failed to delete. Please try again.</p>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
