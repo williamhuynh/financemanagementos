@@ -124,6 +124,12 @@ export async function POST(request: Request) {
   Body scroll is locked.
 - The component handles mobile detection, Escape key, and body class management
   internally — just pass `open`, `onClose`, `title`, and `children`.
+- **Portal rendering**: `DetailPanel` uses `createPortal` to render at `document.body`,
+  so it is safe to place anywhere in the component tree. This avoids a CSS stacking
+  context trap: ancestor elements with `transform`, `filter`, `will-change`, or
+  `animation` (e.g. the `.card` class's `fadeUp` animation) create a new containing
+  block that breaks `position: fixed` children and clips them with `overflow: hidden`.
+  The portal ensures the panel always overlays the full viewport.
 - For field content inside the panel, use the shared CSS classes:
   `right-drawer-detail`, `right-drawer-label`, `right-drawer-value`,
   `right-drawer-actions`. These are defined in `globals.css` and used across
