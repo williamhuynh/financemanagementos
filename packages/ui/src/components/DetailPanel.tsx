@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
 type DetailPanelProps = {
@@ -12,6 +13,11 @@ type DetailPanelProps = {
 
 export function DetailPanel({ open, onClose, title, children }: DetailPanelProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 720px)");
@@ -48,7 +54,7 @@ export function DetailPanel({ open, onClose, title, children }: DetailPanelProps
     };
   }, [open, handleKeyDown, isMobile]);
 
-  return (
+  const panelContent = (
     <>
       {open && isMobile && (
         <button
@@ -81,4 +87,12 @@ export function DetailPanel({ open, onClose, title, children }: DetailPanelProps
       </aside>
     </>
   );
+
+  // Portal to document.body so the panel is never constrained by ancestor
+  // CSS (transform, overflow, etc.) that would break position: fixed.
+  if (portalTarget) {
+    return createPortal(panelContent, portalTarget);
+  }
+
+  return panelContent;
 }
