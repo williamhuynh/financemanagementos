@@ -2203,6 +2203,37 @@ body.detail-panel-active .app-shell {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
+.trend-range-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.trend-range-btn {
+  all: unset;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  line-height: 1.4;
+}
+
+.trend-range-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover);
+}
+
+.trend-range-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .legend-swatch {
   width: 10px;
   height: 10px;

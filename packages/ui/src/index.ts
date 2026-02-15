@@ -11,5 +11,7 @@ export { SectionHead } from "./components/SectionHead";
 export { Sidebar } from "./components/Sidebar";
 export { Topbar } from "./components/Topbar";
 export { TrendChart } from "./components/TrendChart";
+export { TrendRangeToggle } from "./components/TrendRangeToggle";
+export type { TrendRange } from "./components/TrendRangeToggle";
 export { WaterfallChart } from "./components/WaterfallChart";
 export type { WaterfallStep } from "./components/WaterfallChart";
