@@ -71,6 +71,7 @@ export async function GET() {
     );
 
     // Lazy seed: fill in missing defaults for empty or partially-seeded workspaces
+    let docs: AppwriteDocument[];
     if (response.total < DEFAULT_CATEGORIES.length) {
       await seedDefaultCategories(databases, config.databaseId, workspaceId);
       const seeded = await databases.listDocuments(
@@ -78,21 +79,12 @@ export async function GET() {
         COLLECTIONS.CATEGORIES,
         [Query.equal("workspace_id", workspaceId), Query.orderAsc("name"), Query.limit(100)]
       );
-
-      const categories = seeded.documents.map((doc: AppwriteDocument) => ({
-        id: doc.$id,
-        name: String(doc.name ?? ""),
-        group: (doc.group || null) as CategoryGroup,
-        color: doc.color ?? null,
-        is_system: isSystemCategory(String(doc.name ?? "")),
-        transaction_count: 0,
-      }));
-
-      return NextResponse.json({ categories });
+      docs = seeded.documents as AppwriteDocument[];
+    } else {
+      docs = response.documents as AppwriteDocument[];
     }
 
     // Fetch transaction counts per category
-    const docs = response.documents as AppwriteDocument[];
     const categories = await Promise.all(
       docs.map(async (doc) => {
         const name = String(doc.name ?? "").trim();
