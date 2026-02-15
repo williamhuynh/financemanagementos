@@ -3070,3 +3070,38 @@ export async function getSidebarMonthlyCloseStatus(workspaceId: string, homeCurr
     return null;
   }
 }
+
+export function filterSeriesByRange(
+  series: NetWorthPoint[],
+  range: string
+): NetWorthPoint[] {
+  if (range === "ALL" || series.length === 0) {
+    return series;
+  }
+  const now = new Date();
+  let cutoff: string;
+  switch (range) {
+    case "1M": {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      break;
+    }
+    case "3M": {
+      const d = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      break;
+    }
+    case "YTD": {
+      cutoff = `${now.getFullYear()}-01`;
+      break;
+    }
+    case "1Y": {
+      const d = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      break;
+    }
+    default:
+      return series;
+  }
+  return series.filter((point) => point.month >= cutoff);
+}

@@ -3,11 +3,13 @@
 import {
   Card,
   DonutChart,
-  SectionHead
+  SectionHead,
+  TrendRangeToggle
 } from "@tandemly/ui";
-import { Suspense } from "react";
+import type { TrendRange } from "@tandemly/ui";
+import { Suspense, useMemo, useState } from "react";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
-import { maskCurrencyValue, formatCurrencyValue } from "../../../lib/data";
+import { maskCurrencyValue, formatCurrencyValue, filterSeriesByRange } from "../../../lib/data";
 import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 import SpendByCategoryControls from "./SpendByCategoryControls";
@@ -182,7 +184,12 @@ export default function DashboardClient({
     dot: dotClasses[index]
   }));
   const portfolioSplit = buildPortfolioSegments(assetOverview.categories);
-  const netWorthPoints = buildTrendPoints(assetOverview.netWorthSeries);
+  const [trendRange, setTrendRange] = useState<TrendRange>("ALL");
+  const filteredNetWorthSeries = useMemo(
+    () => filterSeriesByRange(assetOverview.netWorthSeries, trendRange),
+    [assetOverview.netWorthSeries, trendRange]
+  );
+  const netWorthPoints = buildTrendPoints(filteredNetWorthSeries);
   const hasNetWorthTrend = netWorthPoints.length > 0;
   const heroSub =
     assetOverview.lastUpdatedLabel === "No updates yet"
@@ -249,6 +256,7 @@ export default function DashboardClient({
         <article className="card chart wide">
           <div className="chart-head">
             <div className="card-title">Net Worth Trend</div>
+            <TrendRangeToggle value={trendRange} onChange={setTrendRange} />
           </div>
           <div className="chart-body">
             {hasNetWorthTrend ? (

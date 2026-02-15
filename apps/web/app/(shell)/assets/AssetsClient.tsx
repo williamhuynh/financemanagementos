@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Card, SectionHead } from "@tandemly/ui";
+import { Card, SectionHead, TrendRangeToggle } from "@tandemly/ui";
+import type { TrendRange } from "@tandemly/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
-import { maskCurrencyValue } from "../../../lib/data";
+import { maskCurrencyValue, filterSeriesByRange } from "../../../lib/data";
 import { SUPPORTED_CURRENCIES } from "../../../lib/currencies";
 
 type AssetsClientProps = {
@@ -247,9 +248,24 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   };
 
 
+  const [trendRange, setTrendRange] = useState<TrendRange>("ALL");
+
+  const filteredNetWorthSeries = useMemo(
+    () => filterSeriesByRange(netWorthSeries, trendRange),
+    [netWorthSeries, trendRange]
+  );
+
+  const filteredAssetSeries = useMemo(() => {
+    const result: Record<string, typeof netWorthSeries> = {};
+    for (const [key, series] of Object.entries(assetSeries)) {
+      result[key] = filterSeriesByRange(series, trendRange);
+    }
+    return result;
+  }, [assetSeries, trendRange]);
+
   const trendData = useMemo(() => {
-    const allSeries = [netWorthSeries];
-    Object.values(assetSeries).forEach((series) => {
+    const allSeries = [filteredNetWorthSeries];
+    Object.values(filteredAssetSeries).forEach((series) => {
       if (series.length > 0) {
         allSeries.push(series);
       }
@@ -260,9 +276,9 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     return {
       min,
       max,
-      netWorthPoints: buildTrendPoints(netWorthSeries, min, max)
+      netWorthPoints: buildTrendPoints(filteredNetWorthSeries, min, max)
     };
-  }, [netWorthSeries, assetSeries]);
+  }, [filteredNetWorthSeries, filteredAssetSeries]);
 
   const chartSeries = useMemo<AssetSeries[]>(() => {
     const series: AssetSeries[] = [
@@ -274,7 +290,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
       }
     ];
     assets.forEach((asset) => {
-      const assetTrend = assetSeries[asset.id] ?? [];
+      const assetTrend = filteredAssetSeries[asset.id] ?? [];
       if (assetTrend.length === 0) {
         return;
       }
@@ -286,7 +302,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
       });
     });
     return series;
-  }, [assets, assetSeries, trendData]);
+  }, [assets, filteredAssetSeries, trendData]);
 
   const hasTrend = useMemo(
     () => chartSeries.some((series) => series.points.split(" ").length > 1),
@@ -608,6 +624,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
               <div className="card-title">Net Worth Trend</div>
               <div className="card-sub">Monthly snapshots</div>
             </div>
+            <TrendRangeToggle value={trendRange} onChange={setTrendRange} />
           </div>
           <div className="chart-body">
             {hasTrend ? (
