@@ -96,7 +96,7 @@ export async function GET() {
             [
               Query.equal("workspace_id", workspaceId),
               Query.equal("category_name", name),
-              Query.limit(0),
+              Query.limit(1),
             ]
           );
           transactionCount = countRes.total;
