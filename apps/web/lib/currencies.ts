@@ -22,3 +22,16 @@ export function getCurrencyName(currency: string): string {
 export function isSupportedCurrency(currency: string): currency is SupportedCurrency {
   return SUPPORTED_CURRENCIES.includes(currency as SupportedCurrency);
 }
+
+const CURRENCY_UNIT_PLURAL: Record<SupportedCurrency, string> = {
+  AUD: "dollars",
+  NZD: "dollars",
+  USD: "dollars",
+  GBP: "pounds",
+  EUR: "euros",
+};
+
+/** Spoken plural unit for Whisper prompts, e.g. "dollars", "pounds", "euros". */
+export function getCurrencyUnitPlural(currency: string): string {
+  return CURRENCY_UNIT_PLURAL[currency as SupportedCurrency] ?? "dollars";
+}

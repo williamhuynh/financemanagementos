@@ -19,5 +19,5 @@ export default async function AssetsPage() {
     getWorkspaceOwnerOptions(context.workspaceId)
   ]);
 
-  return <AssetsClient overview={overview} ownerOptions={ownerOptions} />;
+  return <AssetsClient overview={overview} ownerOptions={ownerOptions} homeCurrency={homeCurrency} />;
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card } from "@tandemly/ui";
+import { getLocaleForCurrency } from "../../../lib/currencies";
 
 type CategoryItem = {
   id: string;
@@ -16,6 +17,7 @@ type CategoryItem = {
 type CategoriesClientProps = {
   workspaceId: string;
   userRole: string;
+  homeCurrency: string;
 };
 
 function getCurrentMonth(): string {
@@ -31,17 +33,18 @@ function formatMonthLabel(monthKey: string): string {
   return date.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
 }
 
-function formatCurrency(value: number, currency = "AUD"): string {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(value);
-}
-
 export default function CategoriesClient({
   userRole,
+  homeCurrency,
 }: CategoriesClientProps) {
+  const formatCurrency = (value: number, currency?: string): string => {
+    const cur = currency || homeCurrency;
+    return new Intl.NumberFormat(getLocaleForCurrency(cur), {
+      style: "currency",
+      currency: cur,
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

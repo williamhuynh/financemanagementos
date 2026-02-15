@@ -4,6 +4,7 @@ import {
   CURRENCY_CONFIG,
   getLocaleForCurrency,
   getCurrencyName,
+  getCurrencyUnitPlural,
   isSupportedCurrency,
 } from "../currencies";
 
@@ -68,6 +69,26 @@ describe("isSupportedCurrency", () => {
     expect(isSupportedCurrency("CAD")).toBe(false);
     expect(isSupportedCurrency("JPY")).toBe(false);
     expect(isSupportedCurrency("")).toBe(false);
+  });
+});
+
+describe("getCurrencyUnitPlural", () => {
+  it("returns dollars for dollar currencies", () => {
+    expect(getCurrencyUnitPlural("AUD")).toBe("dollars");
+    expect(getCurrencyUnitPlural("NZD")).toBe("dollars");
+    expect(getCurrencyUnitPlural("USD")).toBe("dollars");
+  });
+
+  it("returns pounds for GBP", () => {
+    expect(getCurrencyUnitPlural("GBP")).toBe("pounds");
+  });
+
+  it("returns euros for EUR", () => {
+    expect(getCurrencyUnitPlural("EUR")).toBe("euros");
+  });
+
+  it("returns dollars for unknown currencies", () => {
+    expect(getCurrencyUnitPlural("CAD")).toBe("dollars");
   });
 });
 

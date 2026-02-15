@@ -57,6 +57,7 @@ These items close the gap between "works for us" and "ready for others to use."
 - [ ] **Consistent API error format** — Some routes return `{ detail }`, others `{ error }`. Standardize on one shape.
 - [ ] **Richer empty states** — Basic empty states exist in ledger, assets, review, cash log, and dashboard. Could be richer with CTAs for importing data and setting up categories.
 - [ ] **Workspace deletion + leave workspace** — Users can create workspaces but not delete them or leave them.
+- [ ] **Rename `value_aud` DB field to `value_home`** — The `asset_values` collection stores FX-converted values in the workspace's home currency, but the Appwrite field is still named `value_aud` from when AUD was hardcoded. Rename to `value_home` (or `value_home_currency`) for clarity. Requires an Appwrite schema migration + backfill script + updating all reads in `data.ts` (`buildAssetOverviewFromRecords`, `prepareAssetRecords`) and the write in `app/api/assets/values/route.ts`.
 
 ### Polish — Nice to have
 

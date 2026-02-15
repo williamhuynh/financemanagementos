@@ -1,4 +1,5 @@
 import { Client, Databases, Query, ID } from "node-appwrite";
+import { cache } from "react";
 
 export type WorkspaceMemberRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -153,7 +154,11 @@ export async function createWorkspaceForUser(
 /**
  * Get a workspace by ID.
  */
-export async function getWorkspaceById(workspaceId: string): Promise<Workspace | null> {
+// Wrapped with React cache() so multiple server components calling
+// getWorkspaceById with the same ID in one request share a single DB hit.
+export const getWorkspaceById = cache(async function getWorkspaceById(
+  workspaceId: string
+): Promise<Workspace | null> {
   const { databases, databaseId } = getServerClient();
 
   try {
@@ -168,7 +173,7 @@ export async function getWorkspaceById(workspaceId: string): Promise<Workspace |
     console.error("Error getting workspace:", error);
     return null;
   }
-}
+});
 
 /**
  * Check if a user has access to a workspace.

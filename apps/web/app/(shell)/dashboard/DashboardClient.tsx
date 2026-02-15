@@ -12,7 +12,23 @@ import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 import SpendByCategoryControls from "./SpendByCategoryControls";
 
-import type { NetWorthPoint, AssetCategorySummary } from "../../../lib/data";
+import type {
+  NetWorthPoint,
+  AssetCategorySummary,
+  AssetOverview,
+  ExpenseBreakdown,
+  CashFlowWaterfall
+} from "../../../lib/data";
+
+type DashboardClientProps = {
+  assetOverview: AssetOverview;
+  breakdown: ExpenseBreakdown;
+  cashFlow: CashFlowWaterfall;
+  availableCategories: string[];
+  selectedSpendCategories: string[];
+  spendTop: number;
+  homeCurrency: string;
+};
 
 type DonutSegment = { className: string; value: number };
 type DonutLegend = { label: string; dot: string };
@@ -134,8 +150,8 @@ export default function DashboardClient({
   availableCategories,
   selectedSpendCategories,
   spendTop,
-  homeCurrency = "AUD"
-}: any) {
+  homeCurrency
+}: DashboardClientProps) {
   const { isVisible } = useNumberVisibility();
 
   const spendByCategory = breakdown.categories;
