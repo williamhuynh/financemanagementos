@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   CASH_LOGS: 'cash_logs',
   TRANSFER_PAIRS: 'transfer_pairs',
   IMPORT_PRESETS: 'import_presets',
+  AUDIT_LOGS: 'audit_logs',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];

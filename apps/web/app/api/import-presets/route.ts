@@ -4,6 +4,9 @@ import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../lib/collection-names";
 import { validatePresetName, validateHeaderMap, parseHeaderMap } from "../../../lib/import-presets";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, ImportPresetCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,8 +16,11 @@ export const revalidate = 0;
  *
  * List all saved import presets for the current workspace.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -79,6 +85,9 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -90,25 +99,28 @@ export async function POST(request: Request) {
     const { databases, config, workspaceId, user } = ctx;
     await requireWorkspacePermission(workspaceId, user.$id, "write");
 
-    const body = (await request.json()) as {
-      name?: string;
-      headerMap?: Record<string, string>;
-      invertAmount?: boolean;
-    };
+    const body = await request.json();
 
-    const nameError = validatePresetName(body.name);
+    const parsed = validateBody(ImportPresetCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const { name: rawName, headerMap: validatedHeaderMap, invertAmount: validatedInvert } = parsed.data!;
+
+    const nameError = validatePresetName(rawName);
     if (nameError) {
       return NextResponse.json({ error: nameError }, { status: 400 });
     }
-    const name = body.name!.trim();
+    const name = rawName.trim();
 
-    const mapError = validateHeaderMap(body.headerMap);
+    const mapError = validateHeaderMap(validatedHeaderMap);
     if (mapError) {
       return NextResponse.json({ error: mapError }, { status: 400 });
     }
-    const headerMap = body.headerMap!;
+    const headerMap = validatedHeaderMap;
 
-    const invertAmount = Boolean(body.invertAmount);
+    const invertAmount = Boolean(validatedInvert);
 
     const presetId = ID.unique();
     await databases.createDocument(
@@ -123,6 +135,17 @@ export async function POST(request: Request) {
         created_by: user.$id,
       }
     );
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "import_preset",
+      resource_id: presetId,
+      summary: `Created import preset "${name}"`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       id: presetId,

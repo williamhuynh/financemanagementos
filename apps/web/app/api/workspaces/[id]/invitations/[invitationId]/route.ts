@@ -3,6 +3,8 @@ import { getApiContext } from "../../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../../lib/workspace-guard";
 import { cancelInvitation } from "../../../../../../lib/invitation-service";
 import { COLLECTIONS } from "../../../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../../../lib/audit";
 
 type RouteContext = { params: Promise<{ id: string; invitationId: string }> };
 
@@ -12,6 +14,9 @@ type RouteContext = { params: Promise<{ id: string; invitationId: string }> };
  * Requires 'admin' permission
  */
 export async function DELETE(request: Request, context: RouteContext) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const { id: workspaceId, invitationId } = await context.params;
     const ctx = await getApiContext();
@@ -39,6 +44,17 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     await cancelInvitation(ctx.databases, ctx.config.databaseId, invitationId);
+
+    // Fire-and-forget audit log
+    writeAuditLog(ctx.databases, ctx.config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: ctx.user.$id,
+      action: "delete",
+      resource_type: "invitation",
+      resource_id: invitationId,
+      summary: `Cancelled invitation ${invitationId}`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

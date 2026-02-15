@@ -2,17 +2,27 @@ import { NextResponse } from 'next/server';
 import { Query } from 'node-appwrite';
 import { createSessionClient } from '../../../../lib/api-auth';
 import { COLLECTIONS } from '../../../../lib/collection-names';
+import { rateLimit, DATA_RATE_LIMITS } from '../../../../lib/rate-limit';
+import { validateBody, WorkspaceSwitchSchema } from '../../../../lib/validations';
 
 export async function POST(request: Request) {
-  try {
-    const { workspaceId } = await request.json();
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
 
-    if (!workspaceId) {
-      return NextResponse.json(
-        { error: 'Workspace ID is required' },
-        { status: 400 }
-      );
+  try {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
+
+    const parsed = validateBody(WorkspaceSwitchSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const { workspaceId } = parsed.data;
 
     // Get session client
     const sessionClient = await createSessionClient();

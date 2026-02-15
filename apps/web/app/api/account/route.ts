@@ -3,6 +3,7 @@ import { Client, Account, Databases, Query } from "node-appwrite";
 import { createSessionClient, getServerConfig, createDatabasesClient } from "../../../lib/api-auth";
 import { COLLECTIONS } from "../../../lib/collection-names";
 import { getSession } from "../../../lib/session";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,10 @@ export const dynamic = "force-dynamic";
  * 3. Delete the Appwrite user account
  * 4. Destroy the session
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.accountDelete);
+  if (blocked) return blocked;
+
   try {
     const sessionClient = await createSessionClient();
     if (!sessionClient) {

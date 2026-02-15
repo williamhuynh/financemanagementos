@@ -2,13 +2,19 @@ import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, TransferPairCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -18,21 +24,17 @@ export async function POST(request: Request) {
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    const body = (await request.json()) as {
-      fromId?: string;
-      toId?: string;
-    };
-    if (!body.fromId || !body.toId) {
-      return NextResponse.json(
-        { detail: "Missing transfer pair identifiers." },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(TransferPairCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { fromId, toId } = parsed.data!;
 
     const transferDoc = {
       workspace_id: workspaceId,
-      from_transaction_id: body.fromId,
-      to_transaction_id: body.toId,
+      from_transaction_id: fromId,
+      to_transaction_id: toId,
       matched_at: new Date().toISOString()
     };
 
@@ -42,6 +44,16 @@ export async function POST(request: Request) {
       ID.unique(),
       transferDoc
     );
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "transfer_pair",
+      resource_id: created.$id,
+      summary: `Created transfer pair from ${fromId} to ${toId}`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ ok: true, id: created.$id });
   } catch (error) {

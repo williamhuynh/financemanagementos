@@ -7,6 +7,7 @@ export interface SessionData {
   email: string;
   name: string;
   isLoggedIn: boolean;
+  csrfToken: string; // CSRF synchronizer token
 }
 
 // Fail-fast if SESSION_SECRET is not set in production

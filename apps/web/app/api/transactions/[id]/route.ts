@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, TransactionUpdateSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -34,6 +40,16 @@ export async function DELETE(
 
     await databases.deleteDocument(config.databaseId, "transactions", id);
 
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "transaction",
+      resource_id: id,
+      summary: `Deleted transaction ${id}`,
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error) {
@@ -53,11 +69,14 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -67,27 +86,30 @@ export async function PATCH(
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    const body = (await request.json()) as {
-      category?: string;
-      is_transfer?: boolean;
-    };
+    const body = await request.json();
+    const parsed = validateBody(TransactionUpdateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { category, is_transfer } = parsed.data!;
+
     const updates: Record<string, unknown> = {
       workspace_id: workspaceId
     };
 
-    if (body.category !== undefined) {
-      const category = body.category.trim() || "Uncategorised";
-      updates.category_name = category;
-      updates.needs_review = category === "Uncategorised";
+    if (category !== undefined) {
+      const normalizedCategory = category.trim() || "Uncategorised";
+      updates.category_name = normalizedCategory;
+      updates.needs_review = normalizedCategory === "Uncategorised";
     }
 
-    if (body.is_transfer !== undefined) {
-      updates.is_transfer = body.is_transfer;
+    if (is_transfer !== undefined) {
+      updates.is_transfer = is_transfer;
     }
 
     if (Object.keys(updates).length === 1) {
       return NextResponse.json(
-        { detail: "No updates provided." },
+        { error: "No updates provided." },
         { status: 400 }
       );
     }
@@ -103,12 +125,22 @@ export async function PATCH(
 
     if (existingTransactions.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Transaction not found or access denied." },
+        { error: "Transaction not found or access denied." },
         { status: 404 }
       );
     }
 
     await databases.updateDocument(config.databaseId, "transactions", id, updates);
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "transaction",
+      resource_id: id,
+      summary: `Updated transaction ${id}`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
