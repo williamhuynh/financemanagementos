@@ -5,14 +5,14 @@ The app hardcodes `"AUD"` and `"en-AU"` throughout. The workspace already stores
 
 ## Scope
 - Supported currencies: **AUD, NZD, USD, GBP, EUR** only (user request to limit scope)
-- No new DB schema changes (workspace already has `currency` field)
-- No FX conversion changes (asset `value_aud` / `fetchAudRate` stays — rename deferred)
+- No new DB schema changes (workspace already has `currency` field; `value_aud` field name stays)
 - Date formatting locale stays `en-AU` for now (DD/MM/YYYY is a display convention, not currency-dependent — ISO stored in DB)
+- Currency is set at workspace creation and **not changeable afterwards** (no migration path for existing data)
 
 ## Design Decisions
 
 ### Currency → Locale mapping
-`Intl.NumberFormat` needs a locale to know how to format (e.g., `$1,234.56` vs `1.234,56 €`). We'll add a mapping:
+`Intl.NumberFormat` needs a locale to format correctly. We use **English locales for all currencies** to keep consistent symbol-first, period-decimal formatting across the app:
 
 ```typescript
 const CURRENCY_CONFIG: Record<SupportedCurrency, { name: string; symbol: string; locale: string }> = {
@@ -20,28 +20,39 @@ const CURRENCY_CONFIG: Record<SupportedCurrency, { name: string; symbol: string;
   NZD: { name: "New Zealand Dollar",  symbol: "$",  locale: "en-NZ" },
   USD: { name: "US Dollar",           symbol: "$",  locale: "en-US" },
   GBP: { name: "British Pound",       symbol: "£",  locale: "en-GB" },
-  EUR: { name: "Euro",                symbol: "€",  locale: "de-DE" },
+  EUR: { name: "Euro",                symbol: "€",  locale: "en-IE" },
 };
 ```
 
-### "Home currency" concept
-The workspace currency is the **home currency** — net worth rollups, dashboard totals, and category spend summaries are all denominated in this currency. Individual transactions/assets can still have their own currency. The existing `value_aud` field on asset valuations continues to serve as the "converted to home currency" value; renaming it to `value_home` is a future migration (out of scope).
+**Why `en-IE` for EUR, not `de-DE`?** Verified in Node 20:
+- `de-DE/EUR` → `"1.234,56 €"` (number first, comma decimal, symbol last) — breaks `maskCurrencyValue`, breaks any code assuming symbol-first format, jarring UX
+- `en-IE/EUR` → `"€1,234.56"` (symbol first, period decimal) — consistent with all other currencies, no parsing breakage
 
-### TypeScript as safety net for Step 3
-**Key improvement:** Make the `currency` parameter **required** (remove the `= "AUD"` defaults) on core formatting functions: `formatAmount`, `formatCurrencyValue`, `formatSignedCurrency`, `buildSpendByCategory`. This way `tsc --noEmit` will flag every single call site that doesn't pass a currency, turning a manual audit of ~40 call sites into a compiler-checked refactor. Much safer than grepping.
+All 5 currencies now produce consistent `SYMBOL + number` format.
+
+### "Home currency" concept
+The workspace currency is the **home currency** — net worth rollups, dashboard totals, and category spend summaries are all denominated in this currency. Individual transactions/assets can still have their own currency.
+
+The existing `value_aud` DB field stores "value converted to home currency". The field name is a misnomer for non-AUD workspaces but renaming it is a migration (out of scope). For AUD workspaces, behavior is identical to today.
+
+### FX conversion must target workspace currency (not always AUD)
+`fetchAudRate()` in `app/api/assets/values/route.ts` currently converts every asset value to AUD. This must be generalized to convert to the workspace's home currency, otherwise net worth is numerically wrong for non-AUD workspaces (e.g., a GBP workspace would display AUD numbers with a £ symbol).
+
+### TypeScript as safety net
+Make the `currency` parameter **required** (remove `= "AUD"` defaults) on `formatAmount`, `formatCurrencyValue`, `formatSignedCurrency`, `buildSpendByCategory`. `tsc --noEmit` will flag every call site that doesn't pass a currency — turning a manual audit of ~40 sites into a compiler-checked refactor.
 
 ### Export pure build functions for testing
-The internal `build*` functions (`buildExpenseBreakdown`, `buildCashFlowWaterfall`, `buildNetWorthSeries`, `buildSpendByCategory`) are pure computation — no DB access — but currently unexported. We'll export them so we can write downstream tests that verify the complete formatted output pipeline with non-AUD currencies. These are the highest-value tests because they exercise the full chain: raw transactions → formatting → final UI-ready output.
+The internal `build*` functions (`buildExpenseBreakdown`, `buildCashFlowWaterfall`) are pure computation — no DB access. Export them so downstream tests can verify the formatted output pipeline with non-AUD currencies end-to-end.
 
-### Whisper prompt
-The transcribe route will look up workspace currency and reference it dynamically instead of hardcoding "Australian dollars".
+### Currency not changeable post-creation
+There is no UI to change workspace currency after creation. This is intentional: existing `value_aud` entries and transaction currency fields are denominated in the original currency. Changing it would make historical data numerically wrong without a migration. Document this as a known constraint.
 
 ---
 
 ## Step-by-step changes
 
 ### Step 1: Create shared currency constants (`lib/currencies.ts`)
-**New file.** Single source of truth for supported currencies, the locale mapping, and currency metadata.
+**New file.** Single source of truth for supported currencies, locale mapping, and metadata.
 
 ```typescript
 export const SUPPORTED_CURRENCIES = ["AUD", "NZD", "USD", "GBP", "EUR"] as const;
@@ -52,7 +63,7 @@ export const CURRENCY_CONFIG: Record<SupportedCurrency, { name: string; symbol: 
   NZD: { name: "New Zealand Dollar",  symbol: "$",  locale: "en-NZ" },
   USD: { name: "US Dollar",           symbol: "$",  locale: "en-US" },
   GBP: { name: "British Pound",       symbol: "£",  locale: "en-GB" },
-  EUR: { name: "Euro",                symbol: "€",  locale: "de-DE" },
+  EUR: { name: "Euro",                symbol: "€",  locale: "en-IE" },
 };
 
 export function getLocaleForCurrency(currency: string): string {
@@ -86,109 +97,118 @@ Two changes per function:
 
 After this step, `tsc --noEmit` will produce compile errors at every call site that relied on the default `"AUD"`. This is intentional — Step 3 fixes them all.
 
-**Risk:** Medium — this is the core formatting change. Deliberately breaks the build until Step 3 is complete.
+**Risk:** Medium — core formatting change. Deliberately breaks the build until Step 3 is complete.
 
-### Step 3: Fix all call sites (compiler-guided)
+### Step 3: Fix `maskCurrencyValue` regex
+The regex at line 639 is `/^(-?)(\$|[A-Z]{3})\s?([\d,]+\.?\d*)/`. Verified in Node 20:
+- `"£1,234.56"` — **no match** (£ is not `$` or `[A-Z]{3}`)
+- `"€1,234.56"` — **no match** (€ is not `$` or `[A-Z]{3}`)
+
+Fix: expand the symbol class to `([$£€]|[A-Z]{3})`.
+
+This is a standalone bug fix that must happen before the formatting changes take effect, otherwise GBP/EUR masking silently degrades (falls through to the generic first-2-chars fallback instead of the currency-aware path).
+
+**Risk:** Low — small regex change, existing `$` behavior unchanged.
+
+### Step 4: Fix all call sites in `lib/data.ts` (compiler-guided)
 Run `tsc --noEmit` and fix every error. Each call site falls into one of two categories:
 
 **Category A — Transaction-level formatting (use the transaction's own currency):**
-These already have `txn.currency` available. Just pass it through. Fallback to workspace home currency (not hardcoded "AUD").
-- Line 1080: `formatSignedCurrency(signedAmount, txn.currency || "AUD")` → `txn.currency || homeCurrency`
+These already have `txn.currency` available. Pass it through. Fallback to `homeCurrency` (not hardcoded "AUD").
+- Line 1080: `txn.currency || homeCurrency`
 - Line 1216: same pattern
 
 **Category B — Summary/rollup formatting (use workspace home currency):**
 These aggregate across transactions and need the workspace's home currency.
 
-In `buildExpenseBreakdown` (lines 1041-1129):
-- Line 1102: `formatSignedCurrency(signedAmount, "AUD")` → `homeCurrency`
-- Line 1116: `formatSignedCurrency(category.amount, "AUD")` → `homeCurrency`
-- Line 1127: `formatCurrencyValue(totalSpendAbs, "AUD")` → `homeCurrency`
-- Add `homeCurrency: string` parameter to function signature
+In `buildExpenseBreakdown` (add `homeCurrency: string` parameter):
+- Lines 1102, 1116, 1127: replace `"AUD"` → `homeCurrency`
 
-In `buildCashFlowWaterfall` (lines 1175-1291):
-- Line 1245: `formatSignedCurrency(amount, "AUD")` → `homeCurrency`
-- Line 1278: `formatSignedCurrency(incomeTotal, "AUD")` → `homeCurrency`
-- Line 1286: `formatSignedCurrency(netTotal, "AUD")` → `homeCurrency`
-- Add `homeCurrency: string` parameter
+In `buildCashFlowWaterfall` (add `homeCurrency: string` parameter):
+- Lines 1245, 1278, 1286: replace `"AUD"` → `homeCurrency`
 
 In asset functions:
-- `buildNetWorthSeries` — line 2347: `DEFAULT_ASSET_CURRENCY` → `homeCurrency` parameter
-- `buildAssetSeries` — similarly
-- Asset item formatting (lines 2487-2493): `DEFAULT_ASSET_CURRENCY` → `homeCurrency`
-- Category summaries (line 2541): `DEFAULT_ASSET_CURRENCY` → `homeCurrency`
-- Net worth formatted (line 2599): `DEFAULT_ASSET_CURRENCY` → `homeCurrency`
+- `buildNetWorthSeries`, `buildAssetSeries` — add `homeCurrency` parameter, replace `DEFAULT_ASSET_CURRENCY`
+- Asset item formatting (lines 2487-2493), category summaries (line 2541), net worth (line 2599): use `homeCurrency`
 
 In monthly close summaries (lines 2822-2955):
 - All `formatCurrencyValue(x, "AUD")` and `formatNetWorth(x, "AUD")` → workspace currency
 - `getMonthlyCloseSummary` needs `homeCurrency` parameter or workspace lookup
 
-**Callers of updated exported functions** — the `get*` functions that call `build*` functions:
-- `getExpenseBreakdown(workspaceId)` → `getExpenseBreakdown(workspaceId, homeCurrency, selectedMonth)` — caller passes workspace currency
-- `getCashFlowWaterfall(workspaceId)` → same pattern
-- `getAssetOverview(workspaceId)` → `getAssetOverview(workspaceId, homeCurrency)`
-- `getStatCards(workspaceId)` — fetch workspace to get currency, pass to `getAssetOverview`
-- `getMonthlyCloseSummary(workspaceId)` → add `homeCurrency` or do workspace lookup inside
+**Callers of updated exported functions** — the `get*` functions:
+- `getExpenseBreakdown(workspaceId, homeCurrency, selectedMonth)`
+- `getCashFlowWaterfall(workspaceId, homeCurrency, selectedMonth)`
+- `getAssetOverview(workspaceId, homeCurrency)`
+- `getStatCards(workspaceId)` — fetch workspace to get currency
+- `getMonthlyCloseSummary(workspaceId, homeCurrency, selectedMonth)`
 
-**Server component callers** in `app/(shell)/` already have workspace context or can look it up. Thread the currency from workspace to each data function call.
+**Server component callers** (`dashboard/page.tsx`, `assets/page.tsx`, `reports/page.tsx`):
+Each currently calls `getApiContext()` which returns `workspaceId` but NOT the workspace currency.
+Each needs an additional call: `const workspace = await getWorkspaceById(context.workspaceId)` to get `workspace.currency`, then pass it to data functions. This is one extra DB read per page load — acceptable since it's cached within the render pass.
 
-**Risk:** Medium-high in terms of line count, but **low in terms of missed sites** because the compiler catches every one. The real risk is introducing a bug in the plumbing (e.g., passing the wrong variable). The downstream tests from Step 2.5 guard against this.
+**Risk:** Medium-high in line count, but **low in missed sites** (compiler catches every one). Real risk is plumbing the wrong variable — downstream tests guard against this.
 
-### Step 4: Fix API route hardcoded defaults
+### Step 5: Generalize FX conversion (`app/api/assets/values/route.ts`)
+`fetchAudRate(currency)` always converts to AUD. For non-AUD workspaces, `value_aud` must store the home-currency equivalent.
+
+**Changes:**
+- Rename function: `fetchAudRate(currency)` → `fetchHomeCurrencyRate(fromCurrency, homeCurrency)`
+- If `fromCurrency === homeCurrency`, return `{ rate: 1, source: "local" }`
+- Otherwise: fetch both rates from openexchangerates (USD-based), compute cross rate `rates[homeCurrency] / rates[fromCurrency]`
+- Caller: look up workspace currency via `getWorkspaceById(workspaceId)`, pass as `homeCurrency`
+- The math is identical to today's cross-rate logic (line 61: `audRate / baseRate`), just generalized
+
+For AUD workspaces, behavior is identical — the function returns the same rates as before.
+
+**Risk:** Medium — touches FX logic but the math is a straightforward generalization. The old code already handles cross-rates; we're just parameterizing the target currency.
+
+### Step 6: Fix API route hardcoded defaults
 
 #### `app/api/cash-logs/commit/route.ts` (line 87)
-- Change `currency: "AUD"` → look up workspace currency: `workspace.currency`
-- Already has `workspaceId` from `getApiContext()`, use `getWorkspaceById(workspaceId)`
+- `currency: "AUD"` → `workspace.currency`
+- Add `getWorkspaceById(workspaceId)` call
 
 #### `app/api/imports/route.ts` (line 316)
-- Change `row.currency ?? "AUD"` → `row.currency ?? workspaceCurrency`
-- Already has `workspaceId`, add workspace lookup
+- `row.currency ?? "AUD"` → `row.currency ?? workspaceCurrency`
+- Add workspace lookup
 
 #### `app/api/assets/route.ts` (line 38)
-- Change `body.currency?.trim() || "AUD"` → `body.currency?.trim() || workspaceCurrency`
-- Already has `workspaceId`, add workspace lookup
+- `body.currency?.trim() || "AUD"` → `body.currency?.trim() || workspaceCurrency`
+- Add workspace lookup
 
 #### `app/api/transcribe/route.ts` (line 51)
-- Replace `"Amounts are in Australian dollars"` → `"Amounts are in ${getCurrencyName(workspaceCurrency)}"`
-- Already has `workspaceId`, add workspace lookup
+- `"Amounts are in Australian dollars"` → `` `Amounts are in ${getCurrencyName(workspaceCurrency)}` ``
+- Add workspace lookup
 
-**Risk:** Low-medium — straightforward lookups. One extra DB read per request (workspace doc), but these are infrequent operations.
+**Risk:** Low-medium — straightforward lookups. One extra DB read per request, but these are infrequent.
 
-### Step 5: Fix Dashboard client formatting
+### Step 7: Fix Dashboard client formatting
 `app/(shell)/dashboard/DashboardClient.tsx` lines 295, 304: hardcoded `"AUD"` in `formatCurrencyValue` calls.
 - Since currency is now required (no default), these will be TypeScript errors after Step 2.
 - Pass `workspace.currency` from workspace context (`useWorkspace()` hook).
 
-**Risk:** Low — client has workspace currency via `useWorkspace()`.
+**Risk:** Low.
 
-### Step 6: Update onboarding to limit currency choices
-`app/onboarding/OnboardingClient.tsx` currently lists 10 currencies. Replace the inline array with an import from `lib/currencies.ts` (which has the 5 supported ones). Map `CURRENCY_CONFIG` to the `{ code, name, symbol }` shape the dropdown expects.
+### Step 8: Update onboarding to limit currency choices
+`app/onboarding/OnboardingClient.tsx` currently lists 10 currencies. Replace inline array with import from `lib/currencies.ts`. Map `CURRENCY_CONFIG` entries to the `{ code, name, symbol }` shape.
 
 **Risk:** Low.
 
-### Step 7: Update `ensureUserHasWorkspace` default
-`lib/workspace-service.ts` line 241: hardcoded `"AUD"`. This is for users who skip onboarding (auto-created workspace). Keep AUD as the default — this is fine since it's the original default and new users go through onboarding where they pick their currency.
+### Step 9: Keep `ensureUserHasWorkspace` default
+`lib/workspace-service.ts` line 241: hardcoded `"AUD"`. Keep as-is — auto-created workspaces default to AUD. Users choose currency during onboarding.
 
-**Risk:** None — keeping existing default.
+**Risk:** None.
 
-### Step 8: Write tests (in parallel with Step 3)
+### Step 10: Write tests
 
-Tests are split into two groups:
+#### Group A: Unit tests for `lib/currencies.ts` (`lib/__tests__/currencies.test.ts`)
+1. `getLocaleForCurrency` — each of 5 returns correct locale; unknown returns `"en-AU"`
+2. `isSupportedCurrency` — `true` for 5, `false` for "CAD", "JPY", etc.
+3. `getCurrencyName` — human-readable name; unknown returns code itself
+4. `SUPPORTED_CURRENCIES` — exactly the 5 expected codes
 
-#### Group A: Unit tests for `lib/currencies.ts` (new file: `lib/__tests__/currencies.test.ts`)
-Pure, fast, no mocking needed:
-1. `getLocaleForCurrency` — each of the 5 returns correct locale; unknown currency returns `"en-AU"` fallback
-2. `isSupportedCurrency` — `true` for the 5, `false` for "CAD", "JPY", random strings
-3. `getCurrencyName` — returns human-readable name for each; unknown returns the code itself
-4. `SUPPORTED_CURRENCIES` — contains exactly the 5 expected codes
-
-#### Group B: Downstream integration tests for build functions (new file: `lib/__tests__/currency-formatting.test.ts`)
-These test the **complete output pipeline** — they exercise formatting + aggregation together. This is where regressions are most likely to hide.
-
-**Export** these previously-internal functions from `data.ts`:
-- `buildExpenseBreakdown`
-- `buildCashFlowWaterfall`
-- `formatCurrencyValue` (already exported)
-- `formatAmount` (currently not exported — export it)
+#### Group B: Downstream tests (`lib/__tests__/currency-formatting.test.ts`)
+Export `buildExpenseBreakdown`, `buildCashFlowWaterfall`, `formatAmount` from `data.ts`.
 
 **Test cases:**
 
@@ -198,43 +218,39 @@ These test the **complete output pipeline** — they exercise formatting + aggre
    formatCurrencyValue(1234.56, "USD") → "$1,234.56"
    formatCurrencyValue(1234.56, "GBP") → "£1,234.56"
    formatCurrencyValue(1234.56, "NZD") → "$1,234.56"
-   formatCurrencyValue(1234.56, "EUR") → "1.234,56 €" (de-DE locale)
+   formatCurrencyValue(1234.56, "EUR") → "€1,234.56"
    ```
+   Use `toContain` for symbol assertions where exact match is fragile (Intl may insert narrow/non-breaking spaces between currency symbol and number in some environments).
 
 2. **`formatCurrencyValue` edge cases:**
-   - Zero: `formatCurrencyValue(0, "GBP")` → "£0.00"
-   - Negative: `formatCurrencyValue(-500, "EUR")` → "-500,00 €"
-   - Large numbers: `formatCurrencyValue(1000000, "USD")` → "$1,000,000.00"
+   - Zero: `formatCurrencyValue(0, "GBP")` → contains "£" and "0.00"
+   - Negative: `formatCurrencyValue(-500, "EUR")` → contains "€" and "500.00"
+   - Large numbers: `formatCurrencyValue(1000000, "USD")` → contains "$" and "1,000,000.00"
 
-3. **`buildExpenseBreakdown` with GBP workspace currency:**
-   - Pass mock transactions (all with `currency: "GBP"`)
-   - Assert `totalFormatted` contains "£", not "$"
+3. **`maskCurrencyValue` with all symbol types:**
+   - `"$1,234.56"` → `"$12***"` (existing behavior, unchanged)
+   - `"-$500.00"` → `"-$50***"` (existing)
+   - `"£1,234.56"` → `"£12***"` (new — validates regex fix)
+   - `"€1,234.56"` → `"€12***"` (new — validates regex fix)
+   - `"NZD 1,234.56"` → `"NZD12***"` (3-letter code path)
+
+4. **`buildExpenseBreakdown` with GBP home currency:**
+   - Pass mock transactions (all `currency: "GBP"`)
+   - Assert `totalFormatted` contains "£"
    - Assert each category's `formattedAmount` contains "£"
-   - Assert individual transaction `amount` contains "£"
 
-4. **`buildExpenseBreakdown` with EUR workspace currency:**
-   - Pass mock transactions with `currency: "EUR"`
-   - Assert `totalFormatted` uses comma decimal / period thousands ("€")
-   - This is the most visually different case — catches locale bugs
+5. **`buildExpenseBreakdown` with EUR home currency:**
+   - Assert `totalFormatted` contains "€"
 
-5. **`buildCashFlowWaterfall` with GBP workspace currency:**
-   - Pass mock income + expense transactions
-   - Assert income step `formattedValue` contains "£"
-   - Assert expense steps contain "£"
-   - Assert net step contains "£"
+6. **`buildCashFlowWaterfall` with GBP home currency:**
+   - Assert income/expense/net steps' `formattedValue` contains "£"
 
-6. **`buildCashFlowWaterfall` with mixed transaction currencies:**
-   - Transactions have individual currency (e.g., "USD"), home currency is "GBP"
-   - Assert individual transaction `amount` uses the transaction's own currency ("$")
-   - Assert summary steps (Income/Net/category totals) use home currency ("£")
+7. **`buildCashFlowWaterfall` with mixed transaction currencies:**
+   - Transactions have `currency: "USD"`, home currency is "GBP"
+   - Individual transaction `amount` uses "$" (transaction's own currency)
+   - Summary steps (Income/Net/category totals) use "£" (home currency)
 
-7. **`maskCurrencyValue` with non-$ symbols:**
-   - Update existing tests to also cover `"£1,234.56"` → `"£12***"` and `"1.234,56 €"` handling
-   - This validates the regex in `maskCurrencyValue` handles GBP/EUR formatted strings
-
-**Risk:** Low for the tests themselves. The main value is catching bugs in Step 3.
-
-### Step 9: Run full test suite, lint, type-check, build
+### Step 11: Run full test suite, lint, type-check, build
 ```sh
 cd apps/web
 npm test
@@ -247,18 +263,16 @@ npm run build
 
 ## Execution order
 
-The steps above are numbered for clarity but the optimal execution order is:
-
-1. **Step 1** — create `lib/currencies.ts` (no dependencies)
-2. **Step 8 Group A** — write unit tests for `currencies.ts` (validates Step 1)
-3. **Step 2** — update formatting functions (makes currency required, breaks build intentionally)
-4. **Step 8 Group B** — write downstream tests with expected output for non-AUD currencies. These tests define the contract we're targeting. Export the needed build functions.
-5. **Step 3** — fix all call sites (compiler-guided). Run tests after each file to catch mistakes incrementally.
-6. **Steps 4, 5, 6** — fix API routes, dashboard, onboarding (can be done in parallel)
-7. **Step 7** — verify workspace-service default (just confirm, no code change)
-8. **Step 9** — full CI suite
-
-This way tests are written **before or alongside** the riskiest refactor (Step 3), and failing tests give us immediate signal if something breaks.
+1. **Step 1** — create `lib/currencies.ts`
+2. **Step 10 Group A** — unit tests for currencies.ts (validates Step 1)
+3. **Step 2** — update formatting functions (makes currency required, intentionally breaks build)
+4. **Step 3** — fix `maskCurrencyValue` regex (standalone fix)
+5. **Step 10 Group B** — downstream tests defining target contract. Export build functions.
+6. **Step 4** — fix all call sites in data.ts (compiler-guided, tests validate incrementally)
+7. **Step 5** — generalize FX conversion
+8. **Steps 6, 7, 8** — API routes, dashboard, onboarding (parallelizable)
+9. **Step 9** — verify workspace-service default
+10. **Step 11** — full CI suite
 
 ---
 
@@ -267,25 +281,26 @@ This way tests are written **before or alongside** the riskiest refactor (Step 3
 | File | Change |
 |------|--------|
 | `lib/currencies.ts` | **NEW** — shared constants, types, helpers |
-| `lib/data.ts` | Remove AUD defaults from formatting functions; use dynamic locale; thread `homeCurrency` through build/get functions; export `buildExpenseBreakdown`, `buildCashFlowWaterfall`, `formatAmount` |
-| `lib/workspace-service.ts` | No change (keep AUD default for `ensureUserHasWorkspace`) |
+| `lib/data.ts` | Remove AUD defaults; dynamic locale; fix maskCurrencyValue regex; thread `homeCurrency` through build/get functions; export build functions |
+| `app/api/assets/values/route.ts` | Generalize `fetchAudRate` → `fetchHomeCurrencyRate` |
 | `app/api/cash-logs/commit/route.ts` | Fetch workspace currency instead of hardcoding AUD |
-| `app/api/imports/route.ts` | Use workspace currency as fallback instead of AUD |
-| `app/api/assets/route.ts` | Use workspace currency as fallback instead of AUD |
+| `app/api/imports/route.ts` | Use workspace currency as fallback |
+| `app/api/assets/route.ts` | Use workspace currency as fallback |
 | `app/api/transcribe/route.ts` | Dynamic currency name in Whisper prompt |
+| `app/(shell)/dashboard/page.tsx` | Add `getWorkspaceById` call, pass currency to data functions |
 | `app/(shell)/dashboard/DashboardClient.tsx` | Use workspace currency for client-side formatting |
-| `app/onboarding/OnboardingClient.tsx` | Limit to 5 supported currencies, import from shared constants |
-| `lib/__tests__/currencies.test.ts` | **NEW** — unit tests for currency constants/helpers |
-| `lib/__tests__/currency-formatting.test.ts` | **NEW** — downstream integration tests for formatting pipeline |
-| Server components calling `get*` functions | Pass workspace currency through |
+| `app/(shell)/assets/page.tsx` | Add `getWorkspaceById` call, pass currency |
+| `app/(shell)/reports/page.tsx` | Add `getWorkspaceById` call, pass currency |
+| `app/onboarding/OnboardingClient.tsx` | Limit to 5 supported currencies |
+| `lib/__tests__/currencies.test.ts` | **NEW** — currency constant unit tests |
+| `lib/__tests__/currency-formatting.test.ts` | **NEW** — downstream formatting pipeline tests |
 
 ## What's NOT in scope
-- Renaming `value_aud` → `value_home` in the DB schema (migration risk)
-- Renaming `fetchAudRate` → `fetchHomeCurrencyRate` (deferred)
+- Renaming `value_aud` DB field → `value_home` (migration risk, field name is cosmetic)
 - Changing date display locale (stays `en-AU` for DD/MM/YYYY)
 - Adding a settings page to change workspace currency post-creation
-- Multi-currency transaction ledger (transactions already store their own currency)
-- FX conversion display in the UI (already works for assets)
+- Migrating existing workspace data when currency changes (currency is immutable post-creation)
+- Cross-currency transaction aggregation with conversion (transactions in a workspace should all be in the workspace currency; mixed currencies are summed at face value — pre-existing behavior)
 
 ## Regression risks and mitigations
 
@@ -293,7 +308,21 @@ This way tests are written **before or alongside** the riskiest refactor (Step 3
 |------|-----------|
 | Forget to pass currency at a call site | Make currency required (no default) → TypeScript catches it |
 | Pass wrong currency variable (e.g., asset currency instead of home currency) | Downstream tests verify formatted output end-to-end |
-| EUR formatting breaks `maskCurrencyValue` regex | Explicit test for `"1.234,56 €"` masking |
-| Mixed-currency transactions show wrong symbol | Test case 6: mixed currencies in waterfall |
-| Existing AUD users see different formatting | AUD locale is `en-AU` — same as before, no visible change |
-| Build functions export breaks encapsulation | Minor — they're pure functions, exporting is fine for testability |
+| `maskCurrencyValue` fails on £/€ symbols | Step 3 fixes regex; Step 10 adds explicit tests |
+| Net worth wrong for non-AUD workspaces | Step 5 generalizes FX conversion to target home currency |
+| Test fragility from Intl.NumberFormat whitespace variations | Use `toContain` for symbol assertions, not exact string matches |
+| Changing workspace currency breaks historical data | Currency is immutable post-creation (no UI exists to change it) |
+| Existing AUD users see different formatting | AUD locale is `en-AU` — identical to today |
+| Server components lack workspace currency | Each page.tsx adds `getWorkspaceById` call (cached in render pass) |
+
+## Issues found during review (resolved above)
+
+1. **EUR locale was `de-DE`** → produces `"1.234,56 €"` (number-first, comma decimal). Changed to `en-IE` → `"€1,234.56"` (symbol-first, period decimal). Avoids breaking masking, parsing, and UI consistency.
+
+2. **`maskCurrencyValue` regex silently fails on £/€** → falls through to generic fallback. Added as explicit Step 3 fix.
+
+3. **FX conversion always targets AUD** → net worth would be AUD-denominated but labelled with workspace symbol. Moved from "out of scope" to Step 5.
+
+4. **No guard against currency change** → documented as intentional constraint (immutable post-creation).
+
+5. **Server components don't have workspace currency** → each `page.tsx` needs explicit `getWorkspaceById` call. Made specific in Step 4.
