@@ -35,6 +35,8 @@ type Preset = {
   id: string;
   label: string;
   headerMap: Record<string, MappingKey>;
+  isWorkspacePreset?: boolean;
+  invertAmount?: boolean;
 };
 
 type ImportHistoryItem = {
@@ -79,7 +81,7 @@ function saveMapping(entry: StoredMapping) {
   }
 }
 
-const presets: Preset[] = [
+const builtInPresets: Preset[] = [
   {
     id: "auto",
     label: "Auto (heuristics)",
@@ -89,20 +91,6 @@ const presets: Preset[] = [
     id: "llm",
     label: "AI (LLM)",
     headerMap: {}
-  },
-  {
-    id: "westpac",
-    label: "Westpac CSV",
-    headerMap: {
-      "Bank Account": "account",
-      Date: "date",
-      Narrative: "description",
-      "Debit Amount": "debit",
-      "Credit Amount": "credit",
-      Balance: "ignore",
-      Categories: "ignore",
-      Serial: "ignore"
-    }
   }
 ];
 
@@ -295,6 +283,16 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     {}
   );
   const [isSuggestingMapping, setIsSuggestingMapping] = useState(false);
+  const [workspacePresets, setWorkspacePresets] = useState<Preset[]>([]);
+  const [savePresetName, setSavePresetName] = useState("");
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [presetStatus, setPresetStatus] = useState("");
+
+  const allPresets = useMemo(
+    () => [...builtInPresets, ...workspacePresets],
+    [workspacePresets]
+  );
 
   // Unified mapped rows: applies column mapping to raw rows for both CSV and PDF
   const mappedRows = useMemo(() => {
@@ -370,6 +368,86 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     };
     loadAccounts();
   }, []);
+
+  // --- Load workspace presets ---
+  const loadWorkspacePresets = async () => {
+    try {
+      const response = await fetch("/api/import-presets", { cache: "no-store" });
+      const payload = await response.json();
+      if (response.ok && Array.isArray(payload?.presets)) {
+        setWorkspacePresets(
+          payload.presets.map((p: { id: string; name: string; headerMap: Record<string, MappingKey>; invertAmount: boolean }) => ({
+            id: `ws_${p.id}`,
+            label: p.name,
+            headerMap: p.headerMap,
+            invertAmount: p.invertAmount,
+            isWorkspacePreset: true,
+          }))
+        );
+      }
+    } catch {
+      // Workspace presets not available — not critical
+    }
+  };
+
+  useEffect(() => {
+    loadWorkspacePresets();
+  }, []);
+
+  const handleSavePreset = async () => {
+    const name = savePresetName.trim();
+    if (!name || Object.keys(mapping).length === 0) return;
+
+    setIsSavingPreset(true);
+    setPresetStatus("");
+    try {
+      const response = await fetch("/api/import-presets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          headerMap: mapping,
+          invertAmount,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setPresetStatus(payload?.error ?? "Failed to save preset.");
+      } else {
+        setPresetStatus(`Saved preset "${name}".`);
+        setSavePresetName("");
+        setShowSavePreset(false);
+        await loadWorkspacePresets();
+      }
+    } catch {
+      setPresetStatus("Failed to save preset.");
+    } finally {
+      setIsSavingPreset(false);
+    }
+  };
+
+  const handleDeletePreset = async (presetDocId: string) => {
+    if (!window.confirm("Delete this saved preset?")) return;
+    setPresetStatus("");
+    try {
+      const response = await fetch(`/api/import-presets/${presetDocId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setPresetStatus("Preset deleted.");
+        await loadWorkspacePresets();
+        // Reset to auto if the deleted preset was selected
+        if (presetId === `ws_${presetDocId}`) {
+          setPresetId("auto");
+        }
+      } else {
+        const payload = await response.json();
+        setPresetStatus(payload?.error ?? "Failed to delete preset.");
+      }
+    } catch {
+      setPresetStatus("Failed to delete preset.");
+    }
+  };
 
   // --- LLM-assisted column mapping ---
   const requestLlmMapping = async (
@@ -642,13 +720,16 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
       return;
     }
 
-    const selectedPreset = presets.find((preset) => preset.id === nextPresetId);
+    const selectedPreset = allPresets.find((preset) => preset.id === nextPresetId);
     const presetMap = selectedPreset?.headerMap ?? {};
     const inferredMapping: Record<string, MappingKey> = {};
     activeHeaders.forEach((header) => {
       inferredMapping[header] = presetMap[header] ?? inferMapping(header);
     });
     setMapping(inferredMapping);
+    if (selectedPreset?.invertAmount !== undefined) {
+      setInvertAmount(selectedPreset.invertAmount);
+    }
   };
 
   const handleMappingChange = (header: string, value: MappingKey) => {
@@ -783,7 +864,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
             id="sourceAccount"
             className="field-input"
             type="text"
-            placeholder="Westpac Altitude Credit Card"
+            placeholder="e.g. Savings Account"
             value={sourceAccount}
             onChange={(event) => setSourceAccount(event.target.value)}
             list="source-account-options"
@@ -860,16 +941,81 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
                     disabled={isSuggestingMapping}
                     onChange={(event) => applyPreset(event.target.value)}
                   >
-                    {presets.map((preset) => (
+                    {builtInPresets.map((preset) => (
                       <option key={preset.id} value={preset.id}>
                         {preset.label}
                       </option>
                     ))}
+                    {workspacePresets.length > 0 ? (
+                      <optgroup label="Saved presets">
+                        {workspacePresets.map((preset) => (
+                          <option key={preset.id} value={preset.id}>
+                            {preset.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
                   </select>
                   {isSuggestingMapping ? (
                     <span className="row-sub">Analysing...</span>
                   ) : null}
+                  {presetId.startsWith("ws_") ? (
+                    <button
+                      className="ghost-btn danger-btn"
+                      type="button"
+                      onClick={() => handleDeletePreset(presetId.slice(3))}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
                 </div>
+                {Object.keys(mapping).length > 0 ? (
+                  <div className="preset-row">
+                    {showSavePreset ? (
+                      <>
+                        <input
+                          className="field-input"
+                          type="text"
+                          placeholder="Preset name, e.g. Westpac CSV"
+                          value={savePresetName}
+                          onChange={(e) => setSavePresetName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSavePreset();
+                          }}
+                        />
+                        <button
+                          className="ghost-btn"
+                          type="button"
+                          disabled={isSavingPreset || !savePresetName.trim()}
+                          onClick={handleSavePreset}
+                        >
+                          {isSavingPreset ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          className="ghost-btn"
+                          type="button"
+                          onClick={() => {
+                            setShowSavePreset(false);
+                            setSavePresetName("");
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="ghost-btn"
+                        type="button"
+                        onClick={() => setShowSavePreset(true)}
+                      >
+                        Save as preset
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+                {presetStatus ? (
+                  <div className="row-sub">{presetStatus}</div>
+                ) : null}
               </>
             ) : null}
             <div className="preset-row">

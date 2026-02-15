@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { COLLECTIONS } from "../../../lib/collection-names";
+import { parseHeaderMap } from "../../../lib/import-presets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { workspaceId, user } = ctx;
+    const { databases, config, workspaceId, user } = ctx;
     await requireWorkspacePermission(workspaceId, user.$id, "write");
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
@@ -122,8 +125,35 @@ export async function POST(request: Request) {
       'Return ONLY a JSON object: {"mapping": {"Header1": "type", ...}, "invertAmount": false}',
     ].join("\n");
 
+    // Load saved workspace presets as additional few-shot examples
+    let savedPresets: RecentMapping[] = [];
+    try {
+      const presetDocs = await databases.listDocuments(
+        config.databaseId,
+        COLLECTIONS.IMPORT_PRESETS,
+        [
+          Query.equal("workspace_id", workspaceId),
+          Query.limit(10),
+        ]
+      );
+      savedPresets = presetDocs.documents.flatMap((doc: { header_map: string; invert_amount: boolean }) => {
+        const headerMap = parseHeaderMap(doc.header_map) as Record<string, MappingKey> | null;
+        if (!headerMap) return [];
+        return [{
+          headers: Object.keys(headerMap),
+          mapping: headerMap,
+          invertAmount: Boolean(doc.invert_amount),
+        }];
+      });
+    } catch {
+      // Saved presets not available — continue without them
+    }
+
+    // Merge: saved workspace presets first, then client-provided recent mappings
+    const allExamples = [...savedPresets, ...recentMappings].slice(0, 8);
+
     const exampleLines: string[] = [];
-    for (const example of recentMappings.slice(0, 5)) {
+    for (const example of allExamples) {
       const mappingStr = JSON.stringify(example.mapping);
       const invertStr = example.invertAmount ? "true" : "false";
       exampleLines.push(

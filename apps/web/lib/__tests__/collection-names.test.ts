@@ -14,6 +14,7 @@ describe("COLLECTIONS", () => {
       "MONTHLY_SNAPSHOTS",
       "CASH_LOGS",
       "TRANSFER_PAIRS",
+      "IMPORT_PRESETS",
     ] as const;
 
     for (const key of required) {
