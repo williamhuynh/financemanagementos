@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { isIncomeCategory, getCategoriesWithMeta } from "../../../../lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,6 @@ type ProcessedGroup = {
 type CommitInput = {
   processed: ProcessedGroup[];
 };
-
-function isIncomeCategory(category: string): boolean {
-  const lower = category.toLowerCase();
-  return lower.includes("income");
-}
 
 export async function POST(request: Request) {
   try {
@@ -53,6 +49,7 @@ export async function POST(request: Request) {
 
     const createdTransactions: string[] = [];
     const updatedLogs: string[] = [];
+    const workspaceCategories = await getCategoriesWithMeta(workspaceId);
 
     for (const group of body.processed) {
       // Fetch the original log to get the date
@@ -74,7 +71,7 @@ export async function POST(request: Request) {
 
       // Create transactions for each parsed item
       for (const item of group.items) {
-        const isIncome = logIsIncome || isIncomeCategory(item.category);
+        const isIncome = logIsIncome || isIncomeCategory(item.category, workspaceCategories);
         const direction = isIncome ? "credit" : "debit";
         const amount = isIncome
           ? item.amount.toFixed(2)

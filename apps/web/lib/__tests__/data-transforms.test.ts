@@ -11,6 +11,7 @@ import {
   toSignedAssetValue,
   formatDirectionLabel,
 } from "../data";
+import type { WorkspaceCategory } from "../data";
 
 describe("parseAmountValue", () => {
   it("parses a plain number string", () => {
@@ -95,30 +96,61 @@ describe("isTransferCategory", () => {
 });
 
 describe("isIncomeCategory", () => {
-  it("returns true for 'Income'", () => {
+  const mockCategories: WorkspaceCategory[] = [
+    { id: "1", name: "Income - Primary", group: "income", color: null, is_system: false },
+    { id: "2", name: "Income - Secondary", group: "income", color: null, is_system: false },
+    { id: "3", name: "Housing", group: "expense", color: null, is_system: false },
+    { id: "4", name: "Groceries", group: "expense", color: null, is_system: false },
+    { id: "5", name: "Salary", group: "income", color: null, is_system: false },
+  ];
+
+  // Fallback tests (no categories passed)
+  it("returns true for 'Income' (fallback)", () => {
     expect(isIncomeCategory("Income")).toBe(true);
   });
 
-  it("returns true for 'Income - Primary'", () => {
+  it("returns true for 'Income - Primary' (fallback)", () => {
     expect(isIncomeCategory("Income - Primary")).toBe(true);
   });
 
-  it("returns true for 'Income - Secondary'", () => {
+  it("returns true for 'Income - Secondary' (fallback)", () => {
     expect(isIncomeCategory("Income - Secondary")).toBe(true);
   });
 
-  it("is case-insensitive", () => {
+  it("is case-insensitive (fallback)", () => {
     expect(isIncomeCategory("INCOME")).toBe(true);
     expect(isIncomeCategory("income - primary")).toBe(true);
   });
 
-  it("returns false for non-income categories", () => {
+  it("returns false for non-income categories (fallback)", () => {
     expect(isIncomeCategory("Housing")).toBe(false);
     expect(isIncomeCategory("Groceries")).toBe(false);
   });
 
-  it("handles whitespace trimming", () => {
+  it("handles whitespace trimming (fallback)", () => {
     expect(isIncomeCategory("  Income  ")).toBe(true);
+  });
+
+  // Group-based tests (with categories)
+  it("uses group field when categories are provided", () => {
+    expect(isIncomeCategory("Income - Primary", mockCategories)).toBe(true);
+    expect(isIncomeCategory("Housing", mockCategories)).toBe(false);
+  });
+
+  it("custom income category with group 'income' returns true", () => {
+    expect(isIncomeCategory("Salary", mockCategories)).toBe(true);
+  });
+
+  it("category named 'Income' but with group 'expense' returns false (group wins)", () => {
+    const categoriesWithExpenseIncome: WorkspaceCategory[] = [
+      { id: "1", name: "Income", group: "expense", color: null, is_system: false },
+    ];
+    expect(isIncomeCategory("Income", categoriesWithExpenseIncome)).toBe(false);
+  });
+
+  it("falls back to pattern match for unknown category names", () => {
+    expect(isIncomeCategory("Income - Other", mockCategories)).toBe(true);
+    expect(isIncomeCategory("Unknown Category", mockCategories)).toBe(false);
   });
 });
 

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { Client, Databases, Query, ID } from "node-appwrite";
 import { getServerConfig, createSessionClient } from "../../../lib/api-auth";
+import { DEFAULT_CATEGORIES } from "../../../lib/categories";
+import { COLLECTIONS } from "../../../lib/collection-names";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -150,6 +152,25 @@ export async function POST(request: Request) {
         role: "owner"
       }
     );
+
+    // Seed default categories for the new workspace
+    for (const cat of DEFAULT_CATEGORIES) {
+      try {
+        await databases.createDocument(
+          session.databaseId,
+          COLLECTIONS.CATEGORIES,
+          ID.unique(),
+          {
+            workspace_id: workspaceId,
+            name: cat.name,
+            group: cat.group ?? "",
+            color: "",
+          }
+        );
+      } catch {
+        // Skip on error — lazy seed will handle it later
+      }
+    }
 
     return NextResponse.json({
       workspace: {

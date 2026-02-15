@@ -8,28 +8,8 @@ import {
 import { getAppwriteClient } from "./appwriteClient";
 import { Client, Databases, Query, Users } from "node-appwrite";
 
-const DEFAULT_CATEGORIES = [
-  "Income - Primary",
-  "Income - Secondary",
-  "Housing",
-  "Transportation",
-  "Groceries",
-  "Food",
-  "Utilities",
-  "Medical, Healthcare & Fitness",
-  "Savings, Investing, & Debt Payments",
-  "Personal Spending",
-  "Recreation & Entertainment",
-  "Travel & Holidays",
-  "Miscellaneous",
-  "Work Expenses - Primary",
-  "Work Expenses - Secondary",
-  "Finance",
-  "Parents Expenses",
-  "Mortgage Repayments",
-  "Transfer",
-  "Uncategorised"
-];
+import { DEFAULT_CATEGORY_NAMES, isSystemCategory } from "./categories";
+import type { CategoryGroup } from "./categories";
 const TRANSFER_DAY_WINDOW = 10;
 const TRANSFER_AMOUNT_TOLERANCE = 0.005;
 const DEFAULT_ASSET_CURRENCY = "AUD";
@@ -996,8 +976,20 @@ export function isTransferCategory(category: string) {
   return category.toLowerCase().includes("transfer");
 }
 
-export function isIncomeCategory(category: string) {
+export function isIncomeCategory(
+  category: string,
+  categories?: WorkspaceCategory[]
+): boolean {
   const normalized = category.trim().toLowerCase();
+  if (categories && categories.length > 0) {
+    const match = categories.find(
+      c => c.name.toLowerCase() === normalized
+    );
+    if (match) {
+      return match.group === "income";
+    }
+  }
+  // Fallback: pattern match for backward compat / unknown names
   return normalized === "income" || normalized.startsWith("income -");
 }
 
@@ -1317,7 +1309,7 @@ export async function getNavItems(): Promise<NavItem[]> {
 export async function getCategories(workspaceId: string): Promise<string[]> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
-    return DEFAULT_CATEGORIES;
+    return DEFAULT_CATEGORY_NAMES;
   }
 
   try {
@@ -1329,10 +1321,67 @@ export async function getCategories(workspaceId: string): Promise<string[]> {
     const names = (response?.documents ?? [])
       .map((doc) => String(doc.name ?? "").trim())
       .filter(Boolean);
-    const fallback = names.length ? names : DEFAULT_CATEGORIES;
+    const fallback = names.length ? names : DEFAULT_CATEGORY_NAMES;
     return fallback.includes("Transfer") ? fallback : [...fallback, "Transfer"];
   } catch (error) {
-    return DEFAULT_CATEGORIES;
+    return DEFAULT_CATEGORY_NAMES;
+  }
+}
+
+export type WorkspaceCategory = {
+  id: string;
+  name: string;
+  group: CategoryGroup;
+  color: string | null;
+  is_system: boolean;
+};
+
+export async function getCategoriesWithMeta(
+  workspaceId: string
+): Promise<WorkspaceCategory[]> {
+  const serverClient = getServerAppwrite();
+  if (!serverClient) {
+    return DEFAULT_CATEGORY_NAMES.map((name, i) => ({
+      id: `default-${i}`,
+      name,
+      group: name.toLowerCase().startsWith("income") ? ("income" as CategoryGroup) : ("expense" as CategoryGroup),
+      color: null,
+      is_system: isSystemCategory(name),
+    }));
+  }
+
+  try {
+    const response = await serverClient.databases.listDocuments(
+      serverClient.databaseId,
+      "categories",
+      [Query.equal("workspace_id", workspaceId), Query.orderAsc("name"), Query.limit(200)]
+    );
+
+    if (response.documents.length === 0) {
+      return DEFAULT_CATEGORY_NAMES.map((name, i) => ({
+        id: `default-${i}`,
+        name,
+        group: name.toLowerCase().startsWith("income") ? ("income" as CategoryGroup) : ("expense" as CategoryGroup),
+        color: null,
+        is_system: isSystemCategory(name),
+      }));
+    }
+
+    return response.documents.map((doc) => ({
+      id: doc.$id,
+      name: String(doc.name ?? ""),
+      group: (doc.group || null) as CategoryGroup,
+      color: doc.color ?? null,
+      is_system: isSystemCategory(String(doc.name ?? "")),
+    }));
+  } catch {
+    return DEFAULT_CATEGORY_NAMES.map((name, i) => ({
+      id: `default-${i}`,
+      name,
+      group: name.toLowerCase().startsWith("income") ? ("income" as CategoryGroup) : ("expense" as CategoryGroup),
+      color: null,
+      is_system: isSystemCategory(name),
+    }));
   }
 }
 
