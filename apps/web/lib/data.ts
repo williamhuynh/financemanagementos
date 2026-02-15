@@ -2239,10 +2239,8 @@ type PreparedAssetRecord = {
 };
 
 function normalizeOwner(value: string): AssetOwner {
-  if (value === "William" || value === "Peggy" || value === "Joint") {
-    return value;
-  }
-  return "Joint";
+  const trimmed = value.trim();
+  return trimmed || "Joint";
 }
 
 function normalizeStatus(value: string): AssetStatus {
