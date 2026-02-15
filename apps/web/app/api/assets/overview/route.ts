@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAssetOverview } from "../../../../lib/data";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../../lib/workspace-service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +20,9 @@ export async function GET() {
     // Verify user has read permission
     await requireWorkspacePermission(workspaceId, user.$id, 'read');
 
-    const overview = await getAssetOverview(workspaceId);
+    const workspace = await getWorkspaceById(workspaceId);
+    const homeCurrency = workspace?.currency ?? "AUD";
+    const overview = await getAssetOverview(workspaceId, homeCurrency);
     return NextResponse.json(overview, {
       headers: {
         "Cache-Control": "no-store, max-age=0"

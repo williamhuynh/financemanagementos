@@ -3,6 +3,7 @@ import { Databases, ID, Query } from "node-appwrite";
 import { buildMonthlySnapshotPayload, getMonthlyCloseSummary } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 
 function isValidMonth(value: string) {
   return /^\d{4}-\d{2}$/.test(value);
@@ -74,7 +75,9 @@ export async function GET(request: Request) {
     if (month && !isValidMonth(month)) {
       return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
     }
-    const summary = await getMonthlyCloseSummary(workspaceId, month || undefined);
+    const workspace = await getWorkspaceById(workspaceId);
+    const homeCurrency = workspace?.currency ?? "AUD";
+    const summary = await getMonthlyCloseSummary(workspaceId, homeCurrency, month || undefined);
     return NextResponse.json(summary);
   } catch (error: any) {
     if (error.message?.includes('not member')) {

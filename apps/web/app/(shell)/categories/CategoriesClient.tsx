@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Card } from "@tandemly/ui";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Card, DetailPanel } from "@tandemly/ui";
 import { getLocaleForCurrency } from "../../../lib/currencies";
 
 type CategoryItem = {
@@ -50,24 +50,32 @@ export default function CategoriesClient({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Detail panel selection
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   // Add form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newGroup, setNewGroup] = useState<"income" | "expense">("expense");
   const [adding, setAdding] = useState(false);
 
-  // Rename state
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Rename state (inside panel)
+  const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Delete state
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Delete state (inside panel)
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [remapTo, setRemapTo] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   const currentMonth = getCurrentMonth();
   const canManage = userRole === "owner" || userRole === "admin";
+
+  const selectedCategory = useMemo(() => {
+    if (!selectedId) return null;
+    return categories.find(c => c.id === selectedId) ?? null;
+  }, [selectedId, categories]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -90,6 +98,28 @@ export default function CategoriesClient({
     setError(null);
     setSuccessMessage(null);
   }
+
+  function handleClosePanel() {
+    setSelectedId(null);
+    setEditingName(false);
+    setConfirmingDelete(false);
+  }
+
+  const handleRowClick = useCallback((id: string) => {
+    setSelectedId(prev => (prev === id ? null : id));
+    setEditingName(false);
+    setConfirmingDelete(false);
+  }, []);
+
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent, id: string) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleRowClick(id);
+      }
+    },
+    [handleRowClick]
+  );
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -117,22 +147,17 @@ export default function CategoriesClient({
     }
   }
 
-  function startRename(cat: CategoryItem) {
-    clearMessages();
-    setEditingId(cat.id);
-    setEditName(cat.name);
-  }
-
-  async function handleRename(cat: CategoryItem) {
+  async function handleRename() {
+    if (!selectedCategory) return;
     clearMessages();
     const trimmed = editName.trim();
-    if (!trimmed || trimmed === cat.name) {
-      setEditingId(null);
+    if (!trimmed || trimmed === selectedCategory.name) {
+      setEditingName(false);
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/categories/${cat.id}`, {
+      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
@@ -142,7 +167,7 @@ export default function CategoriesClient({
         setError(data.error || "Failed to rename");
         return;
       }
-      setEditingId(null);
+      setEditingName(false);
       const countMsg = data.renamed_count > 0
         ? ` ${data.renamed_count} transaction${data.renamed_count === 1 ? "" : "s"} updated.`
         : "";
@@ -155,11 +180,12 @@ export default function CategoriesClient({
     }
   }
 
-  async function handleGroupToggle(cat: CategoryItem) {
+  async function handleGroupToggle() {
+    if (!selectedCategory) return;
     clearMessages();
-    const newGroupValue = cat.group === "income" ? "expense" : "income";
+    const newGroupValue = selectedCategory.group === "income" ? "expense" : "income";
     try {
-      const res = await fetch(`/api/categories/${cat.id}`, {
+      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group: newGroupValue }),
@@ -175,38 +201,30 @@ export default function CategoriesClient({
     }
   }
 
-  function startDelete(cat: CategoryItem) {
+  async function handleDelete() {
+    if (!selectedCategory) return;
     clearMessages();
-    setDeletingId(cat.id);
-    const uncategorised = categories.find(
-      c => c.name === "Uncategorised" && c.id !== cat.id
-    );
-    setRemapTo(uncategorised?.name ?? "");
-  }
-
-  async function handleDelete(cat: CategoryItem) {
-    clearMessages();
-    if (!remapTo) {
+    if (selectedCategory.transaction_count > 0 && !remapTo) {
       setError("Select a category to remap transactions to");
       return;
     }
     setDeleting(true);
     try {
-      const res = await fetch(`/api/categories/${cat.id}`, {
+      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remap_to: remapTo }),
+        body: JSON.stringify({ remap_to: remapTo || "Uncategorised" }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Failed to delete");
         return;
       }
-      setDeletingId(null);
       const countMsg = data.remapped_count > 0
         ? ` ${data.remapped_count} transaction${data.remapped_count === 1 ? "" : "s"} remapped to "${remapTo}".`
         : "";
       setSuccessMessage(`Category deleted.${countMsg}`);
+      handleClosePanel();
       await fetchCategories();
     } catch {
       setError("Failed to delete category");
@@ -228,19 +246,47 @@ export default function CategoriesClient({
   const systemCategories = categories.filter(c => c.is_system);
   const nonSystemCount = categories.filter(c => !c.is_system).length;
 
-  const deletingCategory = deletingId
-    ? categories.find(c => c.id === deletingId)
-    : null;
-
   function renderCategoryRow(cat: CategoryItem) {
-    const isEditing = editingId === cat.id;
-    const isDeleting = deletingId === cat.id;
     const spent = cat.month_spent ?? 0;
+    const isSelected = selectedId === cat.id;
 
     return (
-      <div key={cat.id} className="list-row">
-        <div style={{ flex: 1 }}>
-          {isEditing ? (
+      <div
+        key={cat.id}
+        className={`list-row${isSelected ? " selected" : ""}`}
+        onClick={() => handleRowClick(cat.id)}
+        onKeyDown={(e) => handleRowKeyDown(e, cat.id)}
+        role="button"
+        tabIndex={0}
+        style={{ cursor: "pointer" }}
+      >
+        <div className="cat-row-label">
+          {cat.is_system && (
+            <span title="System category" style={{ opacity: 0.5 }}>&#128274;</span>
+          )}
+          <span className="cat-row-name">{cat.name}</span>
+          <span className="cat-row-count">
+            {cat.transaction_count}
+          </span>
+        </div>
+        <div className="cat-row-right">
+          <span className="cat-row-amount" data-has-value={spent !== 0 ? "" : undefined}>
+            {spent !== 0 ? formatCurrency(Math.abs(spent)) : "--"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function renderPanelContent() {
+    if (!selectedCategory) return null;
+    const spent = selectedCategory.month_spent ?? 0;
+
+    return (
+      <>
+        <div className="right-drawer-detail">
+          <span className="right-drawer-label">Name</span>
+          {editingName ? (
             <div className="form-row" style={{ gap: "8px" }}>
               <input
                 type="text"
@@ -250,15 +296,15 @@ export default function CategoriesClient({
                 style={{ flex: 1 }}
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRename(cat);
-                  if (e.key === "Escape") setEditingId(null);
+                  if (e.key === "Enter") handleRename();
+                  if (e.key === "Escape") setEditingName(false);
                 }}
               />
               <button
                 type="button"
                 className="primary-btn"
                 disabled={saving}
-                onClick={() => handleRename(cat)}
+                onClick={handleRename}
                 style={{ padding: "6px 12px", fontSize: "13px" }}
               >
                 {saving ? "Saving..." : "Save"}
@@ -266,135 +312,141 @@ export default function CategoriesClient({
               <button
                 type="button"
                 className="ghost-btn"
-                onClick={() => setEditingId(null)}
+                onClick={() => setEditingName(false)}
                 style={{ padding: "6px 12px", fontSize: "13px" }}
               >
                 Cancel
               </button>
             </div>
-          ) : isDeleting && deletingCategory ? (
-            <div>
-              <div className="row-title">{cat.name}</div>
-              <div className="row-sub" style={{ marginTop: "8px" }}>
-                {cat.transaction_count > 0 ? (
-                  <>
-                    {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"} will be remapped. Choose a replacement:
+          ) : (
+            <span className="right-drawer-value">{selectedCategory.name}</span>
+          )}
+        </div>
+
+        <div className="right-drawer-detail">
+          <span className="right-drawer-label">Group</span>
+          <span className="right-drawer-value" style={{ textTransform: "capitalize" }}>
+            {selectedCategory.group || (selectedCategory.is_system ? "system" : "expense")}
+          </span>
+        </div>
+
+        <div className="right-drawer-detail">
+          <span className="right-drawer-label">Transactions</span>
+          <span className="right-drawer-value">
+            {selectedCategory.transaction_count} transaction{selectedCategory.transaction_count === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="right-drawer-detail">
+          <span className="right-drawer-label">{formatMonthLabel(currentMonth)}</span>
+          <span className="right-drawer-value">
+            {spent !== 0 ? formatCurrency(Math.abs(spent)) : "--"}
+          </span>
+        </div>
+
+        {selectedCategory.is_system && (
+          <div className="right-drawer-detail" style={{ marginTop: "8px" }}>
+            <span className="right-drawer-value" style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+              System categories cannot be modified.
+            </span>
+          </div>
+        )}
+
+        {canManage && !selectedCategory.is_system && (
+          <div className="right-drawer-actions">
+            {!editingName && (
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setEditName(selectedCategory.name);
+                  setEditingName(true);
+                }}
+                style={{ width: "100%" }}
+              >
+                Rename
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={handleGroupToggle}
+              style={{ width: "100%" }}
+            >
+              Move to {selectedCategory.group === "income" ? "Expense" : "Income"}
+            </button>
+
+            {!confirmingDelete ? (
+              <div className="right-drawer-delete">
+                <button
+                  type="button"
+                  className="ghost-btn danger"
+                  onClick={() => {
+                    setConfirmingDelete(true);
+                    const uncategorised = categories.find(
+                      c => c.name === "Uncategorised" && c.id !== selectedCategory.id
+                    );
+                    setRemapTo(uncategorised?.name ?? "");
+                  }}
+                  disabled={nonSystemCount <= 1}
+                  style={{ width: "100%" }}
+                >
+                  Delete Category
+                </button>
+              </div>
+            ) : (
+              <div className="right-drawer-delete">
+                {selectedCategory.transaction_count > 0 ? (
+                  <div className="right-drawer-detail" style={{ marginBottom: "8px" }}>
+                    <span className="right-drawer-label">
+                      Remap {selectedCategory.transaction_count} transaction{selectedCategory.transaction_count === 1 ? "" : "s"} to
+                    </span>
                     <select
                       value={remapTo}
                       onChange={(e) => setRemapTo(e.target.value)}
                       className="role-select"
-                      style={{ marginTop: "4px", display: "block" }}
+                      style={{ width: "100%", marginTop: "4px" }}
                     >
                       <option value="">Select category...</option>
                       {categories
-                        .filter(c => c.id !== cat.id)
+                        .filter(c => c.id !== selectedCategory.id)
                         .map(c => (
                           <option key={c.id} value={c.name}>{c.name}</option>
                         ))}
                     </select>
-                  </>
+                  </div>
                 ) : (
-                  "No transactions use this category."
+                  <div className="right-drawer-detail" style={{ marginBottom: "8px" }}>
+                    <span className="right-drawer-value" style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                      No transactions use this category.
+                    </span>
+                  </div>
                 )}
-              </div>
-              <div className="form-actions" style={{ marginTop: "8px" }}>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => setDeletingId(null)}
-                  style={{ padding: "6px 12px", fontSize: "13px" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn danger"
-                  disabled={deleting || (cat.transaction_count > 0 && !remapTo)}
-                  onClick={() => handleDelete(cat)}
-                  style={{ padding: "6px 12px", fontSize: "13px" }}
-                >
-                  {deleting ? "Deleting..." : cat.transaction_count > 0 ? "Remap & Delete" : "Delete"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="row-title">
-                {cat.is_system && (
-                  <span title="System category" style={{ marginRight: "6px", opacity: 0.5 }}>&#128274;</span>
-                )}
-                {cat.name}
-              </div>
-              <div className="row-sub">
-                {canManage && !cat.is_system ? (
+                <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     type="button"
-                    onClick={() => handleGroupToggle(cat)}
-                    style={{
-                      background: "none",
-                      border: "1px solid var(--border)",
-                      borderRadius: "12px",
-                      padding: "1px 8px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                      textTransform: "capitalize",
-                    }}
+                    className="ghost-btn"
+                    onClick={() => setConfirmingDelete(false)}
+                    style={{ flex: 1 }}
                   >
-                    {cat.group || "expense"}
+                    Cancel
                   </button>
-                ) : (
-                  <span style={{
-                    fontSize: "11px",
-                    color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                    textTransform: "capitalize",
-                  }}>
-                    {cat.group || "system"}
-                  </span>
-                )}
-                {" "}
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                  {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"}
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-        {!isEditing && !isDeleting && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{
-              fontSize: "13px",
-              fontWeight: 500,
-              fontVariantNumeric: "tabular-nums",
-              color: spent > 0 ? "var(--text)" : "var(--text-secondary)",
-              whiteSpace: "nowrap",
-            }}>
-              {spent !== 0 ? formatCurrency(Math.abs(spent)) : "--"}
-            </span>
-            {canManage && !cat.is_system && (
-              <div style={{ display: "flex", gap: "4px" }}>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => startRename(cat)}
-                  style={{ padding: "4px 8px", fontSize: "12px" }}
-                >
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn danger"
-                  onClick={() => startDelete(cat)}
-                  disabled={nonSystemCount <= 1}
-                  style={{ padding: "4px 8px", fontSize: "12px" }}
-                >
-                  Delete
-                </button>
+                  <button
+                    type="button"
+                    className="ghost-btn danger"
+                    disabled={deleting || (selectedCategory.transaction_count > 0 && !remapTo)}
+                    onClick={handleDelete}
+                    style={{ flex: 1 }}
+                  >
+                    {deleting ? "Deleting..." : selectedCategory.transaction_count > 0 ? "Remap & Delete" : "Delete"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
         )}
-      </div>
+      </>
     );
   }
 
@@ -403,7 +455,7 @@ export default function CategoriesClient({
       {error && <p className="auth-error">{error}</p>}
       {successMessage && <p className="auth-success">{successMessage}</p>}
 
-      <Card title="Expense" sub={`Spent in ${formatMonthLabel(currentMonth)}`}>
+      <Card title="Expense" sub={`Spent in ${formatMonthLabel(currentMonth)}`} className="compact">
         {expenseCategories.length > 0 ? (
           expenseCategories.map(renderCategoryRow)
         ) : (
@@ -411,7 +463,7 @@ export default function CategoriesClient({
         )}
       </Card>
 
-      <Card title="Income" sub={`Received in ${formatMonthLabel(currentMonth)}`}>
+      <Card title="Income" sub={`Received in ${formatMonthLabel(currentMonth)}`} className="compact">
         {incomeCategories.length > 0 ? (
           incomeCategories.map(renderCategoryRow)
         ) : (
@@ -420,7 +472,7 @@ export default function CategoriesClient({
       </Card>
 
       {systemCategories.length > 0 && (
-        <Card title="System">
+        <Card title="System" className="compact">
           {systemCategories.map(renderCategoryRow)}
         </Card>
       )}
@@ -483,6 +535,14 @@ export default function CategoriesClient({
           )}
         </Card>
       )}
+
+      <DetailPanel
+        open={!!selectedCategory}
+        onClose={handleClosePanel}
+        title="Category Details"
+      >
+        {renderPanelContent()}
+      </DetailPanel>
     </>
   );
 }
