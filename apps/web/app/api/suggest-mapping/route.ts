@@ -3,6 +3,7 @@ import { Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../lib/collection-names";
+import { parseHeaderMap } from "../../../lib/import-presets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -135,13 +136,14 @@ export async function POST(request: Request) {
           Query.limit(10),
         ]
       );
-      savedPresets = presetDocs.documents.map((doc: { header_map: string; invert_amount: boolean }) => {
-        const headerMap = JSON.parse(doc.header_map) as Record<string, MappingKey>;
-        return {
+      savedPresets = presetDocs.documents.flatMap((doc: { header_map: string; invert_amount: boolean }) => {
+        const headerMap = parseHeaderMap(doc.header_map) as Record<string, MappingKey> | null;
+        if (!headerMap) return [];
+        return [{
           headers: Object.keys(headerMap),
           mapping: headerMap,
           invertAmount: Boolean(doc.invert_amount),
-        };
+        }];
       });
     } catch {
       // Saved presets not available — continue without them

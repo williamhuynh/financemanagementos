@@ -3,14 +3,10 @@ import { ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../lib/collection-names";
+import { validatePresetName, validateHeaderMap, parseHeaderMap } from "../../../lib/import-presets";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-const VALID_KEYS = new Set<string>([
-  "ignore", "date", "description", "amount",
-  "debit", "credit", "account", "category", "currency",
-]);
 
 /**
  * GET /api/import-presets
@@ -40,14 +36,18 @@ export async function GET() {
       ]
     );
 
-    const presets = response.documents.map((doc: { $id: string; $createdAt: string; name: string; header_map: string; invert_amount: boolean; created_by: string }) => ({
-      id: doc.$id,
-      name: doc.name,
-      headerMap: JSON.parse(doc.header_map),
-      invertAmount: doc.invert_amount,
-      createdBy: doc.created_by,
-      createdAt: doc.$createdAt,
-    }));
+    const presets = response.documents.flatMap((doc: { $id: string; $createdAt: string; name: string; header_map: string; invert_amount: boolean; created_by: string }) => {
+      const headerMap = parseHeaderMap(doc.header_map);
+      if (!headerMap) return [];
+      return [{
+        id: doc.$id,
+        name: doc.name,
+        headerMap,
+        invertAmount: doc.invert_amount,
+        createdBy: doc.created_by,
+        createdAt: doc.$createdAt,
+      }];
+    });
 
     return NextResponse.json({ presets });
   } catch (error) {
@@ -96,38 +96,17 @@ export async function POST(request: Request) {
       invertAmount?: boolean;
     };
 
-    const name = body.name?.trim();
-    if (!name) {
-      return NextResponse.json(
-        { error: "Preset name is required." },
-        { status: 400 }
-      );
+    const nameError = validatePresetName(body.name);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
     }
+    const name = body.name!.trim();
 
-    if (name.length > 200) {
-      return NextResponse.json(
-        { error: "Preset name must be 200 characters or fewer." },
-        { status: 400 }
-      );
+    const mapError = validateHeaderMap(body.headerMap);
+    if (mapError) {
+      return NextResponse.json({ error: mapError }, { status: 400 });
     }
-
-    const headerMap = body.headerMap;
-    if (!headerMap || typeof headerMap !== "object" || Object.keys(headerMap).length === 0) {
-      return NextResponse.json(
-        { error: "headerMap is required and must be a non-empty object." },
-        { status: 400 }
-      );
-    }
-
-    // Validate all mapping values
-    for (const [header, value] of Object.entries(headerMap)) {
-      if (!VALID_KEYS.has(value)) {
-        return NextResponse.json(
-          { error: `Invalid mapping value "${value}" for header "${header}".` },
-          { status: 400 }
-        );
-      }
-    }
+    const headerMap = body.headerMap!;
 
     const invertAmount = Boolean(body.invertAmount);
 
