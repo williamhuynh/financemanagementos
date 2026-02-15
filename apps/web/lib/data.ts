@@ -3078,26 +3078,28 @@ export function filterSeriesByRange(
   if (range === "ALL" || series.length === 0) {
     return series;
   }
-  const now = new Date();
+  const latest = series[series.length - 1].month;
+  const year = Number(latest.slice(0, 4));
+  const month = Number(latest.slice(5, 7));
   let cutoff: string;
   switch (range) {
     case "1M": {
-      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const d = new Date(Date.UTC(year, month - 1 - 1, 1));
+      cutoff = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
       break;
     }
     case "3M": {
-      const d = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const d = new Date(Date.UTC(year, month - 1 - 3, 1));
+      cutoff = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
       break;
     }
     case "YTD": {
-      cutoff = `${now.getFullYear()}-01`;
+      cutoff = `${year}-01`;
       break;
     }
     case "1Y": {
-      const d = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-      cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const d = new Date(Date.UTC(year - 1, month - 1, 1));
+      cutoff = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
       break;
     }
     default:
