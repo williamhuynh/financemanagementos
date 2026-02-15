@@ -16,7 +16,7 @@ export async function DELETE(
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -37,7 +37,7 @@ export async function DELETE(
 
     if (existingValues.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Asset value not found or access denied." },
+        { error: "Asset value not found or access denied." },
         { status: 404 }
       );
     }

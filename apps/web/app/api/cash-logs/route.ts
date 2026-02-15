@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
     }
     console.error("Failed to fetch cash logs:", error);
     return NextResponse.json(
-      { detail: "Failed to fetch cash logs." },
+      { error: "Failed to fetch cash logs." },
       { status: 500 }
     );
   }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
     }
     console.error("Failed to create cash log:", error);
     return NextResponse.json(
-      { detail: "Failed to create cash log." },
+      { error: "Failed to create cash log." },
       { status: 500 }
     );
   }

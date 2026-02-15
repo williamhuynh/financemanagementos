@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const session = await createSessionClient();
 
     if (!session) {
-      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get the authenticated user
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const config = getServerConfig();
     if (!config) {
       return NextResponse.json(
-        { detail: "Missing Appwrite server configuration." },
+        { error: "Missing Appwrite server configuration." },
         { status: 500 }
       );
     }
@@ -89,7 +89,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error fetching workspaces:", error);
-    return NextResponse.json({ detail: "Failed to fetch workspaces" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch workspaces" }, { status: 500 });
   }
 }
 
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     const session = await createSessionClient();
 
     if (!session) {
-      return NextResponse.json({ detail: "Unauthorized - Please log in" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized - Please log in" }, { status: 401 });
     }
 
     const user = await session.account.get();
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     const config = getServerConfig();
     if (!config) {
       return NextResponse.json(
-        { detail: "Missing Appwrite server configuration." },
+        { error: "Missing Appwrite server configuration." },
         { status: 500 }
       );
     }
@@ -198,6 +198,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Workspace creation error:", error);
-    return NextResponse.json({ detail: "Failed to create workspace" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 });
   }
 }

@@ -1,5 +1,3 @@
-import { randomBytes } from "crypto";
-
 /**
  * CSRF protection using the Synchronizer Token Pattern.
  *
@@ -10,13 +8,18 @@ import { randomBytes } from "crypto";
  * 3. On every state-mutating request (POST/PATCH/DELETE), the client sends
  *    the token in the X-CSRF-Token header.
  * 4. The server (middleware) validates the header against the session value.
+ *
+ * NOTE: This module is imported by middleware.ts which runs on Edge runtime.
+ * Only use Web Crypto APIs (not Node.js `crypto`) to stay Edge-compatible.
  */
 
 const TOKEN_BYTES = 32;
 
-/** Generate a cryptographically random CSRF token. */
+/** Generate a cryptographically random CSRF token (Edge-compatible). */
 export function generateCsrfToken(): string {
-  return randomBytes(TOKEN_BYTES).toString("hex");
+  const bytes = new Uint8Array(TOKEN_BYTES);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
@@ -46,8 +49,12 @@ function timingSafeEqual(a: string, b: string): boolean {
 /**
  * Routes exempt from CSRF validation.
  * These are public endpoints that don't have an established session.
+ *
+ * IMPORTANT: Use exact paths (matched with === or with a trailing slash
+ * check) to prevent prefix-based bypasses. For example, a future
+ * `/api/auth/login-audit` route must NOT inherit the exemption.
  */
-export const CSRF_EXEMPT_ROUTES = [
+export const CSRF_EXEMPT_ROUTES = new Set([
   "/api/auth/login",
   "/api/auth/signup",
   "/api/auth/forgot-password",
@@ -56,12 +63,16 @@ export const CSRF_EXEMPT_ROUTES = [
   "/api/auth/session",
   "/api/invitations/verify",
   "/api/health",
-] as const;
+  "/api/health/appwrite",
+]);
 
 /** HTTP methods that require CSRF validation. */
 export const CSRF_PROTECTED_METHODS = ["POST", "PATCH", "DELETE"] as const;
 
-/** Check if a route is exempt from CSRF protection. */
+/**
+ * Check if a route is exempt from CSRF protection.
+ * Uses exact matching to prevent prefix-based bypasses.
+ */
 export function isCsrfExempt(pathname: string): boolean {
-  return CSRF_EXEMPT_ROUTES.some((route) => pathname.startsWith(route));
+  return CSRF_EXEMPT_ROUTES.has(pathname);
 }

@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
     if (!openRouterKey) {
       return NextResponse.json(
-        { detail: "OpenRouter API key not configured." },
+        { error: "OpenRouter API key not configured." },
         { status: 502 }
       );
     }
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
 
     if (!llmResult) {
       return NextResponse.json(
-        { detail: "Failed to parse LLM response." },
+        { error: "Failed to parse LLM response." },
         { status: 502 }
       );
     }
@@ -250,7 +250,7 @@ export async function POST(request: Request) {
       }
       if (error.message.includes("OpenRouter")) {
         return NextResponse.json(
-          { detail: error.message },
+          { error: error.message },
           { status: 502 }
         );
       }

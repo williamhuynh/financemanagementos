@@ -61,16 +61,24 @@ class MemoryStore implements RateLimitStore {
 class RedisStore implements RateLimitStore {
   private client: RedisClient | null = null;
   private connecting: Promise<void> | null = null;
+  private failed = false;
 
   private async getClient(): Promise<RedisClient> {
     if (this.client) return this.client;
+    // If a previous connection attempt failed, allow retry on next call.
+    if (this.failed) {
+      this.connecting = null;
+      this.failed = false;
+    }
     if (this.connecting) {
       await this.connecting;
-      return this.client!;
+      if (!this.client) throw new Error("Redis unavailable");
+      return this.client;
     }
     this.connecting = this.connect();
     await this.connecting;
-    return this.client!;
+    if (!this.client) throw new Error("Redis unavailable");
+    return this.client;
   }
 
   private async connect(): Promise<void> {
@@ -88,6 +96,7 @@ class RedisStore implements RateLimitStore {
     } catch {
       console.error("Redis connection failed — falling back to in-memory rate limiter");
       this.client = null;
+      this.failed = true;
       throw new Error("Redis unavailable");
     }
   }
@@ -159,7 +168,7 @@ export function setRateLimitStore(store: RateLimitStore): void {
 const PRUNE_INTERVAL_MS = 60_000;
 let lastPrune = Date.now();
 
-async function prune(windowMs: number): Promise<void> {
+function prune(windowMs: number): void {
   const now = Date.now();
   if (now - lastPrune < PRUNE_INTERVAL_MS) return;
   lastPrune = now;
@@ -189,16 +198,19 @@ export interface RateLimitConfig {
 /**
  * Check if a request should be rate-limited.
  * Returns null if allowed, or a NextResponse 429 if blocked.
+ *
+ * Async to support both MemoryStore (sync) and RedisStore (async).
+ * All API route handlers are async, so awaiting this is free.
+ * On store failure (e.g. Redis down), requests are allowed through.
  */
-export function rateLimit(
+export async function rateLimit(
   request: Request,
   config: RateLimitConfig
-): NextResponse | null {
+): Promise<NextResponse | null> {
   const { limit, windowMs } = config;
   const now = Date.now();
 
-  // Fire-and-forget prune (don't block the request)
-  prune(windowMs).catch(() => {});
+  prune(windowMs);
 
   const store = getStore();
 
@@ -207,11 +219,8 @@ export function rateLimit(
   const ip = forwarded?.split(",")[0]?.trim() || "unknown";
   const key = `${ip}:${new URL(request.url).pathname}`;
 
-  // For the synchronous memory store path, keep it synchronous
-  const timestamps = store.get(key);
-
-  if (Array.isArray(timestamps) && !(timestamps instanceof Promise)) {
-    // Synchronous path (MemoryStore)
+  try {
+    const timestamps = await store.get(key);
     const filtered = timestamps.filter((t) => t > now - windowMs);
 
     if (filtered.length >= limit) {
@@ -222,67 +231,19 @@ export function rateLimit(
         { error: "Too many requests. Please try again later." },
         {
           status: 429,
-          headers: { "Retry-After": String(retryAfter) },
+          headers: { "Retry-After": String(Math.max(1, retryAfter)) },
         }
       );
     }
 
     filtered.push(now);
-    store.set(key, filtered);
+    await store.set(key, filtered);
+    return null;
+  } catch {
+    // Store failure (e.g. Redis down) — allow request through
+    // rather than blocking all users.
     return null;
   }
-
-  // Async path (Redis) — can't block synchronously, so allow and track async
-  (async () => {
-    try {
-      const ts = await timestamps;
-      const filtered = ts.filter((t: number) => t > now - windowMs);
-      filtered.push(now);
-      await store.set(key, filtered);
-    } catch {
-      // Redis failure — allow request through
-    }
-  })();
-
-  return null;
-}
-
-/**
- * Async rate limit check for use in async route handlers.
- * Preferred over `rateLimit()` when Redis store is in use.
- */
-export async function rateLimitAsync(
-  request: Request,
-  config: RateLimitConfig
-): Promise<NextResponse | null> {
-  const { limit, windowMs } = config;
-  const now = Date.now();
-
-  const store = getStore();
-
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || "unknown";
-  const key = `${ip}:${new URL(request.url).pathname}`;
-
-  const timestamps = await store.get(key);
-  const filtered = timestamps.filter((t) => t > now - windowMs);
-
-  if (filtered.length >= limit) {
-    const retryAfter = Math.ceil(
-      (filtered[0]! + windowMs - now) / 1000
-    );
-    return NextResponse.json(
-      { error: "Too many requests. Please try again later." },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      }
-    );
-  }
-
-  filtered.push(now);
-  await store.set(key, filtered);
-  return null;
 }
 
 // ─── Preset configs ──────────────────────────────────────────

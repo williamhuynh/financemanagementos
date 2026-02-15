@@ -50,7 +50,7 @@ export async function writeAuditLog(
         resource_type: entry.resource_type,
         resource_id: entry.resource_id,
         summary: entry.summary,
-        metadata: entry.metadata ? JSON.stringify(entry.metadata) : "",
+        metadata: safeSerializeMetadata(entry.metadata),
         ip_address: entry.ip_address ?? "",
         created_at: new Date().toISOString(),
       }
@@ -58,6 +58,22 @@ export async function writeAuditLog(
   } catch (error) {
     // Audit logging must never crash the request
     console.error("Audit log write failed:", error);
+  }
+}
+
+const MAX_METADATA_LENGTH = 4096;
+
+/** Safely serialize metadata, with size capping and error handling. */
+function safeSerializeMetadata(metadata: Record<string, unknown> | undefined): string {
+  if (!metadata) return "";
+  try {
+    const json = JSON.stringify(metadata);
+    if (json.length > MAX_METADATA_LENGTH) {
+      return JSON.stringify({ _truncated: true, _length: json.length });
+    }
+    return json;
+  } catch {
+    return JSON.stringify({ _error: "Failed to serialize metadata" });
   }
 }
 

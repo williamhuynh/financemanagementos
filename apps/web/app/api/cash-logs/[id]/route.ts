@@ -29,7 +29,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -50,7 +50,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (existingLogs.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Cash log not found or access denied." },
+        { error: "Cash log not found or access denied." },
         { status: 404 }
       );
     }
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
-        { detail: "No updates provided." },
+        { error: "No updates provided." },
         { status: 400 }
       );
     }
@@ -134,7 +134,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     console.error("Failed to update cash log:", error);
     return NextResponse.json(
-      { detail: "Failed to update cash log." },
+      { error: "Failed to update cash log." },
       { status: 500 }
     );
   }
@@ -148,7 +148,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -169,7 +169,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
     if (existingLogs.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Cash log not found or access denied." },
+        { error: "Cash log not found or access denied." },
         { status: 404 }
       );
     }
@@ -203,7 +203,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
     console.error("Failed to delete cash log:", error);
     return NextResponse.json(
-      { detail: "Failed to delete cash log." },
+      { error: "Failed to delete cash log." },
       { status: 500 }
     );
   }

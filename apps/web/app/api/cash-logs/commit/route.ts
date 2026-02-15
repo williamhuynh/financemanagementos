@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     }
     console.error("Failed to commit cash logs:", error);
     return NextResponse.json(
-      { detail: "Failed to commit cash logs." },
+      { error: "Failed to commit cash logs." },
       { status: 500 }
     );
   }

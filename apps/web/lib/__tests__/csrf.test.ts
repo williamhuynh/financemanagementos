@@ -83,14 +83,19 @@ describe("isCsrfExempt", () => {
   it("does exempt invitation verify route", () => {
     expect(isCsrfExempt("/api/invitations/verify")).toBe(true);
   });
+  it("does NOT exempt routes with matching prefix (prevents bypass)", () => {
+    expect(isCsrfExempt("/api/auth/login-audit")).toBe(false);
+    expect(isCsrfExempt("/api/auth/signupverify")).toBe(false);
+    expect(isCsrfExempt("/api/health/secret")).toBe(false);
+  });
 });
 
 describe("CSRF constants", () => {
   it("CSRF_EXEMPT_ROUTES includes all expected auth routes", () => {
-    expect(CSRF_EXEMPT_ROUTES).toContain("/api/auth/login");
-    expect(CSRF_EXEMPT_ROUTES).toContain("/api/auth/signup");
-    expect(CSRF_EXEMPT_ROUTES).toContain("/api/auth/forgot-password");
-    expect(CSRF_EXEMPT_ROUTES).toContain("/api/auth/reset-password");
+    expect(CSRF_EXEMPT_ROUTES.has("/api/auth/login")).toBe(true);
+    expect(CSRF_EXEMPT_ROUTES.has("/api/auth/signup")).toBe(true);
+    expect(CSRF_EXEMPT_ROUTES.has("/api/auth/forgot-password")).toBe(true);
+    expect(CSRF_EXEMPT_ROUTES.has("/api/auth/reset-password")).toBe(true);
   });
 
   it("CSRF_PROTECTED_METHODS covers state-mutating verbs", () => {

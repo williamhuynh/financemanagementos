@@ -17,7 +17,7 @@ export async function PATCH(
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -59,7 +59,7 @@ export async function PATCH(
 
     if (Object.keys(updates).length === 1) {
       return NextResponse.json(
-        { detail: "No updates provided." },
+        { error: "No updates provided." },
         { status: 400 }
       );
     }
@@ -75,7 +75,7 @@ export async function PATCH(
 
     if (existingAssets.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Asset not found or access denied." },
+        { error: "Asset not found or access denied." },
         { status: 404 }
       );
     }
@@ -120,7 +120,7 @@ export async function DELETE(
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -141,7 +141,7 @@ export async function DELETE(
 
     if (existingAssets.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Asset not found or access denied." },
+        { error: "Asset not found or access denied." },
         { status: 404 }
       );
     }

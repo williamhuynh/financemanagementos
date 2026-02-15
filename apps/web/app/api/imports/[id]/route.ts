@@ -41,7 +41,7 @@ export async function DELETE(
 
     if (existingImports.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Import not found or access denied." },
+        { error: "Import not found or access denied." },
         { status: 404 }
       );
     }

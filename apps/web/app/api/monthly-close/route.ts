@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get("month") ?? "";
     if (month && !isValidMonth(month)) {
-      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid month format." }, { status: 400 });
     }
     const workspace = await getWorkspaceById(workspaceId);
     const homeCurrency = workspace?.currency ?? "AUD";
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     const snapshotPayload = await buildMonthlySnapshotPayload(workspaceId, month);
   if (!snapshotPayload) {
     return NextResponse.json(
-      { detail: "Unable to build monthly snapshot." },
+      { error: "Unable to build monthly snapshot." },
       { status: 500 }
     );
   }
@@ -232,7 +232,7 @@ export async function PATCH(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }

@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
 
     if (created === 0) {
       return NextResponse.json(
-        { detail: "No valid asset values provided." },
+        { error: "No valid asset values provided." },
         { status: 400 }
       );
     }
