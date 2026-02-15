@@ -5,6 +5,7 @@ import {
   getExpenseBreakdown
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 import DashboardClient from "./DashboardClient";
 
 type DashboardPageProps = {
@@ -23,12 +24,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const workspace = await getWorkspaceById(context.workspaceId);
+  const homeCurrency = workspace?.currency ?? "AUD";
 
   // Fetch all dashboard data in parallel instead of sequentially
   const [assetOverview, breakdown, cashFlow] = await Promise.all([
-    getAssetOverview(context.workspaceId),
-    getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month),
-    getCashFlowWaterfall(context.workspaceId, resolvedSearchParams?.month),
+    getAssetOverview(context.workspaceId, homeCurrency),
+    getExpenseBreakdown(context.workspaceId, homeCurrency, resolvedSearchParams?.month),
+    getCashFlowWaterfall(context.workspaceId, homeCurrency, resolvedSearchParams?.month),
   ]);
   const spendByCategory = breakdown.categories;
   const availableCategories = spendByCategory.map((category) => category.name);
@@ -58,6 +61,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       availableCategories={availableCategories}
       selectedSpendCategories={selectedSpendCategories}
       spendTop={spendTop}
+      homeCurrency={homeCurrency}
     />
   );
 }

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getNavItems, getSidebarMonthlyCloseStatus } from "../../lib/data";
+import { getWorkspaceById } from "../../lib/workspace-service";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 import AppShell from "./AppShell";
@@ -28,12 +29,16 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     redirect("/login");
   }
 
+  // Fetch workspace to get home currency
+  const workspace = await getWorkspaceById(context.workspaceId);
+  const homeCurrency = workspace?.currency ?? "AUD";
+
   // Fetch nav items and sidebar status in parallel
   // getNavItems() is a static return so it's instant, but we parallelize
   // getSidebarMonthlyCloseStatus to avoid sequential await chains.
   const [navItems, monthlyCloseStatus] = await Promise.all([
     getNavItems(),
-    getSidebarMonthlyCloseStatus(context.workspaceId),
+    getSidebarMonthlyCloseStatus(context.workspaceId, homeCurrency),
   ]);
 
   // Email verification is already available from getApiContext() — no extra API call needed

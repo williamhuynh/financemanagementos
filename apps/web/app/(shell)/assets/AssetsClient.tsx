@@ -6,10 +6,12 @@ import { Card, SectionHead } from "@tandemly/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue } from "../../../lib/data";
+import { SUPPORTED_CURRENCIES } from "../../../lib/currencies";
 
 type AssetsClientProps = {
   overview: AssetOverview;
   ownerOptions: string[];
+  homeCurrency: string;
 };
 
 type AssetFormState = {
@@ -99,25 +101,26 @@ function getDefaultValue(asset: AssetItem) {
   return Math.abs(asset.latestValue).toString();
 }
 
-function formatValueWithAud(value: string, audValue: string, currency: string) {
-  if (!currency || currency.toUpperCase() === "AUD") {
+function formatValueWithHome(value: string, homeValue: string, currency: string, homeCurrency: string) {
+  if (!currency || currency.toUpperCase() === homeCurrency.toUpperCase()) {
     return value;
   }
-  return `${value} (${audValue})`;
+  return `${value} (${homeValue})`;
 }
 
-function formatValueWithAudMasked(
+function formatValueWithHomeMasked(
   value: string,
-  audValue: string,
+  homeValue: string,
   currency: string,
+  homeCurrency: string,
   isVisible: boolean
 ) {
   const maskedValue = maskCurrencyValue(value, isVisible);
-  if (!currency || currency.toUpperCase() === "AUD") {
+  if (!currency || currency.toUpperCase() === homeCurrency.toUpperCase()) {
     return maskedValue;
   }
-  const maskedAudValue = maskCurrencyValue(audValue, isVisible);
-  return `${maskedValue} (${maskedAudValue})`;
+  const maskedHomeValue = maskCurrencyValue(homeValue, isVisible);
+  return `${maskedValue} (${maskedHomeValue})`;
 }
 
 function buildOwnerLabel(owner: string) {
@@ -138,7 +141,7 @@ function parseCurrencyInput(value: string) {
   return value.replace(/[^0-9.]/g, "");
 }
 
-export default function AssetsClient({ overview, ownerOptions }: AssetsClientProps) {
+export default function AssetsClient({ overview, ownerOptions, homeCurrency }: AssetsClientProps) {
   const { isVisible } = useNumberVisibility();
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
@@ -174,7 +177,7 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
       name: "",
       type: firstType,
       owner: "Joint",
-      currency: "AUD"
+      currency: homeCurrency
     };
   });
   const [assetState, setAssetState] = useState<SaveState>("idle");
@@ -346,7 +349,7 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
 
   const resetAssetForm = (type?: string) => {
     const nextType = type ?? categories[0]?.type ?? "property";
-    setAssetForm({ name: "", type: nextType, owner: "Joint", currency: "AUD" });
+    setAssetForm({ name: "", type: nextType, owner: "Joint", currency: homeCurrency });
     setAssetState("idle");
     setAssetError("");
   };
@@ -471,7 +474,7 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
       name: assetForm.name.trim(),
       type: assetForm.type,
       owner: assetForm.owner,
-      currency: assetForm.currency.trim() || "AUD"
+      currency: assetForm.currency.trim() || homeCurrency
     };
     try {
       const response = await fetch(
@@ -753,8 +756,9 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
                             }))
                           }
                         >
-                          <option value="AUD">AUD</option>
-                          <option value="USD">USD</option>
+                          {SUPPORTED_CURRENCIES.map((code) => (
+                            <option key={code} value={code}>{code}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -801,10 +805,11 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
                           <span>{asset.name}</span>
                       <span>{buildOwnerLabel(asset.owner)}</span>
                       <span>
-                        {formatValueWithAudMasked(
+                        {formatValueWithHomeMasked(
                           asset.formattedValue,
                           asset.formattedAudValue,
                           asset.currency,
+                          homeCurrency,
                           isVisible
                         )}
                       </span>
@@ -1083,10 +1088,11 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
                                     <span>{entry.name}</span>
                                     <span>{entry.typeLabel}</span>
                                     <span>
-                                      {formatValueWithAudMasked(
+                                      {formatValueWithHomeMasked(
                                         entry.formattedValue,
                                         entry.formattedAudValue,
                                         entry.currency,
+                                        homeCurrency,
                                         isVisible
                                       )}
                                     </span>
@@ -1143,10 +1149,11 @@ export default function AssetsClient({ overview, ownerOptions }: AssetsClientPro
                 <span>{asset.typeLabel}</span>
                 <span>{buildOwnerLabel(asset.owner)}</span>
                 <span>
-                  {formatValueWithAudMasked(
+                  {formatValueWithHomeMasked(
                     asset.formattedValue,
                     asset.formattedAudValue,
                     asset.currency,
+                    homeCurrency,
                     isVisible
                   )}
                 </span>

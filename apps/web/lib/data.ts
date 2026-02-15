@@ -10,6 +10,7 @@ import { Client, Databases, Query, Users } from "node-appwrite";
 
 import { DEFAULT_CATEGORY_NAMES, isSystemCategory } from "./categories";
 import type { CategoryGroup } from "./categories";
+import { getLocaleForCurrency } from "./currencies";
 const TRANSFER_DAY_WINDOW = 10;
 const TRANSFER_AMOUNT_TOLERANCE = 0.005;
 const DEFAULT_ASSET_CURRENCY = "AUD";
@@ -606,25 +607,25 @@ async function listTransferPairs(
   return pairs;
 }
 
-function formatAmount(value: string, currency = "AUD") {
+function formatAmount(value: string, currency: string) {
   const numeric = Number(value.replace(/,/g, ""));
   if (!Number.isFinite(numeric)) {
     return value;
   }
-  return new Intl.NumberFormat("en-AU", {
+  return new Intl.NumberFormat(getLocaleForCurrency(currency), {
     style: "currency",
     currency
   }).format(numeric);
 }
 
-export function formatCurrencyValue(amount: number, currency = "AUD") {
-  return new Intl.NumberFormat("en-AU", {
+export function formatCurrencyValue(amount: number, currency: string) {
+  return new Intl.NumberFormat(getLocaleForCurrency(currency), {
     style: "currency",
     currency
   }).format(amount);
 }
 
-function formatSignedCurrency(amount: number, currency = "AUD") {
+function formatSignedCurrency(amount: number, currency: string) {
   const sign = amount < 0 ? "-" : "+";
   return `${sign}${formatCurrencyValue(Math.abs(amount), currency)}`;
 }
@@ -636,7 +637,7 @@ export function maskCurrencyValue(formattedValue: string, isVisible: boolean) {
 
   // Extract currency symbol and numeric part
   // For example: "$1,234.56" or "-$1,234.56"
-  const match = formattedValue.match(/^(-?)(\$|[A-Z]{3})\s?([\d,]+\.?\d*)/);
+  const match = formattedValue.match(/^(-?)([$£€]|[A-Z]{3})\s?([\d,]+\.?\d*)/);
 
   if (!match) {
     // If format doesn't match, just show first 2 chars + asterisks
@@ -957,7 +958,7 @@ function withinTransferTolerance(outflow: number, inflow: number) {
   return Math.abs(outflow - inflow) <= tolerance;
 }
 
-function buildSpendByCategory(items: CategorySpendBase[], currency = "AUD") {
+function buildSpendByCategory(items: CategorySpendBase[], currency: string) {
   const total = items.reduce((sum, item) => sum + item.amount, 0);
   return items
     .filter((item) => item.amount > 0)
@@ -1038,8 +1039,9 @@ function prepareTransactions(
   return { prepared, monthOptions: options, selectedMonth: selected };
 }
 
-function buildExpenseBreakdown(
+export function buildExpenseBreakdown(
   transactions: ExpenseTransactionRaw[],
+  homeCurrency: string,
   selectedMonth?: string
 ) {
   const { prepared, monthOptions, selectedMonth: selected } = prepareTransactions(
@@ -1077,7 +1079,7 @@ function buildExpenseBreakdown(
     totalSpend += signedAmount;
     const formattedAmount = formatSignedCurrency(
       signedAmount,
-      txn.currency || "AUD"
+      txn.currency || homeCurrency
     );
     const sub = [txn.date, txn.accountName].filter(Boolean).join(" - ");
     const transaction: ExpenseTransaction = {
@@ -1099,7 +1101,7 @@ function buildExpenseBreakdown(
       totals.set(categoryName, {
         name: categoryName,
         amount: signedAmount,
-        formattedAmount: formatSignedCurrency(signedAmount, "AUD"),
+        formattedAmount: formatSignedCurrency(signedAmount, homeCurrency),
         percent: 0,
         count: 1,
         transactions: [transaction]
@@ -1113,7 +1115,7 @@ function buildExpenseBreakdown(
       ? Math.round((Math.abs(category.amount) / totalSpendAbs) * 100)
       : 0;
     category.percent = percent;
-    category.formattedAmount = formatSignedCurrency(category.amount, "AUD");
+    category.formattedAmount = formatSignedCurrency(category.amount, homeCurrency);
     category.transactions.sort((a, b) => b.dateValue - a.dateValue);
     return category;
   });
@@ -1124,7 +1126,7 @@ function buildExpenseBreakdown(
     monthOptions,
     selectedMonth: selected,
     totalAmount: totalSpendAbs,
-    totalFormatted: formatCurrencyValue(totalSpendAbs, "AUD"),
+    totalFormatted: formatCurrencyValue(totalSpendAbs, homeCurrency),
     categories
   };
 }
@@ -1173,8 +1175,9 @@ function computePreviousMonthNet(
   return hasData ? prevIncome + prevExpense : null;
 }
 
-function buildCashFlowWaterfall(
+export function buildCashFlowWaterfall(
   transactions: ExpenseTransactionRaw[],
+  homeCurrency: string,
   selectedMonth?: string
 ): CashFlowWaterfall {
   const { prepared, monthOptions, selectedMonth: selected } = prepareTransactions(
@@ -1213,7 +1216,7 @@ function buildCashFlowWaterfall(
       id: txn.id,
       title: txn.description || "Transaction",
       sub,
-      amount: formatSignedCurrency(signedAmount, txn.currency || "AUD"),
+      amount: formatSignedCurrency(signedAmount, txn.currency || homeCurrency),
       tone: isIncome ? "positive" : "negative",
       dateValue: txn.dateValue
     };
@@ -1242,7 +1245,7 @@ function buildCashFlowWaterfall(
     .map(([label, amount]) => ({
       label,
       value: amount,
-      formattedValue: formatSignedCurrency(amount, "AUD"),
+      formattedValue: formatSignedCurrency(amount, homeCurrency),
       kind: "expense" as const,
       transactions: expenseTransactionsByCategory.get(label) ?? []
     }));
@@ -1275,7 +1278,7 @@ function buildCashFlowWaterfall(
       {
         label: "Income",
         value: incomeTotal,
-        formattedValue: formatSignedCurrency(incomeTotal, "AUD"),
+        formattedValue: formatSignedCurrency(incomeTotal, homeCurrency),
         kind: "income",
         transactions: incomeTransactions
       },
@@ -1283,7 +1286,7 @@ function buildCashFlowWaterfall(
       {
         label: "Net",
         value: netTotal,
-        formattedValue: formatSignedCurrency(netTotal, "AUD"),
+        formattedValue: formatSignedCurrency(netTotal, homeCurrency),
         kind: "net"
       }
     ]
@@ -1385,7 +1388,7 @@ export async function getCategoriesWithMeta(
   }
 }
 
-export async function getStatCards(workspaceId: string): Promise<CardStat[]> {
+export async function getStatCards(workspaceId: string, homeCurrency = "AUD"): Promise<CardStat[]> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
     return [];
@@ -1393,7 +1396,7 @@ export async function getStatCards(workspaceId: string): Promise<CardStat[]> {
 
   try {
     const [assetOverview] = await Promise.all([
-      getAssetOverview(workspaceId)
+      getAssetOverview(workspaceId, homeCurrency)
     ]);
 
     const cards: CardStat[] = [];
@@ -2310,7 +2313,8 @@ function prepareAssetRecords(
 
 function buildNetWorthSeries(
   records: PreparedAssetRecord[],
-  disposedByAsset: Map<string, string | null>
+  disposedByAsset: Map<string, string | null>,
+  homeCurrency: string
 ) {
   if (records.length === 0) {
     return [];
@@ -2344,7 +2348,7 @@ function buildNetWorthSeries(
       month: monthKey,
       label: getMonthLabel(new Date(`${monthKey}-01`)),
       value: total,
-      formattedValue: formatNetWorth(total, DEFAULT_ASSET_CURRENCY)
+      formattedValue: formatNetWorth(total, homeCurrency)
     });
   }
 
@@ -2354,7 +2358,8 @@ function buildNetWorthSeries(
 function buildAssetSeries(
   records: PreparedAssetRecord[],
   definitions: AssetDefinition[],
-  disposedByAsset: Map<string, string | null>
+  disposedByAsset: Map<string, string | null>,
+  homeCurrency: string
 ) {
   if (records.length === 0) {
     return {};
@@ -2400,7 +2405,7 @@ function buildAssetSeries(
         month: monthKey,
         label: getMonthLabel(new Date(`${monthKey}-01`)),
         value: signedValue,
-        formattedValue: formatNetWorth(signedValue, definition.currency)
+        formattedValue: formatNetWorth(signedValue, homeCurrency)
       });
     }
   }
@@ -2411,6 +2416,7 @@ function buildAssetSeries(
 function buildAssetOverviewFromRecords(
   records: AssetValueRecord[],
   assetEntities: AssetEntityRecord[],
+  homeCurrency: string,
   definitions: AssetDefinition[] = DEFAULT_ASSET_DEFINITIONS
 ): AssetOverview {
   const assetsById = new Map<string, AssetEntityRecord>();
@@ -2490,7 +2496,7 @@ function buildAssetOverviewFromRecords(
       formattedAudValue:
         valueAud === null
           ? "--"
-          : formatNetWorth(toSignedAssetValue(valueAud, asset.type), DEFAULT_ASSET_CURRENCY),
+          : formatNetWorth(toSignedAssetValue(valueAud, asset.type), homeCurrency),
       lastUpdatedLabel: latest
         ? formatRecordedLabel(latest.recordedAt)
         : "No updates yet"
@@ -2538,7 +2544,7 @@ function buildAssetOverviewFromRecords(
       type: definition.type,
       label: definition.label,
       totalValue: total,
-      formattedValue: formatNetWorth(total, DEFAULT_ASSET_CURRENCY),
+      formattedValue: formatNetWorth(total, homeCurrency),
       subLabel: latestDate ? formatMonthLabelFromDate(latestDate) : "No updates yet",
       tone: isLiabilityAssetType(definition.type) ? "negative" : definition.tone
     };
@@ -2562,7 +2568,7 @@ function buildAssetOverviewFromRecords(
       valueAud: record.valueAud,
       formattedAudValue: formatNetWorth(
         toSignedAssetValue(record.valueAud, record.type),
-        DEFAULT_ASSET_CURRENCY
+        homeCurrency
       ),
       recordedAt: record.recordedAt,
       recordedLabel: formatRecordedLabel(record.recordedAt),
@@ -2578,8 +2584,8 @@ function buildAssetOverviewFromRecords(
     return sum + toSignedAssetValue(latest.valueAud, asset.type);
   }, 0);
 
-  const netWorthSeries = buildNetWorthSeries(prepared, disposedByAsset);
-  const assetSeries = buildAssetSeries(prepared, categoryDefinitions, disposedByAsset);
+  const netWorthSeries = buildNetWorthSeries(prepared, disposedByAsset, homeCurrency);
+  const assetSeries = buildAssetSeries(prepared, categoryDefinitions, disposedByAsset, homeCurrency);
 
   const lastUpdated =
     prepared.length > 0
@@ -2596,7 +2602,7 @@ function buildAssetOverviewFromRecords(
     netWorthSeries,
     assetSeries,
     netWorth,
-    netWorthFormatted: formatNetWorth(netWorth, DEFAULT_ASSET_CURRENCY),
+    netWorthFormatted: formatNetWorth(netWorth, homeCurrency),
     lastUpdatedLabel: lastUpdated ? formatRecordedLabel(lastUpdated) : "No updates yet"
   };
 }
@@ -2605,10 +2611,10 @@ export async function getAssetCards(): Promise<AssetCard[]> {
   return listOrFallback<AssetCard>("asset_cards", assetCards);
 }
 
-export async function getAssetOverview(workspaceId: string): Promise<AssetOverview> {
+export async function getAssetOverview(workspaceId: string, homeCurrency = "AUD"): Promise<AssetOverview> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
-    return buildAssetOverviewFromRecords([], []);
+    return buildAssetOverviewFromRecords([], [], homeCurrency);
   }
 
   try {
@@ -2616,9 +2622,9 @@ export async function getAssetOverview(workspaceId: string): Promise<AssetOvervi
       listAssetValueRecords(serverClient, workspaceId),
       listAssets(serverClient, workspaceId)
     ]);
-    return buildAssetOverviewFromRecords(records, assets);
+    return buildAssetOverviewFromRecords(records, assets, homeCurrency);
   } catch (error) {
-    return buildAssetOverviewFromRecords([], []);
+    return buildAssetOverviewFromRecords([], [], homeCurrency);
   }
 }
 
@@ -2628,11 +2634,12 @@ export async function getReportStats(): Promise<ReportStat[]> {
 
 export async function getSpendByCategory(
   workspaceId: string,
+  homeCurrency = "AUD",
   selectedMonth?: string
 ): Promise<CategorySpend[]> {
-  const breakdown = await getExpenseBreakdown(workspaceId, selectedMonth);
+  const breakdown = await getExpenseBreakdown(workspaceId, homeCurrency, selectedMonth);
   if (breakdown.categories.length === 0) {
-    return buildSpendByCategory(spendByCategory);
+    return buildSpendByCategory(spendByCategory, homeCurrency);
   }
   return breakdown.categories.map((category) => ({
     name: category.name,
@@ -2645,11 +2652,12 @@ export async function getSpendByCategory(
 
 export async function getExpenseBreakdown(
   workspaceId: string,
+  homeCurrency = "AUD",
   selectedMonth?: string
 ): Promise<ExpenseBreakdown> {
   const serverClient = getServerAppwrite();
   if (!serverClient) {
-    return buildExpenseBreakdown([], selectedMonth);
+    return buildExpenseBreakdown([], homeCurrency, selectedMonth);
   }
 
   try {
@@ -2681,17 +2689,18 @@ export async function getExpenseBreakdown(
     );
 
     if (transactions.length === 0) {
-      return buildExpenseBreakdown([], selectedMonth);
+      return buildExpenseBreakdown([], homeCurrency, selectedMonth);
     }
 
-    return buildExpenseBreakdown(filteredTransactions, selectedMonth);
+    return buildExpenseBreakdown(filteredTransactions, homeCurrency, selectedMonth);
   } catch (error) {
-    return buildExpenseBreakdown([], selectedMonth);
+    return buildExpenseBreakdown([], homeCurrency, selectedMonth);
   }
 }
 
 export async function getCashFlowWaterfall(
   workspaceId: string,
+  homeCurrency = "AUD",
   selectedMonth?: string
 ): Promise<CashFlowWaterfall> {
   const serverClient = getServerAppwrite();
@@ -2731,7 +2740,7 @@ export async function getCashFlowWaterfall(
       return buildEmptyCashFlowWaterfall(selectedMonth);
     }
 
-    return buildCashFlowWaterfall(filteredTransactions, selectedMonth);
+    return buildCashFlowWaterfall(filteredTransactions, homeCurrency, selectedMonth);
   } catch (error) {
     return buildEmptyCashFlowWaterfall(selectedMonth);
   }
@@ -2821,6 +2830,7 @@ export async function getEarliestUnclosedMonth(workspaceId: string): Promise<str
 
 export async function getMonthlyCloseSummary(
   workspaceId: string,
+  homeCurrency = "AUD",
   selectedMonth?: string
 ): Promise<MonthlyCloseSummary> {
   const monthOptions = buildRollingMonthOptions(12);
@@ -2838,12 +2848,12 @@ export async function getMonthlyCloseSummary(
       netWorthTotal: 0,
       assetsTotal: 0,
       liabilitiesTotal: 0,
-      formattedIncomeTotal: formatCurrencyValue(0, "AUD"),
-      formattedExpenseTotal: formatCurrencyValue(0, "AUD"),
-      formattedTransferOutflowTotal: formatCurrencyValue(0, "AUD"),
-      formattedNetWorthTotal: formatNetWorth(0, "AUD"),
-      formattedAssetsTotal: formatCurrencyValue(0, "AUD"),
-      formattedLiabilitiesTotal: formatNetWorth(0, "AUD")
+      formattedIncomeTotal: formatCurrencyValue(0, homeCurrency),
+      formattedExpenseTotal: formatCurrencyValue(0, homeCurrency),
+      formattedTransferOutflowTotal: formatCurrencyValue(0, homeCurrency),
+      formattedNetWorthTotal: formatNetWorth(0, homeCurrency),
+      formattedAssetsTotal: formatCurrencyValue(0, homeCurrency),
+      formattedLiabilitiesTotal: formatNetWorth(0, homeCurrency)
     };
   }
 
@@ -2923,15 +2933,15 @@ export async function getMonthlyCloseSummary(
       netWorthTotal: totals.netWorthTotal,
       assetsTotal: totals.assetsTotal,
       liabilitiesTotal: totals.liabilitiesTotal,
-      formattedIncomeTotal: formatCurrencyValue(totals.incomeTotal, "AUD"),
-      formattedExpenseTotal: formatCurrencyValue(totals.expenseTotal, "AUD"),
+      formattedIncomeTotal: formatCurrencyValue(totals.incomeTotal, homeCurrency),
+      formattedExpenseTotal: formatCurrencyValue(totals.expenseTotal, homeCurrency),
       formattedTransferOutflowTotal: formatCurrencyValue(
         totals.transferOutflowTotal,
-        "AUD"
+        homeCurrency
       ),
-      formattedNetWorthTotal: formatNetWorth(totals.netWorthTotal, "AUD"),
-      formattedAssetsTotal: formatCurrencyValue(totals.assetsTotal, "AUD"),
-      formattedLiabilitiesTotal: formatNetWorth(-totals.liabilitiesTotal, "AUD")
+      formattedNetWorthTotal: formatNetWorth(totals.netWorthTotal, homeCurrency),
+      formattedAssetsTotal: formatCurrencyValue(totals.assetsTotal, homeCurrency),
+      formattedLiabilitiesTotal: formatNetWorth(-totals.liabilitiesTotal, homeCurrency)
     };
   } catch (error) {
     return {
@@ -2945,12 +2955,12 @@ export async function getMonthlyCloseSummary(
       netWorthTotal: 0,
       assetsTotal: 0,
       liabilitiesTotal: 0,
-      formattedIncomeTotal: formatCurrencyValue(0, "AUD"),
-      formattedExpenseTotal: formatCurrencyValue(0, "AUD"),
-      formattedTransferOutflowTotal: formatCurrencyValue(0, "AUD"),
-      formattedNetWorthTotal: formatNetWorth(0, "AUD"),
-      formattedAssetsTotal: formatCurrencyValue(0, "AUD"),
-      formattedLiabilitiesTotal: formatNetWorth(0, "AUD")
+      formattedIncomeTotal: formatCurrencyValue(0, homeCurrency),
+      formattedExpenseTotal: formatCurrencyValue(0, homeCurrency),
+      formattedTransferOutflowTotal: formatCurrencyValue(0, homeCurrency),
+      formattedNetWorthTotal: formatNetWorth(0, homeCurrency),
+      formattedAssetsTotal: formatCurrencyValue(0, homeCurrency),
+      formattedLiabilitiesTotal: formatNetWorth(0, homeCurrency)
     };
   }
 }
@@ -3003,7 +3013,7 @@ export async function buildMonthlySnapshotPayload(
   };
 }
 
-export async function getSidebarMonthlyCloseStatus(workspaceId: string): Promise<{
+export async function getSidebarMonthlyCloseStatus(workspaceId: string, homeCurrency = "AUD"): Promise<{
   unresolvedCount: number;
   monthKey: string;
 } | null> {
@@ -3015,7 +3025,7 @@ export async function getSidebarMonthlyCloseStatus(workspaceId: string): Promise
     }
 
     // Get the monthly close summary for that month
-    const summary = await getMonthlyCloseSummary(workspaceId, monthKey);
+    const summary = await getMonthlyCloseSummary(workspaceId, homeCurrency, monthKey);
 
     // Count items with "attention" status
     const unresolvedCount = summary.checklist.filter(

@@ -6,6 +6,7 @@ import type {
   TransferSuggestion,
   TransferTransaction
 } from "../../../lib/data";
+import { getLocaleForCurrency } from "../../../lib/currencies";
 
 type TransferReviewResponse = {
   paired: TransferPairReview[];
@@ -15,7 +16,7 @@ type TransferReviewResponse = {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-export default function TransferMatchClient() {
+export default function TransferMatchClient({ homeCurrency = "AUD" }: { homeCurrency?: string }) {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,9 +56,9 @@ export default function TransferMatchClient() {
   };
 
   const formatDelta = (amount: number, currency: string) =>
-    new Intl.NumberFormat("en-AU", {
+    new Intl.NumberFormat(getLocaleForCurrency(currency || homeCurrency), {
       style: "currency",
-      currency: currency || "AUD"
+      currency: currency || homeCurrency
     }).format(amount);
 
   const handleConfirm = async (suggestion: TransferSuggestion) => {

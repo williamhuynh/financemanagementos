@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../../lib/workspace-service";
 import { isIncomeCategory, getCategoriesWithMeta } from "../../../../lib/data";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
 
     const createdTransactions: string[] = [];
     const updatedLogs: string[] = [];
+    const workspace = await getWorkspaceById(workspaceId);
+    const workspaceCurrency = workspace?.currency ?? "AUD";
     const workspaceCategories = await getCategoriesWithMeta(workspaceId);
 
     for (const group of body.processed) {
@@ -84,7 +87,7 @@ export async function POST(request: Request) {
           date: logDate,
           description: item.description,
           amount,
-          currency: "AUD",
+          currency: workspaceCurrency,
           account_name: CASH_ACCOUNT_NAME,
           source_account: CASH_ACCOUNT_NAME,
           category_name: item.category,

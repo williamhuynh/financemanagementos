@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../lib/workspace-service";
+import { getCurrencyUnitPlural } from "../../../lib/currencies";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,10 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    const workspace = await getWorkspaceById(workspaceId);
+    const currencyUnit = getCurrencyUnitPlural(workspace?.currency ?? "AUD");
+
     const formData = await request.formData();
     const audioFile = formData.get("audio") as Blob | null;
 
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
     // Add prompt to help with financial context
     whisperFormData.append(
       "prompt",
-      "Transcribe this audio about cash expenses. Common items include groceries like eggs, rice, vegetables, meat, fruit. Amounts are in Australian dollars. For example: eggs twenty dollars, rice fifteen dollars."
+      `Transcribe this audio about cash expenses. Common items include groceries like eggs, rice, vegetables, meat, fruit. Amounts are in ${currencyUnit}. For example: eggs twenty ${currencyUnit}, rice fifteen ${currencyUnit}.`
     );
 
     const response = await fetch(OPENAI_WHISPER_ENDPOINT, {

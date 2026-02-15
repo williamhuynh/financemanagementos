@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../../lib/workspace-service";
 
 type AssetValuePayload = {
   assetId?: string;
@@ -27,9 +28,10 @@ async function fetchWithTimeout(url: string, timeoutMs = 6000) {
   }
 }
 
-async function fetchAudRate(currency: string) {
-  const normalized = currency.toUpperCase();
-  if (normalized === "AUD") {
+async function fetchHomeCurrencyRate(fromCurrency: string, homeCurrency: string) {
+  const normalizedFrom = fromCurrency.toUpperCase();
+  const normalizedHome = homeCurrency.toUpperCase();
+  if (normalizedFrom === normalizedHome) {
     return { rate: 1, source: "local" };
   }
   const appId = process.env.OPEN_EXCHANGE_RATES_APP_ID;
@@ -37,9 +39,16 @@ async function fetchAudRate(currency: string) {
     throw new Error("Missing OPEN_EXCHANGE_RATES_APP_ID.");
   }
 
+  // openexchangerates uses USD as base — fetch both currencies relative to USD
+  const symbols = new Set([normalizedFrom, normalizedHome]);
+  symbols.delete("USD"); // USD is always the base, no need to request it
+  const symbolsParam = Array.from(symbols).join(",");
+
   const url = new URL("https://openexchangerates.org/api/latest.json");
   url.searchParams.set("app_id", appId);
-  url.searchParams.set("symbols", normalized === "USD" ? "AUD" : `${normalized},AUD`);
+  if (symbolsParam) {
+    url.searchParams.set("symbols", symbolsParam);
+  }
 
   const response = await fetchWithTimeout(url.toString());
   if (!response.ok) {
@@ -47,18 +56,20 @@ async function fetchAudRate(currency: string) {
   }
   const data = (await response.json()) as { rates?: Record<string, number> };
   const rates = data.rates ?? {};
-  const audRate = rates.AUD;
-  if (!audRate || !Number.isFinite(audRate)) {
-    throw new Error("openexchangerates.org (missing AUD rate)");
+
+  // USD base rate is implicitly 1
+  const homeRate = normalizedHome === "USD" ? 1 : rates[normalizedHome];
+  const fromRate = normalizedFrom === "USD" ? 1 : rates[normalizedFrom];
+
+  if (!homeRate || !Number.isFinite(homeRate)) {
+    throw new Error(`openexchangerates.org (missing ${normalizedHome} rate)`);
   }
-  if (normalized === "USD") {
-    return { rate: audRate, source: "openexchangerates.org" };
+  if (!fromRate || !Number.isFinite(fromRate)) {
+    throw new Error(`openexchangerates.org (missing ${normalizedFrom} rate)`);
   }
-  const baseRate = rates[normalized];
-  if (!baseRate || !Number.isFinite(baseRate)) {
-    throw new Error(`openexchangerates.org (missing ${normalized} rate)`);
-  }
-  return { rate: audRate / baseRate, source: "openexchangerates.org" };
+
+  // Cross rate: how many home currency units per 1 fromCurrency unit
+  return { rate: homeRate / fromRate, source: "openexchangerates.org" };
 }
 
 export async function POST(request: Request) {
@@ -91,17 +102,21 @@ export async function POST(request: Request) {
 
     const recordedAt = body.recordedAt?.trim() || new Date().toISOString();
 
+    // Fetch workspace to determine home currency
+    const workspace = await getWorkspaceById(workspaceId);
+    const homeCurrency = workspace?.currency ?? "AUD";
+
     let created = 0;
     const rateCache = new Map<string, { rate: number; source: string }>();
     for (const item of items) {
       if (!item.assetName || !Number.isFinite(item.value)) {
         continue;
       }
-      const currency = (item.currency ?? "AUD").toUpperCase();
+      const currency = (item.currency ?? homeCurrency).toUpperCase();
       let rate = rateCache.get(currency);
       if (!rate) {
         try {
-          rate = await fetchAudRate(currency);
+          rate = await fetchHomeCurrencyRate(currency, homeCurrency);
         } catch (error) {
           return NextResponse.json(
             {
@@ -115,7 +130,7 @@ export async function POST(request: Request) {
         }
         rateCache.set(currency, rate);
       }
-      const audValue = item.value * rate.rate;
+      const homeValue = item.value * rate.rate;
       await databases.createDocument(config.databaseId, "asset_values", ID.unique(), {
         workspace_id: workspaceId,
         asset_id: item.assetId ?? "",
@@ -125,7 +140,7 @@ export async function POST(request: Request) {
         currency,
         original_value: String(item.value),
         original_currency: currency,
-        value_aud: String(audValue),
+        value_aud: String(homeValue),
         fx_rate: String(rate.rate),
         fx_source: rate.source,
         recorded_at: recordedAt,

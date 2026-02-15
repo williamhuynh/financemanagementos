@@ -2,6 +2,7 @@ import { NextResponse, after } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 import { normalizeDateToISO } from "../../../lib/data";
 import { DEFAULT_CATEGORY_NAMES } from "../../../lib/categories";
 
@@ -294,6 +295,8 @@ export async function POST(request: Request) {
 
   const createdTransactions: CategorizationInput[] = [];
 
+  const workspace = await getWorkspaceById(workspaceId);
+  const workspaceCurrency = workspace?.currency ?? "AUD";
   const sourceAccount = body.sourceAccount ?? "";
   const referenceDate = getReferenceDate(rows);
 
@@ -313,7 +316,7 @@ export async function POST(request: Request) {
       date: normalizedDate,
       description: row.description ?? "",
       amount,
-      currency: row.currency ?? "AUD",
+      currency: row.currency ?? workspaceCurrency,
       account_name: row.account ?? body.sourceAccount ?? "Unassigned",
       source_account: body.sourceAccount ?? "",
       source_owner: body.sourceOwner ?? "",

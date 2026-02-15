@@ -12,7 +12,23 @@ import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 import SpendByCategoryControls from "./SpendByCategoryControls";
 
-import type { NetWorthPoint, AssetCategorySummary } from "../../../lib/data";
+import type {
+  NetWorthPoint,
+  AssetCategorySummary,
+  AssetOverview,
+  ExpenseBreakdown,
+  CashFlowWaterfall
+} from "../../../lib/data";
+
+type DashboardClientProps = {
+  assetOverview: AssetOverview;
+  breakdown: ExpenseBreakdown;
+  cashFlow: CashFlowWaterfall;
+  availableCategories: string[];
+  selectedSpendCategories: string[];
+  spendTop: number;
+  homeCurrency: string;
+};
 
 type DonutSegment = { className: string; value: number };
 type DonutLegend = { label: string; dot: string };
@@ -133,8 +149,9 @@ export default function DashboardClient({
   cashFlow,
   availableCategories,
   selectedSpendCategories,
-  spendTop
-}: any) {
+  spendTop,
+  homeCurrency
+}: DashboardClientProps) {
   const { isVisible } = useNumberVisibility();
 
   const spendByCategory = breakdown.categories;
@@ -292,7 +309,7 @@ export default function DashboardClient({
             style={{ color: cashFlow.netTotal >= 0 ? "var(--asset)" : "var(--liability)" }}
           >
             {maskCurrencyValue(
-              formatCurrencyValue(cashFlow.netTotal, "AUD"),
+              formatCurrencyValue(cashFlow.netTotal, homeCurrency),
               isVisible
             )}
           </div>
@@ -301,7 +318,7 @@ export default function DashboardClient({
               <span className="cash-flow-prev-label">Last month:</span>{" "}
               <span>
                 {maskCurrencyValue(
-                  formatCurrencyValue(cashFlow.previousMonthNetTotal, "AUD"),
+                  formatCurrencyValue(cashFlow.previousMonthNetTotal, homeCurrency),
                   isVisible
                 )}
               </span>
