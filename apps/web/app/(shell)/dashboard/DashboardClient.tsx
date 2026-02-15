@@ -133,7 +133,8 @@ export default function DashboardClient({
   cashFlow,
   availableCategories,
   selectedSpendCategories,
-  spendTop
+  spendTop,
+  homeCurrency = "AUD"
 }: any) {
   const { isVisible } = useNumberVisibility();
 
@@ -292,7 +293,7 @@ export default function DashboardClient({
             style={{ color: cashFlow.netTotal >= 0 ? "var(--asset)" : "var(--liability)" }}
           >
             {maskCurrencyValue(
-              formatCurrencyValue(cashFlow.netTotal, "AUD"),
+              formatCurrencyValue(cashFlow.netTotal, homeCurrency),
               isVisible
             )}
           </div>
@@ -301,7 +302,7 @@ export default function DashboardClient({
               <span className="cash-flow-prev-label">Last month:</span>{" "}
               <span>
                 {maskCurrencyValue(
-                  formatCurrencyValue(cashFlow.previousMonthNetTotal, "AUD"),
+                  formatCurrencyValue(cashFlow.previousMonthNetTotal, homeCurrency),
                   isVisible
                 )}
               </span>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ID } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 
 export async function POST(request: Request) {
   try {
@@ -34,8 +35,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const workspace = await getWorkspaceById(workspaceId);
+    const workspaceCurrency = workspace?.currency ?? "AUD";
     const owner = body.owner?.trim() || "Joint";
-    const currency = body.currency?.trim() || "AUD";
+    const currency = body.currency?.trim() || workspaceCurrency;
 
     await databases.createDocument(config.databaseId, "assets", ID.unique(), {
       workspace_id: workspaceId,

@@ -2,6 +2,7 @@ import { SectionHead } from "@tandemly/ui";
 import { redirect } from "next/navigation";
 import { getExpenseBreakdown, getMonthlyCloseSummary } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 import MonthlyCloseClient from "./MonthlyCloseClient";
 
 type ReportsPageProps = {
@@ -16,9 +17,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const workspace = await getWorkspaceById(context.workspaceId);
+  const homeCurrency = workspace?.currency ?? "AUD";
   const [summary, expenseBreakdown] = await Promise.all([
-    getMonthlyCloseSummary(context.workspaceId, resolvedSearchParams?.month),
-    getExpenseBreakdown(context.workspaceId, resolvedSearchParams?.month)
+    getMonthlyCloseSummary(context.workspaceId, homeCurrency, resolvedSearchParams?.month),
+    getExpenseBreakdown(context.workspaceId, homeCurrency, resolvedSearchParams?.month)
   ]);
 
   return (
