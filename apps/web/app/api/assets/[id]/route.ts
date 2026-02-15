@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, AssetUpdateSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -21,36 +27,34 @@ export async function PATCH(
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    const body = (await request.json()) as {
-      name?: string;
-      type?: string;
-      owner?: string;
-      currency?: string;
-      status?: string;
-      disposedAt?: string;
-    };
+    const body = await request.json();
+    const parsed = validateBody(AssetUpdateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { name, type, owner, currency, status, disposedAt } = parsed.data;
 
     const updates: Record<string, unknown> = {
       workspace_id: workspaceId
     };
 
-    if (body.name !== undefined) {
-      updates.name = body.name.trim();
+    if (name !== undefined) {
+      updates.name = name;
     }
-    if (body.type !== undefined) {
-      updates.type = body.type.trim();
+    if (type !== undefined) {
+      updates.type = type;
     }
-    if (body.owner !== undefined) {
-      updates.owner = body.owner.trim();
+    if (owner !== undefined) {
+      updates.owner = owner;
     }
-    if (body.currency !== undefined) {
-      updates.currency = body.currency.trim();
+    if (currency !== undefined) {
+      updates.currency = currency;
     }
-    if (body.status !== undefined) {
-      updates.status = body.status.trim();
+    if (status !== undefined) {
+      updates.status = status;
     }
-    if (body.disposedAt !== undefined) {
-      updates.disposed_at = body.disposedAt.trim();
+    if (disposedAt !== undefined) {
+      updates.disposed_at = disposedAt;
     }
 
     if (Object.keys(updates).length === 1) {
@@ -78,6 +82,18 @@ export async function PATCH(
 
     await databases.updateDocument(config.databaseId, "assets", id, updates);
 
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "asset",
+      resource_id: id,
+      summary: `Updated asset ${id}`,
+      metadata: { fields: Object.keys(updates).filter(k => k !== "workspace_id") },
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error) {
@@ -94,10 +110,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -161,6 +180,17 @@ export async function DELETE(
 
     await databases.updateDocument(config.databaseId, "assets", id, {
       deleted_at: deletedAt
+    });
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "asset",
+      resource_id: id,
+      summary: `Deleted asset ${id} and its valuations`,
+      ip_address: getClientIp(request),
     });
 
     return NextResponse.json({ ok: true });

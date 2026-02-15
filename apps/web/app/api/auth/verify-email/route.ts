@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Client, Account } from "node-appwrite";
 import { getSession } from "../../../../lib/session";
+import { validateBody, VerifyEmailSchema } from "../../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,11 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { action } = body;
+    const parsed = validateBody(VerifyEmailSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { action } = parsed.data;
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -57,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     if (action === "confirm") {
-      const { userId, secret } = body;
+      const { userId, secret } = parsed.data;
 
       if (!userId || !secret) {
         return NextResponse.json(

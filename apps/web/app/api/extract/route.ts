@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { resolveExtractor } from "../../../lib/extractors";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,6 +20,9 @@ export const revalidate = 0;
  */
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.ai);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(

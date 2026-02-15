@@ -3,12 +3,16 @@ import { getAssetOverview } from "../../../../lib/data";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../../lib/workspace-service";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+    if (blocked) return blocked;
+
     // Authentication and workspace context
     const context = await getApiContext();
     if (!context) {

@@ -4,6 +4,9 @@ import { buildMonthlySnapshotPayload, getMonthlyCloseSummary } from "../../../li
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../lib/workspace-service";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, MonthlyCloseCreateSchema, MonthlyCloseReopenSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 function isValidMonth(value: string) {
   return /^\d{4}-\d{2}$/.test(value);
@@ -59,6 +62,9 @@ async function listCollectionAttributes(
 
 export async function GET(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+    if (blocked) return blocked;
+
     // Authentication and workspace context
     const ctx = await getApiContext();
     if (!ctx) {
@@ -96,6 +102,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -109,11 +118,14 @@ export async function POST(request: Request) {
     // Monthly close requires admin permission
     await requireWorkspacePermission(workspaceId, user.$id, 'admin');
 
-    const body = (await request.json()) as { month?: string; notes?: string };
-    const month = body.month?.trim() ?? "";
-    if (!isValidMonth(month)) {
-      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+    const body = await request.json();
+
+    const parsed = validateBody(MonthlyCloseCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const month = parsed.data!.month;
 
     const snapshotPayload = await buildMonthlySnapshotPayload(workspaceId, month);
   if (!snapshotPayload) {
@@ -165,7 +177,7 @@ export async function POST(request: Request) {
     status: "closed",
     closed_at: new Date().toISOString(),
     closed_by: "system",
-    notes: body.notes ?? "",
+    notes: parsed.data!.notes ?? "",
     snapshot_id: String(snapshot.$id ?? "")
   };
 
@@ -185,6 +197,17 @@ export async function POST(request: Request) {
     );
   }
 
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "monthly_close",
+      resource_id: snapshot.$id,
+      summary: `Closed month ${month}`,
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ ok: true, status: "closed", snapshotId: snapshot.$id });
   } catch (error: any) {
     if (error.message?.includes('not member')) {
@@ -203,6 +226,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -216,11 +242,14 @@ export async function PATCH(request: Request) {
     // Reopening month requires admin permission
     await requireWorkspacePermission(workspaceId, user.$id, 'admin');
 
-    const body = (await request.json()) as { month?: string; notes?: string };
-    const month = body.month?.trim() ?? "";
-    if (!isValidMonth(month)) {
-      return NextResponse.json({ detail: "Invalid month format." }, { status: 400 });
+    const body = await request.json();
+
+    const parsed = validateBody(MonthlyCloseReopenSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const month = parsed.data!.month;
 
   const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
   if (!existing) {
@@ -230,8 +259,20 @@ export async function PATCH(request: Request) {
       status: "open",
       reopened_at: new Date().toISOString(),
       reopened_by: "system",
-      notes: body.notes ?? ""
+      notes: parsed.data!.notes ?? ""
     });
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "monthly_close",
+      resource_id: month,
+      summary: `Reopened month ${month}`,
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ ok: true, status: "open" });
   }
 
@@ -243,9 +284,20 @@ export async function PATCH(request: Request) {
         status: "open",
         reopened_at: new Date().toISOString(),
         reopened_by: "system",
-        notes: body.notes ?? ""
+        notes: parsed.data!.notes ?? ""
       }
     );
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "monthly_close",
+      resource_id: month,
+      summary: `Reopened month ${month}`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ ok: true, status: "open" });
   } catch (error: any) {

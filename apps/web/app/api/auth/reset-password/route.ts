@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Client, Account } from "node-appwrite";
 import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, ResetPasswordSchema } from "../../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +14,12 @@ export async function POST(request: Request) {
   if (blocked) return blocked;
 
   try {
-    const { userId, secret, password } = await request.json();
-
-    if (!userId || !secret || !password) {
-      return NextResponse.json(
-        { error: "User ID, secret, and new password are required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(ResetPasswordSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
-    }
+    const { userId, secret, password } = parsed.data;
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;

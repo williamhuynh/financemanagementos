@@ -3,9 +3,15 @@ import { ID } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../lib/workspace-service";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, AssetCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -19,28 +25,19 @@ export async function POST(request: Request) {
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    const body = (await request.json()) as {
-      name?: string;
-      type?: string;
-      owner?: string;
-      currency?: string;
-    };
-
-    const name = body.name?.trim();
-    const type = body.type?.trim();
-    if (!name || !type) {
-      return NextResponse.json(
-        { detail: "Asset name and type are required." },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(AssetCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { name, type, owner: rawOwner, currency: rawCurrency } = parsed.data;
 
     const workspace = await getWorkspaceById(workspaceId);
     const workspaceCurrency = workspace?.currency ?? "AUD";
-    const owner = body.owner?.trim() || "Joint";
-    const currency = body.currency?.trim() || workspaceCurrency;
+    const owner = rawOwner || "Joint";
+    const currency = rawCurrency || workspaceCurrency;
 
-    await databases.createDocument(config.databaseId, "assets", ID.unique(), {
+    const doc = await databases.createDocument(config.databaseId, "assets", ID.unique(), {
       workspace_id: workspaceId,
       name,
       type,
@@ -48,6 +45,17 @@ export async function POST(request: Request) {
       status: "active",
       currency,
       disposed_at: ""
+    });
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "asset",
+      resource_id: doc.$id,
+      summary: `Created asset "${name}" (${type})`,
+      ip_address: getClientIp(request),
     });
 
     return NextResponse.json({ ok: true });

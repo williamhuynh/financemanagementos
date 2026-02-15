@@ -5,9 +5,11 @@ import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../lib/workspace-service";
 import { normalizeDateToISO } from "../../../lib/data";
 import { DEFAULT_CATEGORY_NAMES } from "../../../lib/categories";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, ImportCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AppwriteDocument = { $id: string; [key: string]: any };
+type AppwriteDocument = { $id: string; [key: string]: unknown };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -249,11 +251,14 @@ async function fetchHistoryMatches(
 }
 
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.bulk);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -266,26 +271,20 @@ export async function POST(request: Request) {
   const openRouterModel =
     process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
 
-  const body = (await request.json()) as {
-    sourceName?: string;
-    fileName?: string;
-    rows?: ImportRow[];
-    sourceAccount?: string;
-    sourceOwner?: string;
-  };
-
-  const rows = body.rows ?? [];
-  if (!rows.length) {
-    return NextResponse.json({ detail: "No rows provided." }, { status: 400 });
+  const body = await request.json();
+  const parsed = validateBody(ImportCreateSchema, body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
+  const { sourceName, fileName, rows, sourceAccount, sourceOwner } = parsed.data!;
 
   const importId = ID.unique();
   const importDoc = {
     workspace_id: workspaceId,
-    source_name: body.sourceName ?? "CSV",
-    source_account: body.sourceAccount ?? "",
-    source_owner: body.sourceOwner ?? "",
-    file_name: body.fileName ?? "",
+    source_name: sourceName ?? "CSV",
+    source_account: sourceAccount ?? "",
+    source_owner: sourceOwner ?? "",
+    file_name: fileName ?? "",
     row_count: rows.length,
     status: "imported",
     uploaded_at: new Date().toISOString()
@@ -297,7 +296,6 @@ export async function POST(request: Request) {
 
   const workspace = await getWorkspaceById(workspaceId);
   const workspaceCurrency = workspace?.currency ?? "AUD";
-  const sourceAccount = body.sourceAccount ?? "";
   const referenceDate = getReferenceDate(rows);
 
   for (const row of rows) {
@@ -317,9 +315,9 @@ export async function POST(request: Request) {
       description: row.description ?? "",
       amount,
       currency: row.currency ?? workspaceCurrency,
-      account_name: row.account ?? body.sourceAccount ?? "Unassigned",
-      source_account: body.sourceAccount ?? "",
-      source_owner: body.sourceOwner ?? "",
+      account_name: row.account ?? sourceAccount ?? "Unassigned",
+      source_account: sourceAccount ?? "",
+      source_owner: sourceOwner ?? "",
       category_name: category,
       direction,
       notes: "",
@@ -339,7 +337,7 @@ export async function POST(request: Request) {
       date: normalizedDate,
       description: row.description ?? "",
       amount,
-      account: row.account ?? body.sourceAccount ?? "Unassigned"
+      account: row.account ?? sourceAccount ?? "Unassigned"
     });
   }
 
@@ -466,6 +464,16 @@ export async function POST(request: Request) {
     });
   }
 
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "import",
+      resource_type: "import",
+      resource_id: importId,
+      summary: `Imported ${rows.length} rows from ${sourceName ?? "CSV"}`,
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ importId });
   } catch (error) {
     if (error instanceof Error) {
@@ -481,12 +489,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }

@@ -4,6 +4,8 @@ import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../lib/collection-names";
 import { parseHeaderMap } from "../../../lib/import-presets";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, SuggestMappingSchema } from "../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -58,6 +60,9 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
  */
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.ai);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -80,22 +85,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as {
-      headers?: string[];
-      sampleRows?: string[][];
-      recentMappings?: RecentMapping[];
-    };
+    const body = await request.json();
 
-    const headers = body.headers ?? [];
-    const sampleRows = body.sampleRows ?? [];
-    const recentMappings = body.recentMappings ?? [];
-
-    if (headers.length === 0) {
-      return NextResponse.json(
-        { detail: "No headers provided." },
-        { status: 400 }
-      );
+    const parsed = validateBody(SuggestMappingSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const headers = parsed.data!.headers;
+    const sampleRows = parsed.data!.sampleRows ?? [];
+    const recentMappings = (parsed.data!.recentMappings ?? []) as RecentMapping[];
 
     const systemPrompt = [
       "You are a CSV column mapper for financial transaction imports.",
@@ -206,9 +205,9 @@ export async function POST(request: Request) {
       choices?: { message?: { content?: string } }[];
     };
     const content = payload.choices?.[0]?.message?.content ?? "";
-    const parsed = extractJsonObject(content);
+    const llmResult = extractJsonObject(content);
 
-    if (!parsed) {
+    if (!llmResult) {
       return NextResponse.json(
         { detail: "Failed to parse LLM response." },
         { status: 502 }
@@ -217,9 +216,9 @@ export async function POST(request: Request) {
 
     // Normalise: the LLM might return mapping at top level or nested
     const rawMapping = (
-      typeof parsed.mapping === "object" && parsed.mapping !== null
-        ? parsed.mapping
-        : parsed
+      typeof llmResult.mapping === "object" && llmResult.mapping !== null
+        ? llmResult.mapping
+        : llmResult
     ) as Record<string, string>;
 
     const mapping: Record<string, string> = {};
@@ -232,7 +231,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const invertAmount = Boolean(parsed.invertAmount);
+    const invertAmount = Boolean(llmResult.invertAmount);
 
     return NextResponse.json({ mapping, invertAmount });
   } catch (error) {

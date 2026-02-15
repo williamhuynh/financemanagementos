@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { getApiContext } from "../../../lib/api-auth";
 import { getTransferReviewData } from "../../../lib/data";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }

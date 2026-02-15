@@ -2,18 +2,14 @@ import { NextResponse } from "next/server";
 import { ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, CashLogCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AppwriteDocument = { $id: string; $createdAt: string; [key: string]: any };
+type AppwriteDocument = { $id: string; $createdAt: string; [key: string]: unknown };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-type CashLogInput = {
-  text: string;
-  date?: string;
-  isIncome?: boolean;
-};
 
 function getMonthKey(dateString: string) {
   // Extract YYYY-MM directly from YYYY-MM-DD to avoid timezone issues
@@ -30,6 +26,9 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function GET(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -76,7 +75,7 @@ export async function GET(request: Request) {
       status: doc.status ?? "draft",
       source: doc.source ?? "text",
       isIncome: doc.isIncome ?? false,
-      parsedItems: doc.parsed_items ? safeParseParsedItems(doc.parsed_items) : null,
+      parsedItems: doc.parsed_items ? safeParseParsedItems(String(doc.parsed_items)) : null,
       createdAt: doc.$createdAt
     }));
 
@@ -99,6 +98,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -112,27 +114,26 @@ export async function POST(request: Request) {
 
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
-    const body = (await request.json()) as CashLogInput;
+    const body = await request.json();
 
-    if (!body.text?.trim()) {
-      return NextResponse.json(
-        { detail: "Text is required." },
-        { status: 400 }
-      );
+    const parsed = validateBody(CashLogCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { text, date: inputDate, isIncome } = parsed.data;
 
-    const date = body.date || new Date().toISOString().split("T")[0];
+    const date = inputDate || new Date().toISOString().split("T")[0];
     const month = getMonthKey(date);
 
     const logId = ID.unique();
     const logDoc = {
       workspace_id: workspaceId,
-      text: body.text.trim(),
+      text,
       date,
       month,
       status: "draft",
       source: "text",
-      isIncome: body.isIncome ?? false,
+      isIncome: isIncome ?? false,
       parsed_items: "[]"
     };
 
@@ -142,6 +143,17 @@ export async function POST(request: Request) {
       logId,
       logDoc
     );
+
+    // Audit: fire-and-forget
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "cash_log",
+      resource_id: logId,
+      summary: `Created cash log "${text.substring(0, 50)}"`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       id: logId,

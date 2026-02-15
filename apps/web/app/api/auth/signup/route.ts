@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { Client, Account, ID } from "node-appwrite";
 import { getSession } from "../../../../lib/session";
 import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { generateCsrfToken } from "../../../../lib/csrf";
+import { validateBody, SignupSchema } from "../../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +15,12 @@ export async function POST(request: Request) {
   if (blocked) return blocked;
 
   try {
-    const { name, email, password } = await request.json();
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Name, email and password are required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(SignupSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { name, email, password } = parsed.data;
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     session.email = user.email;
     session.name = user.name;
     session.isLoggedIn = true;
+    session.csrfToken = generateCsrfToken();
     await session.save();
 
     // Send verification email (non-blocking — don't fail signup if this fails)

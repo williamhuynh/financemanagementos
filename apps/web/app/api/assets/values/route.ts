@@ -3,16 +3,9 @@ import { ID } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../../lib/workspace-service";
-
-type AssetValuePayload = {
-  assetId?: string;
-  assetName: string;
-  assetType: string;
-  value: number;
-  currency?: string;
-  source?: string;
-  notes?: string;
-};
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, AssetValuesCreateSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 async function fetchWithTimeout(url: string, timeoutMs = 6000) {
   const controller = new AbortController();
@@ -74,6 +67,9 @@ async function fetchHomeCurrencyRate(fromCurrency: string, homeCurrency: string)
 
 export async function POST(request: Request) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -87,20 +83,14 @@ export async function POST(request: Request) {
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    const body = (await request.json()) as {
-      recordedAt?: string;
-      items?: AssetValuePayload[];
-    };
-
-    const items = Array.isArray(body.items) ? body.items : [];
-    if (items.length === 0) {
-      return NextResponse.json(
-        { detail: "No asset values provided." },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(AssetValuesCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { items, recordedAt: rawRecordedAt } = parsed.data;
 
-    const recordedAt = body.recordedAt?.trim() || new Date().toISOString();
+    const recordedAt = rawRecordedAt?.trim() || new Date().toISOString();
 
     // Fetch workspace to determine home currency
     const workspace = await getWorkspaceById(workspaceId);
@@ -156,6 +146,18 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "asset_value",
+      resource_id: workspaceId,
+      summary: `Created ${created} asset value(s)`,
+      metadata: { count: created, recordedAt },
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ ok: true, created });
   } catch (error) {

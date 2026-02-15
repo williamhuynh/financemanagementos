@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../../lib/audit";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -39,6 +44,17 @@ export async function DELETE(
 
     await databases.updateDocument(config.databaseId, "asset_values", id, {
       deleted_at: new Date().toISOString()
+    });
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "asset_value",
+      resource_id: id,
+      summary: `Deleted asset value ${id}`,
+      ip_address: getClientIp(request),
     });
 
     return NextResponse.json({ ok: true });

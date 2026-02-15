@@ -3,6 +3,8 @@ import { Client, Databases, Account } from "node-appwrite";
 import { verifyInvitationToken, acceptInvitation } from "../../../../lib/invitation-service";
 import { createSessionClient } from "../../../../lib/api-auth";
 import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, InvitationAcceptSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const projectId = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
@@ -19,12 +21,19 @@ export async function POST(request: Request) {
   if (blocked) return blocked;
 
   try {
-    const body = await request.json();
-    const { token } = body;
-
-    if (!token) {
-      return NextResponse.json({ error: "Token is required" }, { status: 400 });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+
+    const parsed = validateBody(InvitationAcceptSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+
+    const { token } = parsed.data;
 
     // Get the authenticated user
     const sessionClient = await createSessionClient();
@@ -63,6 +72,18 @@ export async function POST(request: Request) {
     // Switch user to the new workspace
     await sessionClient.account.updatePrefs({
       activeWorkspaceId: invitation.workspace_id,
+    });
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, databaseId, {
+      workspace_id: invitation.workspace_id,
+      user_id: user.$id,
+      action: "accept_invitation",
+      resource_type: "invitation",
+      resource_id: invitation.$id,
+      summary: `Accepted invitation to workspace as ${invitation.role}`,
+      metadata: { email: invitation.email, role: invitation.role },
+      ip_address: getClientIp(request),
     });
 
     return NextResponse.json({

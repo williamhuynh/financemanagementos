@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, CashLogUpdateSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +22,9 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -49,36 +55,36 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const body = (await request.json()) as {
-      text?: string;
-      date?: string;
-      isIncome?: boolean;
-      status?: string;
-      parsedItems?: unknown[];
-    };
+    const body = await request.json();
+
+    const parsed = validateBody(CashLogUpdateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { text, date, isIncome, status, parsedItems } = parsed.data;
 
     const updates: Record<string, unknown> = {};
 
-    if (body.text !== undefined) {
-      updates.text = body.text.trim();
+    if (text !== undefined) {
+      updates.text = text.trim();
     }
 
-    if (body.date !== undefined) {
-      updates.date = body.date;
+    if (date !== undefined) {
+      updates.date = date;
       // Extract YYYY-MM directly from YYYY-MM-DD to avoid timezone issues
-      updates.month = body.date.substring(0, 7);
+      updates.month = date.substring(0, 7);
     }
 
-    if (body.isIncome !== undefined) {
-      updates.isIncome = body.isIncome;
+    if (isIncome !== undefined) {
+      updates.isIncome = isIncome;
     }
 
-    if (body.status !== undefined) {
-      updates.status = body.status;
+    if (status !== undefined) {
+      updates.status = status;
     }
 
-    if (body.parsedItems !== undefined) {
-      updates.parsed_items = JSON.stringify(body.parsedItems);
+    if (parsedItems !== undefined) {
+      updates.parsed_items = JSON.stringify(parsedItems);
     }
 
     if (Object.keys(updates).length === 0) {
@@ -94,6 +100,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       id,
       updates
     );
+
+    // Audit: fire-and-forget
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "cash_log",
+      resource_id: id,
+      summary: `Updated cash log (fields: ${Object.keys(updates).join(", ")})`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       id: doc.$id,
@@ -123,7 +140,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -159,6 +179,17 @@ export async function DELETE(_request: Request, context: RouteContext) {
       "cash_logs",
       id
     );
+
+    // Audit: fire-and-forget
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "cash_log",
+      resource_id: id,
+      summary: `Deleted cash log`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
