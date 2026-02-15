@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
-import { DEFAULT_CATEGORIES, DEFAULT_CATEGORY_NAMES, isSystemCategory } from "../../../lib/categories";
+import { DEFAULT_CATEGORIES, isSystemCategory } from "../../../lib/categories";
 import type { CategoryGroup } from "../../../lib/categories";
 import { COLLECTIONS } from "../../../lib/collection-names";
 
@@ -11,19 +11,35 @@ type AppwriteDocument = { $id: string; [key: string]: unknown };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function defaultCategoryObjects() {
+  return DEFAULT_CATEGORIES.map((cat, i) => ({
+    id: `default-${i}`,
+    name: cat.name,
+    group: cat.group,
+    color: null,
+    is_system: isSystemCategory(cat.name),
+    transaction_count: 0,
+  }));
+}
+
 async function seedDefaultCategories(
   databases: Databases,
   databaseId: string,
   workspaceId: string
 ): Promise<void> {
-  // Re-check count to guard against race conditions
-  const check = await databases.listDocuments(databaseId, COLLECTIONS.CATEGORIES, [
+  // Fetch existing category names to avoid duplicates
+  const existing = await databases.listDocuments(databaseId, COLLECTIONS.CATEGORIES, [
     Query.equal("workspace_id", workspaceId),
-    Query.limit(1),
+    Query.limit(200),
   ]);
-  if (check.total > 0) return;
+  const existingNames = new Set(
+    existing.documents.map((doc: AppwriteDocument) =>
+      String(doc.name ?? "").trim().toLowerCase()
+    )
+  );
 
   for (const cat of DEFAULT_CATEGORIES) {
+    if (existingNames.has(cat.name.toLowerCase())) continue;
     try {
       await databases.createDocument(databaseId, COLLECTIONS.CATEGORIES, ID.unique(), {
         workspace_id: workspaceId,
@@ -42,7 +58,7 @@ export async function GET() {
     const ctx = await getApiContext();
 
     if (!ctx) {
-      return NextResponse.json({ categories: DEFAULT_CATEGORY_NAMES });
+      return NextResponse.json({ categories: defaultCategoryObjects() });
     }
 
     const { databases, config, workspaceId, user } = ctx;
@@ -54,8 +70,8 @@ export async function GET() {
       [Query.equal("workspace_id", workspaceId), Query.orderAsc("name"), Query.limit(100)]
     );
 
-    // Lazy seed if workspace has no categories yet
-    if (response.total === 0) {
+    // Lazy seed: fill in missing defaults for empty or partially-seeded workspaces
+    if (response.total < DEFAULT_CATEGORIES.length) {
       await seedDefaultCategories(databases, config.databaseId, workspaceId);
       const seeded = await databases.listDocuments(
         config.databaseId,
@@ -116,7 +132,8 @@ export async function GET() {
         return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
       }
     }
-    return NextResponse.json({ categories: DEFAULT_CATEGORY_NAMES });
+    console.error("Categories GET error:", error);
+    return NextResponse.json({ categories: defaultCategoryObjects() });
   }
 }
 

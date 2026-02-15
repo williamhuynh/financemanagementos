@@ -154,6 +154,7 @@ export async function POST(request: Request) {
     );
 
     // Seed default categories for the new workspace
+    let seedFailures = 0;
     for (const cat of DEFAULT_CATEGORIES) {
       try {
         await databases.createDocument(
@@ -167,9 +168,15 @@ export async function POST(request: Request) {
             color: "",
           }
         );
-      } catch {
-        // Skip on error — lazy seed will handle it later
+      } catch (seedError) {
+        seedFailures++;
+        console.error(`Failed to seed category "${cat.name}" for workspace ${workspaceId}:`, seedError);
       }
+    }
+    if (seedFailures > 0) {
+      console.error(
+        `Category seeding incomplete for workspace ${workspaceId}: ${seedFailures}/${DEFAULT_CATEGORIES.length} failed. Lazy seed will repair on first GET /api/categories.`
+      );
     }
 
     return NextResponse.json({
