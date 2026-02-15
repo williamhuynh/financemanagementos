@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@tandemly/ui";
 
 type CategoryItem = {
@@ -10,16 +10,38 @@ type CategoryItem = {
   color: string | null;
   is_system: boolean;
   transaction_count: number;
+  month_spent?: number;
 };
 
-type CategoriesSectionProps = {
+type CategoriesClientProps = {
   workspaceId: string;
   userRole: string;
 };
 
-export default function CategoriesSection({
+function getCurrentMonth(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function formatMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-");
+  const date = new Date(Number(y), Number(m) - 1, 1);
+  return date.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+}
+
+function formatCurrency(value: number, currency = "AUD"): string {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(value);
+}
+
+export default function CategoriesClient({
   userRole,
-}: CategoriesSectionProps) {
+}: CategoriesClientProps) {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,15 +63,12 @@ export default function CategoriesSection({
   const [remapTo, setRemapTo] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const currentMonth = getCurrentMonth();
   const canManage = userRole === "owner" || userRole === "admin";
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  async function fetchCategories() {
+  const fetchCategories = useCallback(async () => {
     try {
-      const res = await fetch("/api/categories");
+      const res = await fetch(`/api/categories?month=${currentMonth}`);
       if (!res.ok) throw new Error("Failed to load");
       const data = await res.json();
       setCategories(data.categories || []);
@@ -58,7 +77,11 @@ export default function CategoriesSection({
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentMonth]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   function clearMessages() {
     setError(null);
@@ -152,7 +175,6 @@ export default function CategoriesSection({
   function startDelete(cat: CategoryItem) {
     clearMessages();
     setDeletingId(cat.id);
-    // Default remap to Uncategorised
     const uncategorised = categories.find(
       c => c.name === "Uncategorised" && c.id !== cat.id
     );
@@ -198,144 +220,155 @@ export default function CategoriesSection({
     );
   }
 
+  const expenseCategories = categories.filter(c => c.group === "expense" || (!c.group && !c.is_system));
+  const incomeCategories = categories.filter(c => c.group === "income");
+  const systemCategories = categories.filter(c => c.is_system);
   const nonSystemCount = categories.filter(c => !c.is_system).length;
+
   const deletingCategory = deletingId
     ? categories.find(c => c.id === deletingId)
     : null;
 
-  return (
-    <Card title="Categories">
-      {error && <p className="auth-error">{error}</p>}
-      {successMessage && <p className="auth-success">{successMessage}</p>}
+  function renderCategoryRow(cat: CategoryItem) {
+    const isEditing = editingId === cat.id;
+    const isDeleting = deletingId === cat.id;
+    const spent = cat.month_spent ?? 0;
 
-      {categories.map((cat) => {
-        const isEditing = editingId === cat.id;
-        const isDeleting = deletingId === cat.id;
-
-        return (
-          <div key={cat.id} className="list-row">
-            <div style={{ flex: 1 }}>
-              {isEditing ? (
-                <div className="form-row" style={{ gap: "8px" }}>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="text-input"
-                    style={{ flex: 1 }}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRename(cat);
-                      if (e.key === "Escape") setEditingId(null);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    disabled={saving}
-                    onClick={() => handleRename(cat)}
-                    style={{ padding: "6px 12px", fontSize: "13px" }}
-                  >
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    onClick={() => setEditingId(null)}
-                    style={{ padding: "6px 12px", fontSize: "13px" }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : isDeleting && deletingCategory ? (
-                <div>
-                  <div className="row-title">{cat.name}</div>
-                  <div className="row-sub" style={{ marginTop: "8px" }}>
-                    {cat.transaction_count > 0 ? (
-                      <>
-                        {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"} will be remapped. Choose a replacement:
-                        <select
-                          value={remapTo}
-                          onChange={(e) => setRemapTo(e.target.value)}
-                          className="role-select"
-                          style={{ marginTop: "4px", display: "block" }}
-                        >
-                          <option value="">Select category...</option>
-                          {categories
-                            .filter(c => c.id !== cat.id)
-                            .map(c => (
-                              <option key={c.id} value={c.name}>{c.name}</option>
-                            ))}
-                        </select>
-                      </>
-                    ) : (
-                      "No transactions use this category."
-                    )}
-                  </div>
-                  <div className="form-actions" style={{ marginTop: "8px" }}>
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      onClick={() => setDeletingId(null)}
-                      style={{ padding: "6px 12px", fontSize: "13px" }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn danger"
-                      disabled={deleting || (cat.transaction_count > 0 && !remapTo)}
-                      onClick={() => handleDelete(cat)}
-                      style={{ padding: "6px 12px", fontSize: "13px" }}
-                    >
-                      {deleting ? "Deleting..." : cat.transaction_count > 0 ? "Remap & Delete" : "Delete"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="row-title">
-                    {cat.is_system && (
-                      <span title="System category" style={{ marginRight: "6px", opacity: 0.5 }}>&#128274;</span>
-                    )}
-                    {cat.name}
-                  </div>
-                  <div className="row-sub">
-                    {canManage && !cat.is_system ? (
-                      <button
-                        type="button"
-                        onClick={() => handleGroupToggle(cat)}
-                        style={{
-                          background: "none",
-                          border: "1px solid var(--border)",
-                          borderRadius: "12px",
-                          padding: "1px 8px",
-                          fontSize: "11px",
-                          cursor: "pointer",
-                          color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {cat.group || "expense"}
-                      </button>
-                    ) : (
-                      <span style={{
-                        fontSize: "11px",
-                        color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                        textTransform: "capitalize",
-                      }}>
-                        {cat.group || "system"}
-                      </span>
-                    )}
-                    {" "}
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                      {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                </>
-              )}
+    return (
+      <div key={cat.id} className="list-row">
+        <div style={{ flex: 1 }}>
+          {isEditing ? (
+            <div className="form-row" style={{ gap: "8px" }}>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="text-input"
+                style={{ flex: 1 }}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(cat);
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+              />
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={saving}
+                onClick={() => handleRename(cat)}
+                style={{ padding: "6px 12px", fontSize: "13px" }}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setEditingId(null)}
+                style={{ padding: "6px 12px", fontSize: "13px" }}
+              >
+                Cancel
+              </button>
             </div>
-            {canManage && !cat.is_system && !isEditing && !isDeleting && (
+          ) : isDeleting && deletingCategory ? (
+            <div>
+              <div className="row-title">{cat.name}</div>
+              <div className="row-sub" style={{ marginTop: "8px" }}>
+                {cat.transaction_count > 0 ? (
+                  <>
+                    {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"} will be remapped. Choose a replacement:
+                    <select
+                      value={remapTo}
+                      onChange={(e) => setRemapTo(e.target.value)}
+                      className="role-select"
+                      style={{ marginTop: "4px", display: "block" }}
+                    >
+                      <option value="">Select category...</option>
+                      {categories
+                        .filter(c => c.id !== cat.id)
+                        .map(c => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))}
+                    </select>
+                  </>
+                ) : (
+                  "No transactions use this category."
+                )}
+              </div>
+              <div className="form-actions" style={{ marginTop: "8px" }}>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setDeletingId(null)}
+                  style={{ padding: "6px 12px", fontSize: "13px" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn danger"
+                  disabled={deleting || (cat.transaction_count > 0 && !remapTo)}
+                  onClick={() => handleDelete(cat)}
+                  style={{ padding: "6px 12px", fontSize: "13px" }}
+                >
+                  {deleting ? "Deleting..." : cat.transaction_count > 0 ? "Remap & Delete" : "Delete"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="row-title">
+                {cat.is_system && (
+                  <span title="System category" style={{ marginRight: "6px", opacity: 0.5 }}>&#128274;</span>
+                )}
+                {cat.name}
+              </div>
+              <div className="row-sub">
+                {canManage && !cat.is_system ? (
+                  <button
+                    type="button"
+                    onClick={() => handleGroupToggle(cat)}
+                    style={{
+                      background: "none",
+                      border: "1px solid var(--border)",
+                      borderRadius: "12px",
+                      padding: "1px 8px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {cat.group || "expense"}
+                  </button>
+                ) : (
+                  <span style={{
+                    fontSize: "11px",
+                    color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
+                    textTransform: "capitalize",
+                  }}>
+                    {cat.group || "system"}
+                  </span>
+                )}
+                {" "}
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                  {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+        {!isEditing && !isDeleting && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{
+              fontSize: "13px",
+              fontWeight: 500,
+              fontVariantNumeric: "tabular-nums",
+              color: spent > 0 ? "var(--text)" : "var(--text-secondary)",
+              whiteSpace: "nowrap",
+            }}>
+              {spent !== 0 ? formatCurrency(Math.abs(spent)) : "--"}
+            </span>
+            {canManage && !cat.is_system && (
               <div style={{ display: "flex", gap: "4px" }}>
                 <button
                   type="button"
@@ -357,16 +390,44 @@ export default function CategoriesSection({
               </div>
             )}
           </div>
-        );
-      })}
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {error && <p className="auth-error">{error}</p>}
+      {successMessage && <p className="auth-success">{successMessage}</p>}
+
+      <Card title="Expense" sub={`Spent in ${formatMonthLabel(currentMonth)}`}>
+        {expenseCategories.length > 0 ? (
+          expenseCategories.map(renderCategoryRow)
+        ) : (
+          <p className="loading-text">No expense categories</p>
+        )}
+      </Card>
+
+      <Card title="Income" sub={`Received in ${formatMonthLabel(currentMonth)}`}>
+        {incomeCategories.length > 0 ? (
+          incomeCategories.map(renderCategoryRow)
+        ) : (
+          <p className="loading-text">No income categories</p>
+        )}
+      </Card>
+
+      {systemCategories.length > 0 && (
+        <Card title="System">
+          {systemCategories.map(renderCategoryRow)}
+        </Card>
+      )}
 
       {canManage && (
-        <>
+        <Card title="Add Category">
           {!showAddForm ? (
             <button
               className="primary-btn"
               type="button"
-              style={{ marginTop: "16px" }}
               onClick={() => {
                 clearMessages();
                 setShowAddForm(true);
@@ -417,8 +478,8 @@ export default function CategoriesSection({
               </div>
             </form>
           )}
-        </>
+        </Card>
       )}
-    </Card>
+    </>
   );
 }

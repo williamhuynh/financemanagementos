@@ -53,7 +53,58 @@ async function seedDefaultCategories(
   }
 }
 
-export async function GET() {
+async function fetchMonthSpending(
+  databases: Databases,
+  databaseId: string,
+  workspaceId: string,
+  monthPrefix: string
+): Promise<Map<string, number>> {
+  const spending = new Map<string, number>();
+  let cursor: string | undefined;
+  const batchSize = 100;
+
+  // Paginate through all transactions for the month
+  for (;;) {
+    const queries = [
+      Query.equal("workspace_id", workspaceId),
+      Query.greaterThanEqual("date", `${monthPrefix}-01`),
+      Query.lessThan("date", nextMonthPrefix(monthPrefix)),
+      Query.limit(batchSize),
+    ];
+    if (cursor) {
+      queries.push(Query.cursorAfter(cursor));
+    }
+    const batch = await databases.listDocuments(databaseId, COLLECTIONS.TRANSACTIONS, queries);
+    for (const doc of batch.documents) {
+      const category = String(doc.category_name ?? "Uncategorised").trim();
+      const rawAmount = String(doc.amount ?? "0");
+      const numeric = Number(rawAmount.replace(/[^0-9.\-]/g, ""));
+      if (!Number.isFinite(numeric)) continue;
+      const direction = String(doc.direction ?? "");
+      // Use absolute value for spending; debits are spending
+      const value = direction === "debit" ? Math.abs(numeric) : -Math.abs(numeric);
+      spending.set(category, (spending.get(category) ?? 0) + value);
+    }
+    if (batch.documents.length < batchSize) break;
+    cursor = batch.documents[batch.documents.length - 1].$id;
+  }
+
+  return spending;
+}
+
+function nextMonthPrefix(monthPrefix: string): string {
+  const [yearStr, monthStr] = monthPrefix.split("-");
+  let year = Number(yearStr);
+  let month = Number(monthStr);
+  month += 1;
+  if (month > 12) {
+    month = 1;
+    year += 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-01`;
+}
+
+export async function GET(request: Request) {
   try {
     const ctx = await getApiContext();
 
@@ -63,6 +114,9 @@ export async function GET() {
 
     const { databases, config, workspaceId, user } = ctx;
     await requireWorkspacePermission(workspaceId, user.$id, "read");
+
+    const url = new URL(request.url);
+    const month = url.searchParams.get("month"); // YYYY-MM format
 
     const response = await databases.listDocuments(
       config.databaseId,
@@ -84,6 +138,11 @@ export async function GET() {
       docs = response.documents as AppwriteDocument[];
     }
 
+    // Fetch month spending if requested (in parallel with transaction counts)
+    const monthSpending = month
+      ? await fetchMonthSpending(databases, config.databaseId, workspaceId, month)
+      : null;
+
     // Fetch transaction counts per category
     const categories = await Promise.all(
       docs.map(async (doc) => {
@@ -103,7 +162,7 @@ export async function GET() {
         } catch {
           // Count unavailable — leave as 0
         }
-        return {
+        const result: Record<string, unknown> = {
           id: doc.$id,
           name,
           group: (doc.group || null) as CategoryGroup,
@@ -111,6 +170,10 @@ export async function GET() {
           is_system: isSystemCategory(name),
           transaction_count: transactionCount,
         };
+        if (monthSpending) {
+          result.month_spent = monthSpending.get(name) ?? 0;
+        }
+        return result;
       })
     );
 
