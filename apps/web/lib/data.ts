@@ -2333,7 +2333,10 @@ function buildNetWorthSeries(
   for (const monthKey of monthKeys) {
     const entries = byMonth.get(monthKey) ?? [];
     for (const entry of entries) {
-      currentByAsset.set(entry.assetId, entry);
+      const existing = currentByAsset.get(entry.assetId);
+      if (!existing || entry.dateValue > existing.dateValue) {
+        currentByAsset.set(entry.assetId, entry);
+      }
     }
     for (const [assetId, disposedMonth] of disposedByAsset.entries()) {
       if (disposedMonth && monthKey >= disposedMonth) {
@@ -2347,6 +2350,29 @@ function buildNetWorthSeries(
     series.push({
       month: monthKey,
       label: getMonthLabel(new Date(`${monthKey}-01`)),
+      value: total,
+      formattedValue: formatNetWorth(total, homeCurrency)
+    });
+  }
+
+  // Ensure the current month is always represented in the series so the
+  // graph's last point matches the headline net worth (carried-forward values).
+  const currentMonthKey = getMonthKey(new Date());
+  const lastMonth = series.length > 0 ? series[series.length - 1].month : null;
+  if (lastMonth && lastMonth < currentMonthKey) {
+    // Remove disposed assets that were disposed before or during the current month
+    for (const [assetId, disposedMonth] of disposedByAsset.entries()) {
+      if (disposedMonth && currentMonthKey >= disposedMonth) {
+        currentByAsset.delete(assetId);
+      }
+    }
+    let total = 0;
+    for (const entry of currentByAsset.values()) {
+      total += toSignedAssetValue(entry.valueAud, entry.type);
+    }
+    series.push({
+      month: currentMonthKey,
+      label: getMonthLabel(new Date(`${currentMonthKey}-01`)),
       value: total,
       formattedValue: formatNetWorth(total, homeCurrency)
     });
@@ -2383,7 +2409,10 @@ function buildAssetSeries(
   for (const monthKey of monthKeys) {
     const entries = byMonth.get(monthKey) ?? [];
     for (const entry of entries) {
-      currentByAsset.set(entry.assetId, entry);
+      const existing = currentByAsset.get(entry.assetId);
+      if (!existing || entry.dateValue > existing.dateValue) {
+        currentByAsset.set(entry.assetId, entry);
+      }
     }
     for (const [assetId, disposedMonth] of disposedByAsset.entries()) {
       if (disposedMonth && monthKey >= disposedMonth) {
