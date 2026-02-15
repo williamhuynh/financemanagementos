@@ -152,26 +152,6 @@ export default function CategoriesClient({
     }
   }
 
-  async function handleGroupToggle(cat: CategoryItem) {
-    clearMessages();
-    const newGroupValue = cat.group === "income" ? "expense" : "income";
-    try {
-      const res = await fetch(`/api/categories/${cat.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ group: newGroupValue }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to update group");
-        return;
-      }
-      await fetchCategories();
-    } catch {
-      setError("Failed to update group");
-    }
-  }
-
   function startDelete(cat: CategoryItem) {
     clearMessages();
     setDeletingId(cat.id);
@@ -315,66 +295,29 @@ export default function CategoriesClient({
               </div>
             </div>
           ) : (
-            <>
-              <div className="row-title">
-                {cat.is_system && (
-                  <span title="System category" style={{ marginRight: "6px", opacity: 0.5 }}>&#128274;</span>
-                )}
-                {cat.name}
-              </div>
-              <div className="row-sub">
-                {canManage && !cat.is_system ? (
-                  <button
-                    type="button"
-                    onClick={() => handleGroupToggle(cat)}
-                    style={{
-                      background: "none",
-                      border: "1px solid var(--border)",
-                      borderRadius: "12px",
-                      padding: "1px 8px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {cat.group || "expense"}
-                  </button>
-                ) : (
-                  <span style={{
-                    fontSize: "11px",
-                    color: cat.group === "income" ? "var(--green)" : "var(--text-secondary)",
-                    textTransform: "capitalize",
-                  }}>
-                    {cat.group || "system"}
-                  </span>
-                )}
-                {" "}
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                  {cat.transaction_count} transaction{cat.transaction_count === 1 ? "" : "s"}
-                </span>
-              </div>
-            </>
+            <div className="cat-row-label">
+              {cat.is_system && (
+                <span title="System category" style={{ opacity: 0.5 }}>&#128274;</span>
+              )}
+              <span className="cat-row-name">{cat.name}</span>
+              <span className="cat-row-count">
+                {cat.transaction_count}
+              </span>
+            </div>
           )}
         </div>
         {!isEditing && !isDeleting && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{
-              fontSize: "13px",
-              fontWeight: 500,
-              fontVariantNumeric: "tabular-nums",
-              color: spent > 0 ? "var(--text)" : "var(--text-secondary)",
-              whiteSpace: "nowrap",
-            }}>
+          <div className="cat-row-right">
+            <span className="cat-row-amount" data-has-value={spent !== 0 ? "" : undefined}>
               {spent !== 0 ? formatCurrency(Math.abs(spent)) : "--"}
             </span>
             {canManage && !cat.is_system && (
-              <div style={{ display: "flex", gap: "4px" }}>
+              <div className="cat-row-actions">
                 <button
                   type="button"
                   className="ghost-btn"
                   onClick={() => startRename(cat)}
-                  style={{ padding: "4px 8px", fontSize: "12px" }}
+                  style={{ padding: "2px 6px", fontSize: "11px" }}
                 >
                   Rename
                 </button>
@@ -383,7 +326,7 @@ export default function CategoriesClient({
                   className="ghost-btn danger"
                   onClick={() => startDelete(cat)}
                   disabled={nonSystemCount <= 1}
-                  style={{ padding: "4px 8px", fontSize: "12px" }}
+                  style={{ padding: "2px 6px", fontSize: "11px" }}
                 >
                   Delete
                 </button>
@@ -400,7 +343,7 @@ export default function CategoriesClient({
       {error && <p className="auth-error">{error}</p>}
       {successMessage && <p className="auth-success">{successMessage}</p>}
 
-      <Card title="Expense" sub={`Spent in ${formatMonthLabel(currentMonth)}`}>
+      <Card title="Expense" sub={`Spent in ${formatMonthLabel(currentMonth)}`} className="compact">
         {expenseCategories.length > 0 ? (
           expenseCategories.map(renderCategoryRow)
         ) : (
@@ -408,7 +351,7 @@ export default function CategoriesClient({
         )}
       </Card>
 
-      <Card title="Income" sub={`Received in ${formatMonthLabel(currentMonth)}`}>
+      <Card title="Income" sub={`Received in ${formatMonthLabel(currentMonth)}`} className="compact">
         {incomeCategories.length > 0 ? (
           incomeCategories.map(renderCategoryRow)
         ) : (
@@ -417,7 +360,7 @@ export default function CategoriesClient({
       </Card>
 
       {systemCategories.length > 0 && (
-        <Card title="System">
+        <Card title="System" className="compact">
           {systemCategories.map(renderCategoryRow)}
         </Card>
       )}
