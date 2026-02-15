@@ -38,6 +38,9 @@ npx tsc --noEmit     # Type-check
 ### Auth
 - `getApiContext()` (`lib/api-auth.ts`) → returns `{ user, databases, config, workspaceId }` or null
 - `requireWorkspacePermission(workspaceId, userId, permission)` (`lib/workspace-guard.ts`) — call in every API route
+- **Redirect on null context**: In server pages under `(shell)/`, when `getApiContext()`
+  returns null, always `redirect("/login")`. The login page lives at `app/login/page.tsx`.
+  Do NOT use `"/signin"` — there is no `/signin` route.
 - Role hierarchy: viewer < editor < admin < owner
 - Permissions: `read`, `write`, `delete`, `admin`, `owner`
 

@@ -7,7 +7,7 @@ export default async function CategoriesPage() {
   const ctx = await getApiContext();
 
   if (!ctx) {
-    redirect("/signin");
+    redirect("/login");
   }
 
   return (

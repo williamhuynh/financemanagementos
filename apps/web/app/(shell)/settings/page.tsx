@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   const ctx = await getApiContext();
 
   if (!ctx) {
-    redirect("/signin");
+    redirect("/login");
   }
 
   return (
