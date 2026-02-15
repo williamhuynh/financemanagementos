@@ -83,7 +83,7 @@ Return JSON array of parsed items.`;
 
   if (!response.ok) {
     console.error("OpenRouter request failed:", response.status);
-    return fallbackParse(logText, isIncome);
+    return fallbackParse(logText, isIncome, categories);
   }
 
   const payload = (await response.json()) as {
@@ -93,7 +93,7 @@ Return JSON array of parsed items.`;
   const parsed = extractJsonArray(content);
 
   if (!parsed || parsed.length === 0) {
-    return fallbackParse(logText, isIncome);
+    return fallbackParse(logText, isIncome, categories);
   }
 
   // Validate and normalize parsed items
@@ -109,7 +109,7 @@ Return JSON array of parsed items.`;
 }
 
 // Fallback parsing when AI fails
-function fallbackParse(text: string, isIncome: boolean): ParsedItem[] {
+function fallbackParse(text: string, isIncome: boolean, allowedCategories?: string[]): ParsedItem[] {
   const items: ParsedItem[] = [];
 
   // Match patterns like "eggs $20.10" or "eggs 20.10" or "$20.10 eggs"
@@ -144,7 +144,7 @@ function fallbackParse(text: string, isIncome: boolean): ParsedItem[] {
         items.push({
           description: description.charAt(0).toUpperCase() + description.slice(1).toLowerCase(),
           amount,
-          category: guessCategory(description, isIncome),
+          category: guessCategory(description, isIncome, allowedCategories),
           confidence: 0.5
         });
       }
@@ -172,48 +172,57 @@ function fallbackParse(text: string, isIncome: boolean): ParsedItem[] {
   return items;
 }
 
-function guessCategory(description: string, isIncome: boolean): string {
+function guessCategory(
+  description: string,
+  isIncome: boolean,
+  allowedCategories?: string[]
+): string {
+  const categorySet = allowedCategories
+    ? new Map(allowedCategories.map(c => [c.toLowerCase(), c]))
+    : null;
+
+  function resolve(name: string): string {
+    if (!categorySet) return name;
+    return categorySet.get(name.toLowerCase()) ?? "Uncategorised";
+  }
+
   if (isIncome) {
-    return "Income - Secondary";
+    return resolve("Income - Secondary");
   }
 
   const lower = description.toLowerCase();
 
-  // Common grocery items
   const groceryKeywords = [
     "egg", "rice", "milk", "bread", "vegetable", "fruit", "meat", "chicken",
     "fish", "pork", "beef", "tofu", "noodle", "pasta", "sauce", "oil",
     "sugar", "flour", "butter", "cheese", "yogurt", "cereal"
   ];
   if (groceryKeywords.some((k) => lower.includes(k))) {
-    return "Groceries";
+    return resolve("Groceries");
   }
 
-  // Food/dining
   const foodKeywords = [
     "coffee", "lunch", "dinner", "breakfast", "snack", "drink", "tea",
     "cafe", "restaurant", "takeaway", "pizza", "burger", "sandwich"
   ];
   if (foodKeywords.some((k) => lower.includes(k))) {
-    return "Food";
+    return resolve("Food");
   }
 
-  // Transport
   const transportKeywords = [
     "uber", "taxi", "bus", "train", "fuel", "petrol", "gas", "parking",
     "toll", "opal", "myki", "transport"
   ];
   if (transportKeywords.some((k) => lower.includes(k))) {
-    return "Transportation";
+    return resolve("Transportation");
   }
 
-  // Medical
   const medicalKeywords = [
     "pharmacy", "medicine", "doctor", "hospital", "health", "chemist",
     "prescription"
   ];
   if (medicalKeywords.some((k) => lower.includes(k))) {
-    return "Medical, Healthcare & Fitness";
+    return resolve("Medical, Healthcare & Fitness");
   }
 
   return "Uncategorised";
@@ -287,7 +296,7 @@ export async function POST(request: Request) {
               openRouterModel
             );
           } else {
-            items = fallbackParse(logText, isIncome);
+            items = fallbackParse(logText, isIncome, categories);
           }
 
           // If no items were parsed, create a default editable item

@@ -1,6 +1,7 @@
-import { Query, Databases } from "node-appwrite";
+import { Query } from "node-appwrite";
 import { getServerConfig, createDatabasesClient } from "./api-auth";
 import { COLLECTIONS } from "./collection-names";
+import { DEFAULT_CATEGORY_NAMES } from "./categories";
 
 export type ParsedItem = {
   description: string;
@@ -93,28 +94,6 @@ export async function fetchCashLogs(
   }
 }
 
-const DEFAULT_CATEGORIES = [
-  "Income - Primary",
-  "Income - Secondary",
-  "Housing",
-  "Transportation",
-  "Groceries",
-  "Food",
-  "Utilities",
-  "Medical, Healthcare & Fitness",
-  "Savings, Investing, & Debt Payments",
-  "Personal Spending",
-  "Recreation & Entertainment",
-  "Travel & Holidays",
-  "Miscellaneous",
-  "Work Expenses - Primary",
-  "Work Expenses - Secondary",
-  "Finance",
-  "Parents Expenses",
-  "Mortgage Repayments",
-  "Transfer",
-  "Uncategorised"
-];
 
 /**
  * Fetches categories from the database
@@ -125,7 +104,7 @@ export async function fetchCategories(workspaceId: string): Promise<Category[]> 
   const config = getServerConfig();
 
   if (!config) {
-    return DEFAULT_CATEGORIES;
+    return DEFAULT_CATEGORY_NAMES;
   }
 
   const databases = createDatabasesClient(config);
@@ -141,11 +120,11 @@ export async function fetchCategories(workspaceId: string): Promise<Category[]> 
       .map((doc) => String(doc.name ?? "").trim())
       .filter(Boolean);
 
-    const categories = names.length > 0 ? names : DEFAULT_CATEGORIES;
+    const categories = names.length > 0 ? names : DEFAULT_CATEGORY_NAMES;
 
     return categories;
   } catch (error) {
     console.error("[CASH-LOGS-SERVICE] Failed to fetch categories:", error);
-    return DEFAULT_CATEGORIES;
+    return DEFAULT_CATEGORY_NAMES;
   }
 }

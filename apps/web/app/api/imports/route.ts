@@ -3,6 +3,7 @@ import { Databases, ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { normalizeDateToISO } from "../../../lib/data";
+import { DEFAULT_CATEGORY_NAMES } from "../../../lib/categories";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AppwriteDocument = { $id: string; [key: string]: any };
@@ -11,26 +12,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_CATEGORIES = [
-  "Income - Primary",
-  "Income - Secondary",
-  "Housing",
-  "Transportation",
-  "Groceries",
-  "Food",
-  "Utilities",
-  "Medical, Healthcare & Fitness",
-  "Savings, Investing, & Debt Payments",
-  "Personal Spending",
-  "Recreation & Entertainment",
-  "Miscellaneous",
-  "Work Expenses - Primary",
-  "Work Expenses - Secondary",
-  "Finance",
-  "Parents Expenses",
-  "Mortgage Repayments",
-  "Uncategorised"
-];
 
 type ImportRow = {
   date?: string;
@@ -81,9 +62,9 @@ async function loadWorkspaceCategories(
     const names = response.documents
       .map((doc) => String(doc.name ?? "").trim())
       .filter(Boolean);
-    return names.length ? names : DEFAULT_CATEGORIES;
+    return names.length ? names : DEFAULT_CATEGORY_NAMES;
   } catch {
-    return DEFAULT_CATEGORIES;
+    return DEFAULT_CATEGORY_NAMES;
   }
 }
 

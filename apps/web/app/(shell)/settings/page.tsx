@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Card, SectionHead } from "@tandemly/ui";
 import { getApiContext } from "../../../lib/api-auth";
 import MembersSection from "./MembersSection";
+import CategoriesSection from "./CategoriesSection";
 
 export default async function SettingsPage() {
   const ctx = await getApiContext();
@@ -19,6 +20,10 @@ export default async function SettingsPage() {
       <MembersSection
         workspaceId={ctx.workspaceId}
         currentUserId={ctx.user.$id}
+        userRole={ctx.role}
+      />
+      <CategoriesSection
+        workspaceId={ctx.workspaceId}
         userRole={ctx.role}
       />
       <Card title="System">
