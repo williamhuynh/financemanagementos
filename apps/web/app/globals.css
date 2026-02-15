@@ -1168,6 +1168,50 @@ body.detail-panel-active .app-shell {
   opacity: 0;
 }
 
+.card.compact {
+  padding: 12px 14px;
+}
+
+.card.compact .card-title {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.card.compact .card-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.card.compact .list-row {
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+
+.card.compact .list-row + .list-row {
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.card.compact .list-row:first-child {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.card.compact .list-row:last-child {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.card.compact .list-row:only-child {
+  border-radius: var(--radius-sm);
+}
+
+.card.compact .loading-text {
+  padding: 8px;
+  font-size: 13px;
+}
+
 .card.glow::after {
   content: "";
   position: absolute;
@@ -1593,6 +1637,53 @@ body.detail-panel-active .app-shell {
   display: flex;
   gap: 12px;
   align-items: center;
+}
+
+/* Compact category row styles */
+.cat-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cat-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-row-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cat-row-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cat-row-amount {
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cat-row-amount[data-has-value] {
+  color: var(--text-primary);
+}
+
+.cat-row-actions {
+  display: flex;
+  gap: 2px;
 }
 
 .category-actions {
