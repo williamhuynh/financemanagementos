@@ -369,100 +369,6 @@ function AssetDetailView({
         <span className="right-drawer-value">{asset.currency}</span>
       </div>
 
-      {/* Edit fields (hidden when disposed) */}
-      {!isDisposed && (
-        <form onSubmit={handleEditSubmit}>
-          <div className="right-drawer-actions">
-            <div className="field">
-              <label className="field-label" htmlFor="edit-asset-name">
-                Asset name
-              </label>
-              <input
-                id="edit-asset-name"
-                className="field-input"
-                type="text"
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="CMC Portfolio"
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="edit-asset-type">
-                Category
-              </label>
-              <select
-                id="edit-asset-type"
-                className="field-input"
-                value={editForm.type}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, type: e.target.value }))
-                }
-              >
-                {categories.map((cat) => (
-                  <option key={cat.type} value={cat.type}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="edit-asset-owner">
-                Owner
-              </label>
-              <select
-                id="edit-asset-owner"
-                className="field-input"
-                value={editForm.owner}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, owner: e.target.value }))
-                }
-              >
-                {ownerOptions.map((owner) => (
-                  <option key={owner} value={owner}>
-                    {owner}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="edit-asset-currency">
-                Currency
-              </label>
-              <select
-                id="edit-asset-currency"
-                className="field-input"
-                value={editForm.currency}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, currency: e.target.value }))
-                }
-              >
-                {SUPPORTED_CURRENCIES.map((code) => (
-                  <option key={code} value={code}>{code}</option>
-                ))}
-              </select>
-            </div>
-            <div className="review-actions">
-              <button
-                className="primary-btn"
-                type="submit"
-                disabled={saveState === "saving" || !editForm.name.trim()}
-              >
-                {saveState === "saving" ? "Saving..." : "Save changes"}
-              </button>
-              {saveState === "saved" ? <span className="chip">Saved</span> : null}
-              {saveState === "error" ? (
-                <span className="chip warn">Check details</span>
-              ) : null}
-              {saveError ? (
-                <span className="asset-note">{saveError}</span>
-              ) : null}
-            </div>
-          </div>
-        </form>
-      )}
-
       {/* Update value section (hidden when disposed) */}
       {!isDisposed && (
         <form onSubmit={handleValueSubmit}>
@@ -566,6 +472,100 @@ function AssetDetailView({
               ) : null}
               {valueError ? (
                 <span className="asset-note">{valueError}</span>
+              ) : null}
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* Edit fields (hidden when disposed) */}
+      {!isDisposed && (
+        <form onSubmit={handleEditSubmit}>
+          <div className="right-drawer-actions">
+            <div className="field">
+              <label className="field-label" htmlFor="edit-asset-name">
+                Asset name
+              </label>
+              <input
+                id="edit-asset-name"
+                className="field-input"
+                type="text"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="CMC Portfolio"
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="edit-asset-type">
+                Category
+              </label>
+              <select
+                id="edit-asset-type"
+                className="field-input"
+                value={editForm.type}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, type: e.target.value }))
+                }
+              >
+                {categories.map((cat) => (
+                  <option key={cat.type} value={cat.type}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="edit-asset-owner">
+                Owner
+              </label>
+              <select
+                id="edit-asset-owner"
+                className="field-input"
+                value={editForm.owner}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, owner: e.target.value }))
+                }
+              >
+                {ownerOptions.map((owner) => (
+                  <option key={owner} value={owner}>
+                    {owner}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="edit-asset-currency">
+                Currency
+              </label>
+              <select
+                id="edit-asset-currency"
+                className="field-input"
+                value={editForm.currency}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, currency: e.target.value }))
+                }
+              >
+                {SUPPORTED_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
+              </select>
+            </div>
+            <div className="review-actions">
+              <button
+                className="primary-btn"
+                type="submit"
+                disabled={saveState === "saving" || !editForm.name.trim()}
+              >
+                {saveState === "saving" ? "Saving..." : "Save changes"}
+              </button>
+              {saveState === "saved" ? <span className="chip">Saved</span> : null}
+              {saveState === "error" ? (
+                <span className="chip warn">Check details</span>
+              ) : null}
+              {saveError ? (
+                <span className="asset-note">{saveError}</span>
               ) : null}
             </div>
           </div>
