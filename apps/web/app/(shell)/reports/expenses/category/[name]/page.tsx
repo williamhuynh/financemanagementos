@@ -42,7 +42,7 @@ export default async function CategoryExpensePage({
         actions={
           <>
             <Link className="pill" href={backLink}>
-              Back to reports
+              Back to Monthly Close
             </Link>
             <MonthSelector
               options={breakdown.monthOptions}

@@ -1,7 +1,7 @@
 # UX Specification (Draft)
 
 ## Global
-- Month selector scopes Dashboard, Ledger, and Reports.
+- Month selector scopes Dashboard, Ledger, and Monthly Close.
 - Month status indicator (Open/Closed) with close timestamp and owner.
 - Global search for merchant, category, account, and notes.
 - Review badge with count of unresolved items.

@@ -12,7 +12,7 @@ See [ROADMAP.md](ROADMAP.md) for current status and priorities.
 
 ## Frontend
 - PWA shell with offline-friendly caching for recent views.
-- Pages: Dashboard, Ledger, Review Queue, Assets, Cash Log, Import, Reports, Settings.
+- Pages: Dashboard, Ledger, Review Queue, Assets, Cash Log, Import, Monthly Close, Settings.
 - Shared component library (`packages/ui/`) for cards, chips, charts, topbar.
 - Client/server component split — server components fetch data, client components handle interactivity.
 

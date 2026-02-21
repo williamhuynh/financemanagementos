@@ -117,6 +117,15 @@ export async function POST(request: Request) {
 - When adding new UI text, use "Transactions". When working with backend/data code,
   continue using "ledger". A full backend rename is deferred.
 
+### Naming: "Reports" vs "Monthly Close"
+- The route path, directory name, and some backend references still use **"reports"**
+  (e.g. `/reports`, `app/(shell)/reports/`, `ReportsPage`, `reportStats`).
+- The **user-facing UI** calls it **"Monthly Close"** (nav label, page title, back links).
+  The page's purpose is to review a month and close it after importing everything.
+  Do NOT show the word "Reports" to users.
+- When adding new UI text, use "Monthly Close". When working with routes/backend code,
+  continue using "reports". A full backend rename is deferred.
+
 ### Detail Panel (right-side push panel)
 - Use `<DetailPanel>` from `@tandemly/ui` whenever a page needs a right-side detail
   view (e.g. clicking a row to see more info). Do NOT create custom drawers or overlays.

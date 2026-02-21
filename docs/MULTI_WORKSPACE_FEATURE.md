@@ -157,7 +157,7 @@ Each workspace maintains completely isolated data:
 - View dashboard
 - View ledger
 - View assets
-- View reports
+- View monthly close
 - List categories and accounts
 
 ### Write Permission
