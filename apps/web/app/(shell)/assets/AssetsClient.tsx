@@ -1,26 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { Card, SectionHead, TrendRangeToggle } from "@tandemly/ui";
+import { useMemo, useState, useEffect } from "react";
+import { Card, SectionHead, TrendRangeToggle, DetailPanel } from "@tandemly/ui";
 import type { TrendRange } from "@tandemly/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue, filterSeriesByRange } from "../../../lib/data";
-import { SUPPORTED_CURRENCIES } from "../../../lib/currencies";
+import AssetDetail from "./AssetDetail";
 
 type AssetsClientProps = {
   overview: AssetOverview;
   ownerOptions: string[];
   homeCurrency: string;
-};
-
-type AssetFormState = {
-  id?: string;
-  name: string;
-  type: string;
-  owner: string;
-  currency: string;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -32,25 +23,13 @@ type AssetSeries = {
   color: string;
 };
 
-type ActiveEditor =
+type PanelState =
+  | { mode: "view"; assetId: string }
   | { mode: "add"; categoryType: string }
-  | { mode: "edit"; assetId: string }
-  | { mode: "update"; assetId: string }
   | null;
 
 function normalizeKey(value: string) {
   return value.trim().toLowerCase();
-}
-
-function formatLocalDateTime(value: Date) {
-  const offset = value.getTimezoneOffset() * 60000;
-  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function getMonthEndDate(value: Date) {
-  const year = value.getFullYear();
-  const month = value.getMonth();
-  return new Date(year, month + 1, 0, 23, 59);
 }
 
 function buildTrendPoints(series: AssetOverview["netWorthSeries"], min: number, max: number) {
@@ -95,20 +74,6 @@ function getSeriesColor(assetType: string) {
   }
 }
 
-function getDefaultValue(asset: AssetItem) {
-  if (asset.latestValue === null) {
-    return "";
-  }
-  return Math.abs(asset.latestValue).toString();
-}
-
-function formatValueWithHome(value: string, homeValue: string, currency: string, homeCurrency: string) {
-  if (!currency || currency.toUpperCase() === homeCurrency.toUpperCase()) {
-    return value;
-  }
-  return `${value} (${homeValue})`;
-}
-
 function formatValueWithHomeMasked(
   value: string,
   homeValue: string,
@@ -128,20 +93,6 @@ function buildOwnerLabel(owner: string) {
   return owner || "Joint";
 }
 
-function formatCurrencyInput(value: string) {
-  if (!value) return "";
-  const numericValue = value.replace(/[^0-9.]/g, "");
-  if (!numericValue) return "";
-  const parts = numericValue.split(".");
-  const dollars = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const cents = parts[1] !== undefined ? "." + parts[1].slice(0, 2) : "";
-  return "$" + dollars + cents;
-}
-
-function parseCurrencyInput(value: string) {
-  return value.replace(/[^0-9.]/g, "");
-}
-
 export default function AssetsClient({ overview, ownerOptions, homeCurrency }: AssetsClientProps) {
   const { isVisible } = useNumberVisibility();
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
@@ -156,33 +107,11 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     lastUpdatedLabel
   } = overviewState;
 
-  const [activeEditor, setActiveEditor] = useState<ActiveEditor>(null);
-  const [isMounted, setIsMounted] = useState(false);
-  const [recordedAt, setRecordedAt] = useState(() => formatLocalDateTime(new Date()));
-  const [useMonthEnd, setUseMonthEnd] = useState(false);
-  const [source, setSource] = useState("manual");
-  const [valueMap, setValueMap] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    assets.forEach((asset) => {
-      initial[asset.id] = getDefaultValue(asset);
-    });
-    return initial;
-  });
-  const [noteMap, setNoteMap] = useState<Record<string, string>>({});
-  const [valueState, setValueState] = useState<SaveState>("idle");
-  const [valueError, setValueError] = useState<string>("");
-
-  const [assetForm, setAssetForm] = useState<AssetFormState>(() => {
-    const firstType = categories[0]?.type ?? "property";
-    return {
-      name: "",
-      type: firstType,
-      owner: "Joint",
-      currency: homeCurrency
-    };
-  });
+  const [panelState, setPanelState] = useState<PanelState>(null);
   const [assetState, setAssetState] = useState<SaveState>("idle");
   const [assetError, setAssetError] = useState<string>("");
+  const [valueState, setValueState] = useState<SaveState>("idle");
+  const [valueError, setValueError] = useState<string>("");
   const [deleteState, setDeleteState] = useState<SaveState>("idle");
   const [refreshState, setRefreshState] = useState<SaveState>("idle");
   const [activeHistoryCategory, setActiveHistoryCategory] = useState<string | null>(
@@ -193,40 +122,6 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   useEffect(() => {
     setOverviewState(overview);
   }, [overview]);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (activeEditor?.mode !== "update") return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setActiveEditor(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeEditor]);
-
-  useEffect(() => {
-    setValueMap(() => {
-      const next: Record<string, string> = {};
-      assets.forEach((asset) => {
-        next[asset.id] = getDefaultValue(asset);
-      });
-      return next;
-    });
-    setNoteMap({});
-    setValueState("idle");
-    setValueError("");
-    if (activeEditor?.mode === "update") {
-      const exists = assets.some((asset) => asset.id === activeEditor.assetId);
-      if (!exists) {
-        setActiveEditor(null);
-      }
-    }
-  }, [assets, activeEditor]);
 
   const refreshOverview = async () => {
     setRefreshState("saving");
@@ -246,7 +141,6 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
       return false;
     }
   };
-
 
   const [trendRange, setTrendRange] = useState<TrendRange>("ALL");
 
@@ -330,62 +224,121 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     return map;
   }, [assets]);
 
-  const editableAssets = useMemo(() => {
-    if (activeEditor?.mode !== "update") {
-      return [];
-    }
-    return assets.filter((asset) => asset.id === activeEditor.assetId);
-  }, [assets, activeEditor]);
+  const selectedAsset = useMemo(() => {
+    if (panelState?.mode !== "view") return null;
+    const all = [...assets, ...disposedAssets];
+    return all.find((a) => a.id === panelState.assetId) ?? null;
+  }, [panelState, assets, disposedAssets]);
+
+  const selectedAssetHistory = useMemo(() => {
+    if (!selectedAsset) return [];
+    const byId = historyByAsset.get(selectedAsset.id);
+    if (byId && byId.length > 0) return byId;
+    return historyByAsset.get(normalizeKey(selectedAsset.name)) ?? [];
+  }, [selectedAsset, historyByAsset]);
 
   const heroSub =
     lastUpdatedLabel === "No updates yet"
       ? "No updates yet"
       : `Last update: ${lastUpdatedLabel}`;
 
-  const handleRecordedAtChange = (nextValue: string) => {
-    if (useMonthEnd) {
-      const parsed = new Date(nextValue);
-      if (!Number.isNaN(parsed.valueOf())) {
-        setRecordedAt(formatLocalDateTime(getMonthEndDate(parsed)));
-        return;
-      }
-    }
-    setRecordedAt(nextValue);
+  const handleHistoryToggle = (assetId: string) => {
+    setHistoryExpanded((prev) => ({
+      ...prev,
+      [assetId]: !prev[assetId]
+    }));
   };
 
-  const handleMonthEndToggle = (checked: boolean) => {
-    setUseMonthEnd(checked);
-    if (checked) {
-      const base = recordedAt ? new Date(recordedAt) : new Date();
-      if (!Number.isNaN(base.valueOf())) {
-        setRecordedAt(formatLocalDateTime(getMonthEndDate(base)));
-      }
-    }
+  const handleAssetRowClick = (id: string) => {
+    setPanelState((prev) =>
+      prev?.mode === "view" && prev.assetId === id
+        ? null
+        : { mode: "view", assetId: id }
+    );
   };
 
-  const resetAssetForm = (type?: string) => {
-    const nextType = type ?? categories[0]?.type ?? "property";
-    setAssetForm({ name: "", type: nextType, owner: "Joint", currency: homeCurrency });
-    setAssetState("idle");
+  const handleAddAssetClick = (categoryType: string) => {
+    setPanelState({ mode: "add", categoryType });
+  };
+
+  const handlePanelSave = async (
+    id: string,
+    data: { name: string; type: string; owner: string; currency: string }
+  ) => {
+    setAssetState("saving");
     setAssetError("");
+    try {
+      const response = await fetch(`/api/assets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      setAssetState("saved");
+      await refreshOverview();
+    } catch {
+      setAssetState("error");
+      setAssetError("Unable to save asset. Try again.");
+    }
   };
 
-  const handleOpenAssetForm = (type?: string) => {
-    resetAssetForm(type);
-    setActiveEditor({ mode: "add", categoryType: type ?? categories[0]?.type ?? "property" });
-  };
-
-  const handleEditAsset = (asset: AssetItem) => {
-    setAssetForm({
-      id: asset.id,
-      name: asset.name,
-      type: asset.type,
-      owner: asset.owner,
-      currency: asset.currency
-    });
-    setAssetState("idle");
+  const handlePanelCreate = async (
+    data: { name: string; type: string; owner: string; currency: string }
+  ) => {
+    setAssetState("saving");
     setAssetError("");
-    setActiveEditor({ mode: "edit", assetId: asset.id });
+    try {
+      const response = await fetch("/api/assets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      setAssetState("saved");
+      setPanelState(null);
+      await refreshOverview();
+    } catch {
+      setAssetState("error");
+      setAssetError("Unable to save asset. Try again.");
+    }
+  };
+
+  const handlePanelSaveValue = async (data: {
+    assetId: string;
+    assetName: string;
+    assetType: string;
+    value: number;
+    currency: string;
+    recordedAt: string;
+    source: string;
+    notes?: string;
+  }) => {
+    setValueState("saving");
+    setValueError("");
+    try {
+      const response = await fetch("/api/assets/values", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordedAt: data.recordedAt,
+          items: [{
+            assetId: data.assetId,
+            assetName: data.assetName,
+            assetType: data.assetType,
+            value: data.value,
+            currency: data.currency,
+            source: data.source,
+            notes: data.notes,
+          }],
+        }),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      setValueState("saved");
+      await refreshOverview();
+    } catch {
+      setValueState("error");
+      setValueError("Unable to save asset value. Try again.");
+    }
   };
 
   const handleDisposeAsset = async (asset: AssetItem) => {
@@ -416,12 +369,6 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   };
 
   const handleHardDeleteAsset = async (asset: AssetItem) => {
-    const confirmed = window.confirm(
-      "Remove this asset from the UI? It will be archived."
-    );
-    if (!confirmed) {
-      return;
-    }
     setDeleteState("saving");
     try {
       const response = await fetch(`/api/assets/${asset.id}`, {
@@ -431,7 +378,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
         throw new Error("Delete failed");
       }
       setDeleteState("saved");
-      setActiveEditor(null);
+      setPanelState(null);
       const refreshed = await refreshOverview();
       if (!refreshed) {
         setDeleteState("error");
@@ -444,12 +391,6 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   };
 
   const handleHardDeleteValue = async (entryId: string) => {
-    const confirmed = window.confirm(
-      "Remove this value update from the UI? It will be archived."
-    );
-    if (!confirmed) {
-      return;
-    }
     setDeleteState("saving");
     try {
       const response = await fetch(`/api/assets/values/${entryId}`, {
@@ -462,126 +403,11 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
       const refreshed = await refreshOverview();
       if (!refreshed) {
         setDeleteState("error");
-        setAssetError("Entry deleted, but refresh failed.");
+        setAssetError("Unable to delete value entry. Try again.");
       }
     } catch (error) {
       setDeleteState("error");
       setAssetError("Unable to delete value entry. Try again.");
-    }
-  };
-
-  const handleHistoryToggle = (assetId: string) => {
-    setHistoryExpanded((prev) => ({
-      ...prev,
-      [assetId]: !prev[assetId]
-    }));
-  };
-
-  const handleSubmitAsset = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setAssetError("");
-    if (!assetForm.name.trim()) {
-      setAssetState("error");
-      setAssetError("Asset name is required.");
-      return;
-    }
-    setAssetState("saving");
-    const payload = {
-      name: assetForm.name.trim(),
-      type: assetForm.type,
-      owner: assetForm.owner,
-      currency: assetForm.currency.trim() || homeCurrency
-    };
-    try {
-      const response = await fetch(
-        assetForm.id ? `/api/assets/${assetForm.id}` : "/api/assets",
-        {
-          method: assetForm.id ? "PATCH" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        }
-      );
-      if (!response.ok) {
-        throw new Error("Save failed");
-      }
-      setAssetState("saved");
-      setActiveEditor(null);
-      resetAssetForm(assetForm.type);
-      const refreshed = await refreshOverview();
-      if (!refreshed) {
-        setAssetState("error");
-        setAssetError("Asset saved, but refresh failed.");
-      }
-    } catch (error) {
-      setAssetState("error");
-      setAssetError("Unable to save asset. Try again.");
-    }
-  };
-
-  const handleSubmitValues = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setValueError("");
-    setValueState("saving");
-    const items = editableAssets
-      .map((asset) => {
-        const valueRaw = valueMap[asset.id];
-        if (!valueRaw) {
-          return null;
-        }
-        const value = Number(valueRaw);
-        if (!Number.isFinite(value)) {
-          return null;
-        }
-        return {
-          assetId: asset.id,
-          assetName: asset.name,
-          assetType: asset.type,
-          value,
-          currency: asset.currency,
-          source: source.trim() || "manual",
-          notes: noteMap[asset.id] || undefined
-        };
-      })
-      .filter(Boolean) as {
-      assetId: string;
-      assetName: string;
-      assetType: string;
-      value: number;
-      currency: string;
-      source: string;
-      notes?: string;
-    }[];
-
-    if (items.length === 0) {
-      setValueState("error");
-      setValueError("Add at least one value to save.");
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/assets/values", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recordedAt: recordedAt
-            ? new Date(recordedAt).toISOString()
-            : new Date().toISOString(),
-          items
-        })
-      });
-      if (!response.ok) {
-        throw new Error("Save failed");
-      }
-      setValueState("saved");
-      setActiveEditor(null);
-      const refreshed = await refreshOverview();
-      if (!refreshed) {
-        setValueState("error");
-        setValueError("Values saved, but refresh failed.");
-      }
-    } catch (err) {
-      setValueState("error");
-      setValueError("Unable to save asset values. Try again.");
     }
   };
 
@@ -664,7 +490,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
         <div className="chart-head">
           <div>
             <div className="card-title">Assets by category</div>
-            <div className="card-sub">Add, edit, and dispose assets</div>
+            <div className="card-sub">Click an asset to view details</div>
           </div>
         </div>
         {categories.map((category) => {
@@ -676,128 +502,11 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
                 <button
                   className="pill"
                   type="button"
-                  onClick={() => handleOpenAssetForm(category.type)}
+                  onClick={() => handleAddAssetClick(category.type)}
                 >
                   Add asset
                 </button>
               </div>
-              {activeEditor?.mode === "add" &&
-              activeEditor.categoryType === category.type ? (
-                <div className="asset-inline-form">
-                  <div className="asset-inline-head">
-                    <div className="card-title">Add asset</div>
-                    <button
-                      className="ghost-btn"
-                      type="button"
-                      onClick={() => setActiveEditor(null)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <form onSubmit={handleSubmitAsset}>
-                    <div className="asset-form-grid">
-                      <div className="field">
-                        <label className="field-label" htmlFor="asset-name">
-                          Asset name
-                        </label>
-                        <input
-                          id="asset-name"
-                          className="field-input"
-                          type="text"
-                          value={assetForm.name}
-                          onChange={(event) =>
-                            setAssetForm((prev) => ({
-                              ...prev,
-                              name: event.target.value
-                            }))
-                          }
-                          placeholder="CMC Portfolio"
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="field-label" htmlFor="asset-type">
-                          Category
-                        </label>
-                        <select
-                          id="asset-type"
-                          className="field-input"
-                          value={assetForm.type}
-                          onChange={(event) =>
-                            setAssetForm((prev) => ({
-                              ...prev,
-                              type: event.target.value
-                            }))
-                          }
-                        >
-                          {categories.map((option) => (
-                            <option key={option.type} value={option.type}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label className="field-label" htmlFor="asset-owner">
-                          Owner
-                        </label>
-                        <select
-                          id="asset-owner"
-                          className="field-input"
-                          value={assetForm.owner}
-                          onChange={(event) =>
-                            setAssetForm((prev) => ({
-                              ...prev,
-                              owner: event.target.value
-                            }))
-                          }
-                        >
-                          {ownerOptions.map((owner) => (
-                            <option key={owner} value={owner}>
-                              {owner}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label className="field-label" htmlFor="asset-currency">
-                          Currency
-                        </label>
-                        <select
-                          id="asset-currency"
-                          className="field-input"
-                          value={assetForm.currency}
-                          onChange={(event) =>
-                            setAssetForm((prev) => ({
-                              ...prev,
-                              currency: event.target.value
-                            }))
-                          }
-                        >
-                          {SUPPORTED_CURRENCIES.map((code) => (
-                            <option key={code} value={code}>{code}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="review-actions">
-                      <button
-                        className="primary-btn"
-                        type="submit"
-                        disabled={assetState === "saving"}
-                      >
-                        {assetState === "saving" ? "Saving..." : "Save asset"}
-                      </button>
-                      {assetState === "saved" ? <span className="chip">Saved</span> : null}
-                      {assetState === "error" ? (
-                        <span className="chip warn">Check details</span>
-                      ) : null}
-                      {assetError ? (
-                        <span className="asset-note">{assetError}</span>
-                      ) : null}
-                    </div>
-                  </form>
-                </div>
-              ) : null}
               {items.length === 0 ? (
                 <div className="empty-state">No assets yet.</div>
               ) : (
@@ -807,206 +516,41 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
                     <span>Owner</span>
                     <span>Latest value</span>
                     <span>Last updated</span>
-                    <span>Actions</span>
                   </div>
-                  {items.map((asset) => {
-                    const showEdit =
-                      activeEditor?.mode === "edit" &&
-                      activeEditor.assetId === asset.id;
-                    const showUpdate =
-                      activeEditor?.mode === "update" &&
-                      activeEditor.assetId === asset.id;
-                    return (
-                      <div key={asset.id} className="asset-row-block">
-                        <div className="asset-list-row">
-                          <span>{asset.name}</span>
-                      <span>{buildOwnerLabel(asset.owner)}</span>
-                      <span>
-                        {formatValueWithHomeMasked(
-                          asset.formattedValue,
-                          asset.formattedAudValue,
-                          asset.currency,
-                          homeCurrency,
-                          isVisible
-                        )}
-                      </span>
-                          <span>{asset.lastUpdatedLabel}</span>
-                          <span className="asset-row-actions">
-                            <button
-                              className="pill"
-                              type="button"
-                              onClick={() =>
-                                {
-                                  setValueState("idle");
-                                  setValueError("");
-                                  setActiveEditor({
-                                    mode: "update",
-                                    assetId: asset.id
-                                  });
-                                }
-                              }
-                            >
-                              Update value
-                            </button>
-                            <button
-                              className="pill"
-                              type="button"
-                              onClick={() => handleEditAsset(asset)}
-                            >
-                              Edit
-                            </button>
-                          </span>
-                        </div>
-                        {showEdit ? (
-                          <div className="asset-inline-form">
-                            <div className="asset-inline-head">
-                              <div className="card-title">Edit asset</div>
-                              <button
-                                className="ghost-btn"
-                                type="button"
-                                onClick={() => setActiveEditor(null)}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                            <form onSubmit={handleSubmitAsset}>
-                              <div className="asset-form-grid">
-                                <div className="field">
-                                  <label
-                                    className="field-label"
-                                    htmlFor={`asset-name-edit-${asset.id}`}
-                                  >
-                                    Asset name
-                                  </label>
-                                  <input
-                                    id={`asset-name-edit-${asset.id}`}
-                                    className="field-input"
-                                    type="text"
-                                    value={assetForm.name}
-                                    onChange={(event) =>
-                                      setAssetForm((prev) => ({
-                                        ...prev,
-                                        name: event.target.value
-                                      }))
-                                    }
-                                    placeholder="CMC Portfolio"
-                                  />
-                                </div>
-                                <div className="field">
-                                  <label
-                                    className="field-label"
-                                    htmlFor={`asset-type-edit-${asset.id}`}
-                                  >
-                                    Category
-                                  </label>
-                                  <select
-                                    id={`asset-type-edit-${asset.id}`}
-                                    className="field-input"
-                                    value={assetForm.type}
-                                    onChange={(event) =>
-                                      setAssetForm((prev) => ({
-                                        ...prev,
-                                        type: event.target.value
-                                      }))
-                                    }
-                                  >
-                                    {categories.map((option) => (
-                                      <option key={option.type} value={option.type}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="field">
-                                  <label
-                                    className="field-label"
-                                    htmlFor={`asset-owner-edit-${asset.id}`}
-                                  >
-                                    Owner
-                                  </label>
-                                  <select
-                                    id={`asset-owner-edit-${asset.id}`}
-                                    className="field-input"
-                                    value={assetForm.owner}
-                                    onChange={(event) =>
-                                      setAssetForm((prev) => ({
-                                        ...prev,
-                                        owner: event.target.value
-                                      }))
-                                    }
-                                  >
-                                    {ownerOptions.map((owner) => (
-                                      <option key={owner} value={owner}>
-                                        {owner}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                                <div className="field">
-                                  <label
-                                    className="field-label"
-                                    htmlFor={`asset-currency-edit-${asset.id}`}
-                                  >
-                                    Currency
-                                  </label>
-                                  <select
-                                    id={`asset-currency-edit-${asset.id}`}
-                                    className="field-input"
-                                    value={assetForm.currency}
-                                    onChange={(event) =>
-                                      setAssetForm((prev) => ({
-                                        ...prev,
-                                        currency: event.target.value
-                                      }))
-                                    }
-                                  >
-                                    <option value="AUD">AUD</option>
-                                    <option value="USD">USD</option>
-                                  </select>
-                                </div>
-                              </div>
-                              <div className="review-actions">
-                                <button
-                                  className="primary-btn"
-                                  type="submit"
-                                  disabled={assetState === "saving"}
-                                >
-                                  {assetState === "saving"
-                                    ? "Saving..."
-                                    : "Save changes"}
-                                </button>
-                                <button
-                                  className="pill danger-btn"
-                                  type="button"
-                                  onClick={() => handleDisposeAsset(asset)}
-                                  disabled={assetState === "saving"}
-                                >
-                                  Dispose asset
-                                </button>
-                                <button
-                                  className="pill danger-btn"
-                                  type="button"
-                                  onClick={() => handleHardDeleteAsset(asset)}
-                                  disabled={deleteState === "saving"}
-                                >
-                                  Remove asset
-                                </button>
-                                {assetState === "saved" ? (
-                                  <span className="chip">Saved</span>
-                                ) : null}
-                                {assetState === "error" ? (
-                                  <span className="chip warn">Check details</span>
-                                ) : null}
-                                {assetError ? (
-                                  <span className="asset-note">{assetError}</span>
-                                ) : null}
-                              </div>
-                            </form>
-                          </div>
-                        ) : null}
+                  {items.map((asset) => (
+                    <div
+                      key={asset.id}
+                      className={`asset-row-block${
+                        panelState?.mode === "view" && panelState.assetId === asset.id
+                          ? " selected"
+                          : ""
+                      }`}
+                      onClick={() => handleAssetRowClick(asset.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleAssetRowClick(asset.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="asset-list-row">
+                        <span>{asset.name}</span>
+                        <span>{buildOwnerLabel(asset.owner)}</span>
+                        <span>
+                          {formatValueWithHomeMasked(
+                            asset.formattedValue,
+                            asset.formattedAudValue,
+                            asset.currency,
+                            homeCurrency,
+                            isVisible
+                          )}
+                        </span>
+                        <span>{asset.lastUpdatedLabel}</span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1151,17 +695,32 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
             </div>
           </div>
           <div className="asset-history-table">
-            <div className="asset-history-header">
+            <div className="asset-history-header disposed-header">
               <span>Asset</span>
               <span>Type</span>
               <span>Owner</span>
               <span>Last value</span>
               <span>Last updated</span>
               <span>Status</span>
-              <span>Actions</span>
             </div>
             {disposedAssets.map((asset) => (
-              <div key={asset.id} className="asset-history-row">
+              <div
+                key={asset.id}
+                className={`asset-history-row disposed-row${
+                  panelState?.mode === "view" && panelState.assetId === asset.id
+                    ? " selected"
+                    : ""
+                }`}
+                onClick={() => handleAssetRowClick(asset.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleAssetRowClick(asset.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
                 <span>{asset.name}</span>
                 <span>{asset.typeLabel}</span>
                 <span>{buildOwnerLabel(asset.owner)}</span>
@@ -1176,162 +735,50 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
                 </span>
                 <span>{asset.lastUpdatedLabel}</span>
                 <span>Disposed</span>
-                <span className="asset-row-actions">
-                  <button
-                    className="pill danger-btn"
-                    type="button"
-                    onClick={() => handleHardDeleteAsset(asset)}
-                    disabled={deleteState === "saving"}
-                  >
-                    Remove asset
-                  </button>
-                </span>
               </div>
             ))}
           </div>
         </article>
       ) : null}
 
-      {activeEditor?.mode === "update" && isMounted
-        ? createPortal(
-            <div className="spend-filter-modal" role="dialog" aria-modal="true">
-              <button
-                className="spend-filter-backdrop"
-                type="button"
-                aria-label="Close update value form"
-                onClick={() => setActiveEditor(null)}
-              />
-              <div className="spend-filter-panel">
-                <div className="spend-filter-head">
-                  <div>
-                    <div className="card-title">Update value</div>
-                    <div className="card-sub">
-                      Update asset value and add notes
-                    </div>
-                  </div>
-                  <button
-                    className="ghost-btn"
-                    type="button"
-                    onClick={() => setActiveEditor(null)}
-                  >
-                    Close
-                  </button>
-                </div>
-                <form onSubmit={handleSubmitValues}>
-                  <div className="field">
-                    <label className="field-label" htmlFor="modal-recorded-at">
-                      Recorded at
-                    </label>
-                    <input
-                      id="modal-recorded-at"
-                      className="field-input"
-                      type="datetime-local"
-                      value={recordedAt}
-                      onChange={(event) =>
-                        handleRecordedAtChange(event.target.value)
-                      }
-                      onFocus={(event) => event.target.select()}
-                    />
-                  </div>
-                  <div className="field asset-toggle">
-                    <label className="field-label" htmlFor="modal-month-end">
-                      Use month-end
-                    </label>
-                    <label className="toggle">
-                      <input
-                        id="modal-month-end"
-                        type="checkbox"
-                        checked={useMonthEnd}
-                        onChange={(event) =>
-                          handleMonthEndToggle(event.target.checked)
-                        }
-                      />
-                      <span>Snap to the last day of the month</span>
-                    </label>
-                  </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="modal-source">
-                      Source
-                    </label>
-                    <input
-                      id="modal-source"
-                      className="field-input"
-                      type="text"
-                      value={source}
-                      onChange={(event) => setSource(event.target.value)}
-                      onFocus={(event) => event.target.select()}
-                      placeholder="manual"
-                    />
-                  </div>
-                  <div className="asset-update-table">
-                    <div className="asset-update-header">
-                      <span>Asset</span>
-                      <span>Owner</span>
-                      <span>Value</span>
-                      <span>Notes</span>
-                    </div>
-                    {editableAssets.map((editable) => (
-                      <div key={editable.id} className="asset-update-row">
-                        <span>{editable.name}</span>
-                        <span>{buildOwnerLabel(editable.owner)}</span>
-                        <input
-                          className="field-input"
-                          type="text"
-                          inputMode="decimal"
-                          value={formatCurrencyInput(valueMap[editable.id] ?? "")}
-                          onChange={(event) =>
-                            setValueMap((prev) => ({
-                              ...prev,
-                              [editable.id]: parseCurrencyInput(event.target.value)
-                            }))
-                          }
-                          onFocus={(event) => event.target.select()}
-                          placeholder="$0.00"
-                        />
-                        <input
-                          className="field-input"
-                          type="text"
-                          value={noteMap[editable.id] ?? ""}
-                          onChange={(event) =>
-                            setNoteMap((prev) => ({
-                              ...prev,
-                              [editable.id]: event.target.value
-                            }))
-                          }
-                          onFocus={(event) => event.target.select()}
-                          placeholder="Optional note"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="asset-note">
-                    Liabilities are entered as positive values and displayed as
-                    negative.
-                  </div>
-                  <div className="review-actions">
-                    <button
-                      className="primary-btn"
-                      type="submit"
-                      disabled={valueState === "saving"}
-                    >
-                      {valueState === "saving" ? "Saving..." : "Save snapshot"}
-                    </button>
-                    {valueState === "saved" ? (
-                      <span className="chip">Saved</span>
-                    ) : null}
-                    {valueState === "error" ? (
-                      <span className="chip warn">Check values</span>
-                    ) : null}
-                    {valueError ? (
-                      <span className="asset-note">{valueError}</span>
-                    ) : null}
-                  </div>
-                </form>
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
+      <DetailPanel
+        open={panelState !== null}
+        onClose={() => setPanelState(null)}
+        title={panelState?.mode === "add" ? "New Asset" : "Asset Details"}
+      >
+        {panelState?.mode === "view" && selectedAsset ? (
+          <AssetDetail
+            mode="view"
+            asset={selectedAsset}
+            categories={categories}
+            ownerOptions={ownerOptions}
+            homeCurrency={homeCurrency}
+            historyEntries={selectedAssetHistory}
+            isVisible={isVisible}
+            onSave={handlePanelSave}
+            onDispose={handleDisposeAsset}
+            onDelete={handleHardDeleteAsset}
+            onSaveValue={handlePanelSaveValue}
+            onDeleteValue={handleHardDeleteValue}
+            saveState={assetState}
+            saveError={assetError}
+            valueState={valueState}
+            valueError={valueError}
+            deleteState={deleteState}
+          />
+        ) : panelState?.mode === "add" ? (
+          <AssetDetail
+            mode="add"
+            categories={categories}
+            ownerOptions={ownerOptions}
+            homeCurrency={homeCurrency}
+            initialType={panelState.categoryType}
+            onCreateAsset={handlePanelCreate}
+            saveState={assetState}
+            saveError={assetError}
+          />
+        ) : null}
+      </DetailPanel>
     </>
   );
 }
