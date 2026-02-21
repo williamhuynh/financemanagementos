@@ -656,10 +656,7 @@ function AssetDetailView({
               <button
                 className="btn-delete-confirm"
                 type="button"
-                onClick={() => {
-                  setShowConfirm(false);
-                  onDelete(asset);
-                }}
+                onClick={() => onDelete(asset)}
                 disabled={deleteState === "saving"}
               >
                 {deleteState === "saving" ? "Deleting..." : "Yes, remove"}

@@ -296,7 +296,11 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
       if (!response.ok) throw new Error("Save failed");
       setAssetState("saved");
       setPanelState(null);
-      await refreshOverview();
+      const refreshed = await refreshOverview();
+      if (!refreshed) {
+        setAssetState("error");
+        setAssetError("Asset saved, but refresh failed.");
+      }
     } catch {
       setAssetState("error");
       setAssetError("Unable to save asset. Try again.");
