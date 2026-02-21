@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getApiContext } from "../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../lib/workspace-guard";
 import { createInvitation, listPendingInvitations } from "../../../../../lib/invitation-service";
-import type { WorkspaceMemberRole } from "../../../../../lib/workspace-types";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../../lib/rate-limit";
+import { validateBody, InvitationCreateSchema } from "../../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../../lib/audit";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,6 +14,9 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Requires 'admin' permission
  */
 export async function GET(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const { id: workspaceId } = await context.params;
     const ctx = await getApiContext();
@@ -48,6 +53,9 @@ export async function GET(request: Request, context: RouteContext) {
  * Requires 'admin' permission
  */
 export async function POST(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const { id: workspaceId } = await context.params;
     const ctx = await getApiContext();
@@ -59,30 +67,19 @@ export async function POST(request: Request, context: RouteContext) {
     // Verify user has admin permission for this workspace
     await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
 
-    const body = await request.json();
-    const { email, role } = body;
-
-    if (!email || !role) {
-      return NextResponse.json(
-        { error: "Email and role are required" },
-        { status: 400 }
-      );
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    // Validate role
-    const validRoles: WorkspaceMemberRole[] = ["owner", "admin", "editor", "viewer"];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json(
-        { error: "Invalid role. Must be one of: owner, admin, editor, viewer" },
-        { status: 400 }
-      );
+    const parsed = validateBody(InvitationCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
-    }
+    const { email, role } = parsed.data;
 
     const { invitation, token } = await createInvitation(
       ctx.databases,
@@ -96,6 +93,18 @@ export async function POST(request: Request, context: RouteContext) {
     // Build invitation URL (token is included so it can be sent to the invitee)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const inviteUrl = `${baseUrl}/invite/accept?token=${token}`;
+
+    // Fire-and-forget audit log
+    writeAuditLog(ctx.databases, ctx.config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: ctx.user.$id,
+      action: "create",
+      resource_type: "invitation",
+      resource_id: invitation.$id,
+      summary: `Invited ${email} as ${role}`,
+      metadata: { email, role },
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       success: true,

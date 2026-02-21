@@ -15,7 +15,7 @@ const apiKey = process.env.APPWRITE_API_KEY!;
  * This is a public endpoint (no auth required) for displaying invitation info
  */
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.invitation);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.invitation);
   if (blocked) return blocked;
 
   try {

@@ -3,6 +3,8 @@ import { Client, Databases } from "node-appwrite";
 import { getApiContext } from "../../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../../../lib/audit";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const projectId = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
@@ -18,6 +20,9 @@ type RouteContext = { params: Promise<{ id: string; memberId: string }> };
  * Owners cannot be removed
  */
 export async function DELETE(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const { id: workspaceId, memberId } = await context.params;
     const ctx = await getApiContext();
@@ -72,6 +77,18 @@ export async function DELETE(request: Request, context: RouteContext) {
       COLLECTIONS.WORKSPACE_MEMBERS,
       memberId
     );
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, databaseId, {
+      workspace_id: workspaceId,
+      user_id: ctx.user.$id,
+      action: "remove_member",
+      resource_type: "workspace_member",
+      resource_id: memberId,
+      summary: `Removed member ${membership.user_id} from workspace`,
+      metadata: { removed_user_id: membership.user_id, role: membership.role },
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

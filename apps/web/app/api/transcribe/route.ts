@@ -3,6 +3,7 @@ import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../lib/workspace-service";
 import { getCurrencyUnitPlural } from "../../../lib/currencies";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,13 @@ const OPENAI_WHISPER_ENDPOINT = "https://api.openai.com/v1/audio/transcriptions"
 
 export async function POST(request: Request) {
   try {
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.ai);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -27,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!openaiKey) {
       return NextResponse.json(
-        { detail: "Missing OpenAI API key configuration." },
+        { error: "Missing OpenAI API key configuration." },
         { status: 500 }
       );
     }
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
 
     if (!audioFile) {
       return NextResponse.json(
-        { detail: "No audio file provided." },
+        { error: "No audio file provided." },
         { status: 400 }
       );
     }
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
       const errorText = await response.text();
       console.error("Whisper API error:", errorText);
       return NextResponse.json(
-        { detail: "Failed to transcribe audio." },
+        { error: "Failed to transcribe audio." },
         { status: 500 }
       );
     }
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
     }
     console.error("Transcription failed:", error);
     return NextResponse.json(
-      { detail: "Failed to transcribe audio." },
+      { error: "Failed to transcribe audio." },
       { status: 500 }
     );
   }

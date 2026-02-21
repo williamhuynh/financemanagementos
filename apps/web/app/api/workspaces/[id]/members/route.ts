@@ -3,6 +3,7 @@ import { Query, Client, Databases, Users } from "node-appwrite";
 import { getApiContext } from "../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../../lib/rate-limit";
 
 const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const projectId = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
@@ -17,6 +18,9 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Requires 'read' permission
  */
 export async function GET(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const { id: workspaceId } = await context.params;
     const ctx = await getApiContext();

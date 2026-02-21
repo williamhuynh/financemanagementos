@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext, getServerConfig, createDatabasesClient } from "../../../../lib/api-auth";
 import { COLLECTIONS } from "../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,10 @@ export const dynamic = "force-dynamic";
  * Returns transactions, assets, cash logs, categories, and workspace info
  * for every workspace the user is a member of.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.export);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,10 +14,13 @@ export const revalidate = 0;
  * Delete a saved import preset. Requires write permission on the workspace.
  */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
@@ -48,6 +53,17 @@ export async function DELETE(
       COLLECTIONS.IMPORT_PRESETS,
       id
     );
+
+    // Fire-and-forget audit log
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "import_preset",
+      resource_id: id,
+      summary: `Deleted import preset "${doc.name ?? id}"`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ deleted: true });
   } catch (error) {

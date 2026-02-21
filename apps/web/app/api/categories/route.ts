@@ -5,6 +5,9 @@ import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { DEFAULT_CATEGORIES, isSystemCategory } from "../../../lib/categories";
 import type { CategoryGroup } from "../../../lib/categories";
 import { COLLECTIONS } from "../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, CategoryCreateSchema } from "../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 
@@ -105,6 +108,9 @@ function nextMonthPrefix(monthPrefix: string): string {
 }
 
 export async function GET(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
 
@@ -193,6 +199,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -203,16 +212,12 @@ export async function POST(request: Request) {
     await requireWorkspacePermission(workspaceId, user.$id, "admin");
 
     const body = await request.json();
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    const group: CategoryGroup = body.group === "income" ? "income" : "expense";
-    const color = typeof body.color === "string" ? body.color.trim() : "";
+    const parsed = validateBody(CategoryCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const { name, group, color } = parsed.data;
 
-    if (!name) {
-      return NextResponse.json({ error: "Category name is required" }, { status: 400 });
-    }
-    if (name.length > 100) {
-      return NextResponse.json({ error: "Category name must be 100 characters or fewer" }, { status: 400 });
-    }
     if (isSystemCategory(name)) {
       return NextResponse.json({ error: "Cannot create a category with a system name" }, { status: 400 });
     }
@@ -242,6 +247,16 @@ export async function POST(request: Request) {
         color,
       }
     );
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "create",
+      resource_type: "category",
+      resource_id: doc.$id,
+      summary: `Created category "${name}"`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       category: {

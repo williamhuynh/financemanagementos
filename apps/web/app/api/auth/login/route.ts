@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { Client, Account } from "node-appwrite";
 import { getSession } from "../../../../lib/session";
 import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { generateCsrfToken } from "../../../../lib/csrf";
+import { validateBody, LoginSchema } from "../../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +11,16 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/login - Create session with Appwrite and store server-side
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.login);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.login);
   if (blocked) return blocked;
 
   try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email and password are required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(LoginSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { email, password } = parsed.data;
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     session.email = user.email;
     session.name = user.name;
     session.isLoggedIn = true;
+    session.csrfToken = generateCsrfToken();
     await session.save();
 
     return NextResponse.json({

@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
+    if (blocked) return blocked;
+
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }

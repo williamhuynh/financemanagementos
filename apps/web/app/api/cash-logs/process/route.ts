@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, CashLogProcessSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +14,6 @@ type ParsedItem = {
   amount: number;
   category: string;
   confidence?: number;
-};
-
-type ProcessInput = {
-  logIds: string[];
-  categories: string[];
 };
 
 function extractJsonArray(text: string): unknown[] | null {
@@ -229,11 +227,14 @@ function guessCategory(
 }
 
 export async function POST(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.ai);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -245,17 +246,16 @@ export async function POST(request: Request) {
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     const openRouterModel = process.env.OPENROUTER_MODEL ?? "xiaomi/mimo-v2-flash:free";
-    const body = (await request.json()) as ProcessInput;
+    const body = await request.json();
 
-    if (!body.logIds || body.logIds.length === 0) {
-      return NextResponse.json(
-        { detail: "No log IDs provided." },
-        { status: 400 }
-      );
+    const parsed = validateBody(CashLogProcessSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { logIds, categories: inputCategories } = parsed.data;
 
-    const categories = body.categories.length > 0
-      ? body.categories
+    const categories = inputCategories.length > 0
+      ? inputCategories
       : [
           "Groceries",
           "Food",
@@ -272,7 +272,7 @@ export async function POST(request: Request) {
 
     const processed: Array<{ logId: string; items: ParsedItem[] }> = [];
 
-    for (const logId of body.logIds) {
+    for (const logId of logIds) {
       try {
         // Fetch the log
         const doc = await databases.getDocument(
@@ -359,6 +359,18 @@ export async function POST(request: Request) {
       }
     }
 
+    // Audit: fire-and-forget
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "cash_log",
+      resource_id: logIds.join(","),
+      summary: `Processed ${processed.length} cash log(s) via AI`,
+      metadata: { logIds, totalItems: processed.reduce((n, g) => n + g.items.length, 0) },
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({ processed });
   } catch (error) {
     if (error instanceof Error) {
@@ -371,7 +383,7 @@ export async function POST(request: Request) {
     }
     console.error("Failed to process cash logs:", error);
     return NextResponse.json(
-      { detail: "Failed to process cash logs." },
+      { error: "Failed to process cash logs." },
       { status: 500 }
     );
   }

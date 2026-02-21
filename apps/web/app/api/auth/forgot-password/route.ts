@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Client, Account } from "node-appwrite";
 import { rateLimit, AUTH_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, ForgotPasswordSchema } from "../../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 
@@ -9,18 +10,16 @@ export const dynamic = "force-dynamic";
  * Sends a recovery email via Appwrite with a link to the reset page.
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.forgotPassword);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.forgotPassword);
   if (blocked) return blocked;
 
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = validateBody(ForgotPasswordSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { email } = parsed.data;
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;

@@ -4,33 +4,23 @@ import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../../lib/workspace-service";
 import { isIncomeCategory, getCategoriesWithMeta } from "../../../../lib/data";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, CashLogCommitSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
 const CASH_ACCOUNT_NAME = "Cash";
 
-type ParsedItem = {
-  description: string;
-  amount: number;
-  category: string;
-  confidence?: number;
-};
-
-type ProcessedGroup = {
-  logId: string;
-  items: ParsedItem[];
-};
-
-type CommitInput = {
-  processed: ProcessedGroup[];
-};
-
 export async function POST(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.bulk);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -39,14 +29,13 @@ export async function POST(request: Request) {
 
     // Check admin permission (committing cash logs is an admin operation)
     await requireWorkspacePermission(workspaceId, user.$id, 'admin');
-    const body = (await request.json()) as CommitInput;
+    const body = await request.json();
 
-    if (!body.processed || body.processed.length === 0) {
-      return NextResponse.json(
-        { detail: "No processed items provided." },
-        { status: 400 }
-      );
+    const parsed = validateBody(CashLogCommitSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const { processed: processedGroups } = parsed.data;
 
     const createdTransactions: string[] = [];
     const updatedLogs: string[] = [];
@@ -54,7 +43,7 @@ export async function POST(request: Request) {
     const workspaceCurrency = workspace?.currency ?? "AUD";
     const workspaceCategories = await getCategoriesWithMeta(workspaceId);
 
-    for (const group of body.processed) {
+    for (const group of processedGroups) {
       // Fetch the original log to get the date
       let logDate: string;
       let logIsIncome = false;
@@ -124,6 +113,18 @@ export async function POST(request: Request) {
       }
     }
 
+    // Audit: fire-and-forget
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "commit",
+      resource_type: "cash_log",
+      resource_id: updatedLogs.join(","),
+      summary: `Committed ${updatedLogs.length} cash log(s), created ${createdTransactions.length} transaction(s)`,
+      metadata: { logsCommitted: updatedLogs, transactionsCreated: createdTransactions.length },
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({
       success: true,
       transactionsCreated: createdTransactions.length,
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
     }
     console.error("Failed to commit cash logs:", error);
     return NextResponse.json(
-      { detail: "Failed to commit cash logs." },
+      { error: "Failed to commit cash logs." },
       { status: 500 }
     );
   }

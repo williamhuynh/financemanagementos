@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 function isNotFoundError(error: unknown): error is { code: number } {
   if (typeof error !== "object" || error === null) return false;
@@ -9,14 +11,17 @@ function isNotFoundError(error: unknown): error is { code: number } {
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
       return NextResponse.json(
-        { detail: "Unauthorized or missing configuration." },
+        { error: "Unauthorized or missing configuration." },
         { status: 401 }
       );
     }
@@ -36,7 +41,7 @@ export async function DELETE(
 
     if (existingImports.documents.length === 0) {
       return NextResponse.json(
-        { detail: "Import not found or access denied." },
+        { error: "Import not found or access denied." },
         { status: 404 }
       );
     }
@@ -107,6 +112,16 @@ export async function DELETE(
         throw error;
       }
     }
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "import",
+      resource_id: id,
+      summary: `Deleted import ${id} (${deletedTransactions} transactions, ${deletedTransferPairs} transfer pairs)`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       ok: true,

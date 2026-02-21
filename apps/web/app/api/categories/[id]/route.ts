@@ -3,8 +3,10 @@ import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { isSystemCategory } from "../../../../lib/categories";
-import type { CategoryGroup } from "../../../../lib/categories";
 import { COLLECTIONS } from "../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { validateBody, CategoryUpdateSchema, CategoryDeleteSchema } from "../../../../lib/validations";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 
@@ -15,6 +17,9 @@ const BATCH_SIZE = 100;
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -47,9 +52,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     const isSystem = isSystemCategory(currentName);
 
     const body = await request.json();
-    const newName = typeof body.name === "string" ? body.name.trim() : undefined;
-    const newGroup = body.group as CategoryGroup | undefined;
-    const newColor = typeof body.color === "string" ? body.color.trim() : undefined;
+    const parsed = validateBody(CategoryUpdateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    const newName = parsed.data.name;
+    const newGroup = parsed.data.group;
+    const newColor = parsed.data.color;
 
     // Cannot modify system categories' name or group
     if (isSystem && newName && newName !== currentName) {
@@ -69,15 +78,6 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     // Handle rename
     if (newName && newName !== currentName) {
-      if (!newName) {
-        return NextResponse.json({ error: "Category name is required" }, { status: 400 });
-      }
-      if (newName.length > 100) {
-        return NextResponse.json(
-          { error: "Category name must be 100 characters or fewer" },
-          { status: 400 }
-        );
-      }
       if (isSystemCategory(newName)) {
         return NextResponse.json(
           { error: "Cannot rename to a system category name" },
@@ -157,6 +157,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const changes = Object.keys(updatePayload).join(", ");
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "update",
+      resource_type: "category",
+      resource_id: id,
+      summary: `Updated category "${currentName}"${changes ? ` (${changes})` : ""}`,
+      ip_address: getClientIp(request),
+    });
+
     return NextResponse.json({
       ok: true,
       renamed_count: renamedCount,
@@ -176,6 +187,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     const ctx = await getApiContext();
     if (!ctx) {
@@ -213,14 +227,11 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     const body = await request.json();
-    const remapTo = typeof body.remap_to === "string" ? body.remap_to.trim() : "";
-
-    if (!remapTo) {
-      return NextResponse.json(
-        { error: "remap_to is required — choose a category to reassign transactions to" },
-        { status: 400 }
-      );
+    const parsed = validateBody(CategoryDeleteSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+    const remapTo = parsed.data.remap_to;
 
     if (remapTo.toLowerCase() === categoryName.toLowerCase()) {
       return NextResponse.json(
@@ -294,6 +305,16 @@ export async function DELETE(request: Request, context: RouteContext) {
       COLLECTIONS.CATEGORIES,
       id
     );
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "category",
+      resource_id: id,
+      summary: `Deleted category "${categoryName}", remapped ${remappedCount} transactions to "${targetName}"`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({
       ok: true,

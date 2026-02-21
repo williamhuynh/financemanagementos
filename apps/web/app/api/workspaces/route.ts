@@ -3,6 +3,8 @@ import { Client, Databases, Query, ID } from "node-appwrite";
 import { getServerConfig, createSessionClient } from "../../../lib/api-auth";
 import { DEFAULT_CATEGORIES } from "../../../lib/categories";
 import { COLLECTIONS } from "../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { validateBody, WorkspaceCreateSchema } from "../../../lib/validations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,13 +14,16 @@ export const revalidate = 0;
  *
  * Production-ready approach: Uses session cookies (set by Appwrite) instead of localStorage.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
+  if (blocked) return blocked;
+
   try {
     // Create session client from cookies (secure, production-ready)
     const session = await createSessionClient();
 
     if (!session) {
-      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get the authenticated user
@@ -28,7 +33,7 @@ export async function GET() {
     const config = getServerConfig();
     if (!config) {
       return NextResponse.json(
-        { detail: "Missing Appwrite server configuration." },
+        { error: "Missing Appwrite server configuration." },
         { status: 500 }
       );
     }
@@ -84,7 +89,7 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Error fetching workspaces:", error);
-    return NextResponse.json({ detail: "Failed to fetch workspaces" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch workspaces" }, { status: 500 });
   }
 }
 
@@ -95,33 +100,36 @@ export async function GET() {
  * This is secure and works with HttpOnly cookies.
  */
 export async function POST(request: Request) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
+  if (blocked) return blocked;
+
   try {
     const session = await createSessionClient();
 
     if (!session) {
-      return NextResponse.json({ detail: "Unauthorized - Please log in" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized - Please log in" }, { status: 401 });
     }
 
     const user = await session.account.get();
 
-    let body: { name?: string; currency?: string };
+    let body: unknown;
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ detail: "Invalid JSON body" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const name = body.name?.trim();
-    const currency = body.currency?.trim() || "AUD";
-
-    if (!name) {
-      return NextResponse.json({ detail: "Workspace name is required" }, { status: 400 });
+    const parsed = validateBody(WorkspaceCreateSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
+
+    const { name, currency } = parsed.data;
 
     const config = getServerConfig();
     if (!config) {
       return NextResponse.json(
-        { detail: "Missing Appwrite server configuration." },
+        { error: "Missing Appwrite server configuration." },
         { status: 500 }
       );
     }
@@ -190,6 +198,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Workspace creation error:", error);
-    return NextResponse.json({ detail: "Failed to create workspace" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create workspace" }, { status: 500 });
   }
 }

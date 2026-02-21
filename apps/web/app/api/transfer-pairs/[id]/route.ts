@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../../lib/collection-names";
+import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
+  if (blocked) return blocked;
+
   try {
     // Authentication and workspace context
     const context = await getApiContext();
@@ -38,6 +42,16 @@ export async function DELETE(
 
     // Delete the transfer pair
     await databases.deleteDocument(config.databaseId, COLLECTIONS.TRANSFER_PAIRS, id);
+
+    writeAuditLog(databases, config.databaseId, {
+      workspace_id: workspaceId,
+      user_id: user.$id,
+      action: "delete",
+      resource_type: "transfer_pair",
+      resource_id: id,
+      summary: `Deleted transfer pair ${id}`,
+      ip_address: getClientIp(request),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
