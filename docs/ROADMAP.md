@@ -49,12 +49,16 @@ These items close the gap between "works for us" and "ready for others to use."
 - [x] **Strip debug output** — Removed `debugReason` from TransferMatchClient, verbose `console.log` from workspace routes, onboarding, cash logs, and workspace context.
 - [x] **Account deletion / data export** — `GET /api/account/export` (JSON data export) and `DELETE /api/account` (full account + data deletion). UI on profile page with confirmation flow.
 - [x] **Basic automated tests** — Vitest framework with 16 tests covering rate limiting, workspace permissions (RBAC), and collection name constants.
+- [x] **CSRF token validation** — Synchronizer Token Pattern. Token generated on login/signup, stored in iron-session. Middleware validates `X-CSRF-Token` on all POST/PATCH/DELETE. Auth routes exempt.
+- [x] **Input validation (Zod)** — Runtime schema validation on all 30+ API routes via `lib/validations.ts`. Replaces ad-hoc manual validation with consistent typed schemas. Standardizes error responses on `{ error }` shape.
+- [x] **Rate limiting on all data routes** — New `DATA_RATE_LIMITS` presets: read (60/min), write (30/min), delete (20/min), bulk (5/min), ai (10/min), export (3/min), account delete (3/min). Pluggable store interface supports in-memory (default) or Redis (`REDIS_URL`).
+- [x] **Audit logging** — New `audit_logs` collection. Fire-and-forget `writeAuditLog()` in `lib/audit.ts` records who, what, when, resource, and IP on all mutations. Never crashes business logic.
 
 ### Fast-follow — Ship within first week post-launch
 
 - [ ] **Terms of Service / Privacy Policy pages** — Required for financial data. Add static pages + consent checkbox on signup.
-- [ ] **CSRF token validation** — `SameSite=Lax` is partial protection. Add explicit CSRF tokens for POST/PATCH/DELETE.
-- [ ] **Consistent API error format** — Some routes return `{ detail }`, others `{ error }`. Standardize on one shape.
+- [x] **CSRF token validation** — Moved to Blockers (shipped in SaaS readiness PR).
+- [x] **Consistent API error format** — Zod validation standardizes all routes on `{ error }`. Shipped in SaaS readiness PR.
 - [ ] **Richer empty states** — Basic empty states exist in ledger, assets, review, cash log, and dashboard. Could be richer with CTAs for importing data and setting up categories.
 - [ ] **Workspace deletion + leave workspace** — Users can create workspaces but not delete them or leave them.
 - [ ] **Rename `value_aud` DB field to `value_home`** — The `asset_values` collection stores FX-converted values in the workspace's home currency, but the Appwrite field is still named `value_aud` from when AUD was hardcoded. Rename to `value_home` (or `value_home_currency`) for clarity. Requires an Appwrite schema migration + backfill script + updating all reads in `data.ts` (`buildAssetOverviewFromRecords`, `prepareAssetRecords`) and the write in `app/api/assets/values/route.ts`.
