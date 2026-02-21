@@ -1224,6 +1224,15 @@ body.detail-panel-active .app-shell {
   border-color: rgba(226, 106, 90, 0.4);
 }
 
+.card[role="button"] {
+  cursor: pointer;
+}
+
+.card.selected {
+  border-color: var(--accent, #f2a43b);
+  box-shadow: 0 0 0 1px rgba(242, 164, 59, 0.3);
+}
+
 .card-title {
   font-size: 13px;
   color: var(--text-secondary);
@@ -2161,6 +2170,35 @@ body.detail-panel-active .app-shell {
   box-shadow: 0 0 0 1px rgba(242, 164, 59, 0.3);
 }
 
+.dash-asset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dash-asset-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--accent, #f2a43b);
+}
+
+.dash-asset-row-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.dash-asset-row-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
 
 .asset-row-actions {
   display: flex;
