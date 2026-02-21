@@ -712,7 +712,7 @@ export default function CashLogClient({
 
         .process-panel {
           position: relative;
-          width: min(600px, 95vw);
+          width: min(900px, 95vw);
           max-height: 85vh;
           overflow: auto;
           background: var(--surface);
@@ -775,6 +775,7 @@ export default function CashLogClient({
 
         .item-info {
           flex: 1;
+          min-width: 0;
           display: flex;
           flex-direction: column;
           gap: 8px;
