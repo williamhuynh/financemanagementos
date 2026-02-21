@@ -4,7 +4,7 @@ import { getTransferReviewData } from "../../../lib/data";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
   if (blocked) return blocked;
 
   try {

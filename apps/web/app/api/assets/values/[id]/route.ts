@@ -10,7 +10,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

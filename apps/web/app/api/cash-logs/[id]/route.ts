@@ -22,7 +22,7 @@ function safeParseParsedItems(json: string): unknown[] | null {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {
@@ -141,7 +141,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
   if (blocked) return blocked;
 
   try {

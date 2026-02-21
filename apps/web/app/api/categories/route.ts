@@ -108,7 +108,7 @@ function nextMonthPrefix(monthPrefix: string): string {
 }
 
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
   if (blocked) return blocked;
 
   try {
@@ -199,7 +199,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {

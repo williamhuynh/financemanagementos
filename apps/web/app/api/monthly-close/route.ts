@@ -62,7 +62,7 @@ async function listCollectionAttributes(
 
 export async function GET(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
     if (blocked) return blocked;
 
     // Authentication and workspace context
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  * 4. Destroy the session
  */
 export async function DELETE(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.accountDelete);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.accountDelete);
   if (blocked) return blocked;
 
   try {

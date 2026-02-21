@@ -251,7 +251,7 @@ async function fetchHistoryMatches(
 }
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.bulk);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.bulk);
   if (blocked) return blocked;
 
   try {
@@ -490,7 +490,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
   if (blocked) return blocked;
 
   try {

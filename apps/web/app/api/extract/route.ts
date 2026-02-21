@@ -20,7 +20,7 @@ export const revalidate = 0;
  */
 export async function POST(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.ai);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.ai);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const CASH_ACCOUNT_NAME = "Cash";
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.bulk);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.bulk);
   if (blocked) return blocked;
 
   try {

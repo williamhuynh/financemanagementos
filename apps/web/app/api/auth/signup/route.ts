@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/signup - Create user account and session
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.signup);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.signup);
   if (blocked) return blocked;
 
   try {

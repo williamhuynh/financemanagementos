@@ -7,7 +7,7 @@ import { validateBody, TransferPairCreateSchema } from "../../../lib/validations
 import { writeAuditLog, getClientIp } from "../../../lib/audit";
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {

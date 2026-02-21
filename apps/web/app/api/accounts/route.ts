@@ -9,7 +9,7 @@ export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

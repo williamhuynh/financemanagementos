@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Sends a recovery email via Appwrite with a link to the reset page.
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.forgotPassword);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.forgotPassword);
   if (blocked) return blocked;
 
   try {

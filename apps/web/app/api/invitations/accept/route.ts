@@ -17,7 +17,7 @@ const apiKey = process.env.APPWRITE_API_KEY!;
  * Requires authentication
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.invitation);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.invitation);
   if (blocked) return blocked;
 
   try {

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Accepts the userId, secret (from recovery email link), and new password.
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.resetPassword);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.resetPassword);
   if (blocked) return blocked;
 
   try {

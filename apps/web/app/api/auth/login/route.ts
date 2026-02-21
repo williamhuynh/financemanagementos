@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/login - Create session with Appwrite and store server-side
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, AUTH_RATE_LIMITS.login);
+  const blocked = await rateLimit(request, AUTH_RATE_LIMITS.login);
   if (blocked) return blocked;
 
   try {

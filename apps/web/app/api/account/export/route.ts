@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * for every workspace the user is a member of.
  */
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.export);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.export);
   if (blocked) return blocked;
 
   try {

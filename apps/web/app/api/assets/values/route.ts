@@ -67,7 +67,7 @@ async function fetchHomeCurrencyRate(fromCurrency: string, homeCurrency: string)
 
 export async function POST(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

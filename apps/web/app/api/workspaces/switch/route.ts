@@ -6,7 +6,7 @@ import { rateLimit, DATA_RATE_LIMITS } from '../../../../lib/rate-limit';
 import { validateBody, WorkspaceSwitchSchema } from '../../../../lib/validations';
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {

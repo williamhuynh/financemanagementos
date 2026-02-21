@@ -14,7 +14,7 @@ type RouteContext = { params: Promise<{ id: string }> };
  * Requires 'admin' permission
  */
 export async function GET(request: Request, context: RouteContext) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
   if (blocked) return blocked;
 
   try {
@@ -53,7 +53,7 @@ export async function GET(request: Request, context: RouteContext) {
  * Requires 'admin' permission
  */
 export async function POST(request: Request, context: RouteContext) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {

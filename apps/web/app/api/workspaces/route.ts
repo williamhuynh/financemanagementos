@@ -15,7 +15,7 @@ export const revalidate = 0;
  * Production-ready approach: Uses session cookies (set by Appwrite) instead of localStorage.
  */
 export async function GET(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.read);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
   if (blocked) return blocked;
 
   try {
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
  * This is secure and works with HttpOnly cookies.
  */
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.write);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
   if (blocked) return blocked;
 
   try {

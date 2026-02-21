@@ -11,7 +11,7 @@ const OPENAI_WHISPER_ENDPOINT = "https://api.openai.com/v1/audio/transcriptions"
 
 export async function POST(request: Request) {
   try {
-    const blocked = rateLimit(request, DATA_RATE_LIMITS.ai);
+    const blocked = await rateLimit(request, DATA_RATE_LIMITS.ai);
     if (blocked) return blocked;
 
     const ctx = await getApiContext();

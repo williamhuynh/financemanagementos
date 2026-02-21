@@ -227,7 +227,7 @@ function guessCategory(
 }
 
 export async function POST(request: Request) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.ai);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.ai);
   if (blocked) return blocked;
 
   try {

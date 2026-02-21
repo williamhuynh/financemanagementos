@@ -14,7 +14,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const blocked = rateLimit(request, DATA_RATE_LIMITS.delete);
+  const blocked = await rateLimit(request, DATA_RATE_LIMITS.delete);
   if (blocked) return blocked;
 
   try {
