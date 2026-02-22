@@ -49,6 +49,8 @@ export interface ApiContext {
   user: AuthenticatedUser;
   workspaceId: string;
   role: WorkspaceMemberRole;
+  plan: string;
+  featureOverrides: string;
   databases: any; // Databases type from node-appwrite
 }
 
