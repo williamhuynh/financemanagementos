@@ -83,6 +83,11 @@ body.detail-panel-active .app-shell {
   font-size: 14px;
 }
 
+.auth-card form .primary-btn {
+  margin-top: 20px;
+  width: 100%;
+}
+
 .auth-hint {
   margin-top: 14px;
   color: var(--text-secondary);
