@@ -21,6 +21,17 @@ export default async function SettingsPage() {
         currentUserId={ctx.user.$id}
         userRole={ctx.role}
       />
+      <Card title="Plan & Billing">
+        <div className="list-row">
+          <div>
+            <div className="row-title">Subscription</div>
+            <div className="row-sub">View your plan, usage, and billing</div>
+          </div>
+          <Link className="ghost-btn" href="/settings/billing">
+            Manage
+          </Link>
+        </div>
+      </Card>
       <Card title="System">
         <div className="list-row">
           <div>
