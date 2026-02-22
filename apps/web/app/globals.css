@@ -2795,3 +2795,93 @@ body.detail-panel-active .app-shell {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Upgrade Modal */
+.upgrade-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upgrade-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  cursor: default;
+}
+
+.upgrade-modal {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.upgrade-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.upgrade-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.upgrade-modal-body {
+  padding: 20px;
+}
+
+.upgrade-modal-body p {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.upgrade-modal-usage {
+  margin-bottom: 16px;
+}
+
+.upgrade-modal-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.upgrade-modal-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.upgrade-modal-count {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.upgrade-modal-cta-text {
+  font-weight: 500;
+  color: var(--text) !important;
+}
+
+.upgrade-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}

@@ -13,5 +13,6 @@ export { Topbar } from "./components/Topbar";
 export { TrendChart } from "./components/TrendChart";
 export { TrendRangeToggle } from "./components/TrendRangeToggle";
 export type { TrendRange } from "./components/TrendRangeToggle";
+export { UpgradeModal } from "./components/UpgradeModal";
 export { WaterfallChart } from "./components/WaterfallChart";
 export type { WaterfallStep } from "./components/WaterfallChart";
