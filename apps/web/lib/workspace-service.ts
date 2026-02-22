@@ -8,6 +8,8 @@ export interface Workspace {
   name: string;
   currency: string;
   owner_id: string;
+  plan: string;
+  feature_overrides: string;
 }
 
 export interface WorkspaceMember {
@@ -93,7 +95,9 @@ export async function getWorkspacesForUser(userId: string): Promise<Workspace[]>
           $id: workspace.$id,
           name: workspace.name as string,
           currency: workspace.currency as string,
-          owner_id: workspace.owner_id as string
+          owner_id: workspace.owner_id as string,
+          plan: (workspace.plan as string) || "free",
+          feature_overrides: (workspace.feature_overrides as string) || "[]",
         });
       } catch {
         // Skip workspaces that no longer exist
@@ -128,7 +132,9 @@ export async function createWorkspaceForUser(
       {
         name: workspaceName,
         currency,
-        owner_id: userId
+        owner_id: userId,
+        plan: "free",
+        feature_overrides: "[]",
       }
     );
 
@@ -143,7 +149,9 @@ export async function createWorkspaceForUser(
       $id: workspace.$id,
       name: workspace.name as string,
       currency: workspace.currency as string,
-      owner_id: workspace.owner_id as string
+      owner_id: workspace.owner_id as string,
+      plan: "free",
+      feature_overrides: "[]",
     };
   } catch (error) {
     console.error("Error creating workspace:", error);
@@ -167,7 +175,9 @@ export const getWorkspaceById = cache(async function getWorkspaceById(
       $id: workspace.$id,
       name: workspace.name as string,
       currency: workspace.currency as string,
-      owner_id: workspace.owner_id as string
+      owner_id: workspace.owner_id as string,
+      plan: (workspace.plan as string) || "free",
+      feature_overrides: (workspace.feature_overrides as string) || "[]",
     };
   } catch (error) {
     console.error("Error getting workspace:", error);
