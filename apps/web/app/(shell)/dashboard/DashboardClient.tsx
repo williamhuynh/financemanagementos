@@ -2,11 +2,13 @@
 
 import {
   Card,
+  DetailPanel,
   DonutChart,
   SectionHead,
   TrendRangeToggle
 } from "@tandemly/ui";
 import type { TrendRange } from "@tandemly/ui";
+import { useRouter } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue, formatCurrencyValue, filterSeriesByRange } from "../../../lib/data";
@@ -17,6 +19,7 @@ import SpendByCategoryControls from "./SpendByCategoryControls";
 import type {
   NetWorthPoint,
   AssetCategorySummary,
+  AssetItem,
   AssetOverview,
   ExpenseBreakdown,
   CashFlowWaterfall
@@ -155,6 +158,26 @@ export default function DashboardClient({
   homeCurrency
 }: DashboardClientProps) {
   const { isVisible } = useNumberVisibility();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleCardClick = (categoryType: string) => {
+    setSelectedCategory((prev) => (prev === categoryType ? null : categoryType));
+  };
+
+  const selectedCategoryData = useMemo(
+    () => selectedCategory
+      ? assetOverview.categories.find((c) => c.type === selectedCategory) ?? null
+      : null,
+    [selectedCategory, assetOverview.categories]
+  );
+
+  const selectedAssets = useMemo(
+    () => selectedCategory
+      ? assetOverview.assets.filter((a) => a.type === selectedCategory)
+      : [],
+    [selectedCategory, assetOverview.assets]
+  );
 
   const spendByCategory = breakdown.categories;
   const filteredSpend = spendByCategory.filter((category: any) =>
@@ -235,6 +258,8 @@ export default function DashboardClient({
             sub={category.subLabel}
             tone={category.tone as "glow" | "negative"}
             className={`card-${index}`}
+            onClick={() => handleCardClick(category.type)}
+            selected={selectedCategory === category.type}
           />
         ))}
       </div>
@@ -355,6 +380,63 @@ export default function DashboardClient({
         </article>
         <WaterfallDrilldown cashFlow={cashFlow} />
       </div>
+
+      <DetailPanel
+        open={selectedCategory !== null}
+        onClose={() => setSelectedCategory(null)}
+        title={selectedCategoryData?.label ?? ""}
+      >
+        {selectedCategoryData && (
+          <>
+            <div className="right-drawer-detail">
+              <div className="card-value" style={{ fontSize: "22px" }}>
+                {maskCurrencyValue(selectedCategoryData.formattedValue, isVisible)}
+              </div>
+            </div>
+
+            {selectedAssets.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {selectedAssets.map((asset: AssetItem) => (
+                  <div
+                    key={asset.id}
+                    className="dash-asset-row"
+                    onClick={() => router.push("/assets")}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push("/assets");
+                      }
+                    }}
+                  >
+                    <div className="dash-asset-row-name">{asset.name}</div>
+                    <div className="dash-asset-row-meta">
+                      <span>{asset.owner || "Joint"}</span>
+                      <span>{maskCurrencyValue(asset.formattedValue, isVisible)}</span>
+                    </div>
+                    <div className="dash-asset-row-meta">
+                      <span>{asset.lastUpdatedLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">No assets in this category yet.</div>
+            )}
+
+            <div className="right-drawer-actions">
+              <button
+                className="btn btn-ghost"
+                onClick={() => router.push("/assets")}
+                type="button"
+              >
+                View all in Assets →
+              </button>
+            </div>
+          </>
+        )}
+      </DetailPanel>
     </>
   );
 }
