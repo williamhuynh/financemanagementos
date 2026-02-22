@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { ID } from "node-appwrite";
+import { ID, Query } from "node-appwrite";
 import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { getWorkspaceById } from "../../../lib/workspace-service";
+import { isAtLimit } from "../../../lib/plans";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 import { validateBody, AssetCreateSchema } from "../../../lib/validations";
 import { writeAuditLog, getClientIp } from "../../../lib/audit";
@@ -24,6 +25,18 @@ export async function POST(request: Request) {
 
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
+
+    // Check asset quota
+    const existingAssets = await databases.listDocuments(config.databaseId, "assets", [
+      Query.equal("workspace_id", workspaceId),
+      Query.limit(1),
+    ]);
+    if (isAtLimit(ctx.plan, existingAssets.total, "maxAssets")) {
+      return NextResponse.json(
+        { error: "Asset limit reached. Upgrade your plan to add more assets." },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const parsed = validateBody(AssetCreateSchema, body);
