@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { Card, SectionHead, TrendRangeToggle, DetailPanel } from "@tandemly/ui";
+import { Card, SectionHead, TrendRangeToggle, DetailPanel, UpgradeModal } from "@tandemly/ui";
 import type { TrendRange } from "@tandemly/ui";
 import type { AssetOverview, AssetItem, AssetHistoryEntry } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue, filterSeriesByRange } from "../../../lib/data";
+import { useWorkspace } from "../../../lib/workspace-context";
+import { isAtLimit, getLimit, getPlanConfig } from "../../../lib/plans";
 import AssetDetail from "./AssetDetail";
 
 type AssetsClientProps = {
@@ -95,6 +97,8 @@ function buildOwnerLabel(owner: string) {
 
 export default function AssetsClient({ overview, ownerOptions, homeCurrency }: AssetsClientProps) {
   const { isVisible } = useNumberVisibility();
+  const { currentWorkspace } = useWorkspace();
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [overviewState, setOverviewState] = useState<AssetOverview>(overview);
   const {
     categories,
@@ -258,6 +262,10 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   };
 
   const handleAddAssetClick = (categoryType: string) => {
+    if (currentWorkspace && isAtLimit(currentWorkspace.plan, assets.length, "maxAssets")) {
+      setShowUpgrade(true);
+      return;
+    }
     setPanelState({ mode: "add", categoryType });
   };
 
@@ -783,6 +791,15 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
           />
         ) : null}
       </DetailPanel>
+
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        limitLabel="assets"
+        currentCount={assets.length}
+        maxCount={getLimit(currentWorkspace?.plan || "free", "maxAssets")}
+        planLabel={getPlanConfig(currentWorkspace?.plan || "free").label}
+      />
     </>
   );
 }
