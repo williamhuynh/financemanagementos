@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card } from "@tandemly/ui";
+import { Card, UpgradeModal } from "@tandemly/ui";
+import { useWorkspace } from "../../../lib/workspace-context";
+import { isAtLimit, getLimit, getPlanConfig } from "../../../lib/plans";
 
 type Member = {
   id: string;
@@ -29,10 +31,12 @@ export default function MembersSection({
   currentUserId,
   userRole,
 }: MembersSectionProps) {
+  const { currentWorkspace } = useWorkspace();
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
@@ -206,7 +210,14 @@ export default function MembersSection({
               className="primary-btn"
               type="button"
               style={{ marginTop: "16px" }}
-              onClick={() => setShowInviteForm(true)}
+              onClick={() => {
+                const totalMembers = members.length + invitations.length;
+                if (currentWorkspace && isAtLimit(currentWorkspace.plan, totalMembers, "maxMembers")) {
+                  setShowUpgrade(true);
+                  return;
+                }
+                setShowInviteForm(true);
+              }}
             >
               Invite Member
             </button>
@@ -268,6 +279,14 @@ export default function MembersSection({
           )}
         </>
       )}
+      <UpgradeModal
+        open={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        limitLabel="members"
+        currentCount={members.length + invitations.length}
+        maxCount={getLimit(currentWorkspace?.plan || "free", "maxMembers")}
+        planLabel={getPlanConfig(currentWorkspace?.plan || "free").label}
+      />
     </Card>
   );
 }
