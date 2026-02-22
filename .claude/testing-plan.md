@@ -21,7 +21,7 @@
    - Ledger
    - Assets page
    - Review page
-   - Reports
+   - Monthly Close
 
 **Expected:** All data views show only Workspace B's data (empty if new workspace)
 
@@ -97,7 +97,7 @@
 **Steps:**
 1. Invite User B as viewer
 2. As User B (viewer), verify:
-   - Can view dashboard, ledger, reports (read access)
+   - Can view dashboard, ledger, monthly close (read access)
    - Cannot create/edit/delete transactions
    - Cannot create/edit/delete assets
    - Cannot close months

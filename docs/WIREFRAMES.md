@@ -2,7 +2,7 @@
 
 ## Global Shell
 Top bar: month selector | global search | import button | user switcher
-Left rail: Dashboard, Ledger, Review, Assets, Reports, Settings
+Left rail: Dashboard, Ledger, Review, Assets, Monthly Close, Settings
 
 ## Dashboard
 Hero: Net Worth + delta + last sync
@@ -40,7 +40,7 @@ Step 2: column mapping preview (source -> canonical)
 Step 3: duplicate detection summary
 Step 4: review queue link + import complete
 
-## Reports
+## Monthly Close
 Monthly close summary: income, expenses, transfers excluded, net cash flow
 Category breakdown table + chart
 Export buttons (CSV/PDF)

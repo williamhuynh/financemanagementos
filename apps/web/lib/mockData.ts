@@ -11,7 +11,7 @@ export const navItems: NavItem[] = [
   { id: "ledger", label: "Transactions", href: "/ledger", icon: "ledger" },
   { id: "review", label: "Review Queue", href: "/review", icon: "review" },
   { id: "assets", label: "Assets", href: "/assets", icon: "assets" },
-  { id: "reports", label: "Reports", href: "/reports", icon: "reports" },
+  { id: "reports", label: "Monthly Close", href: "/reports", icon: "reports" },
   { id: "import", label: "Import Hub", href: "/import-hub", icon: "import" },
   { id: "categories", label: "Categories", href: "/categories", icon: "categories" },
   { id: "settings", label: "Settings", href: "/settings", icon: "settings" }

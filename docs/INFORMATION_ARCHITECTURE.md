@@ -6,7 +6,7 @@
 - Review Queue
 - Assets
 - Import Hub
-- Reports
+- Monthly Close
 - Settings
 
 ## Core Workflows
@@ -20,4 +20,4 @@
 - Ledger: transaction list with filters, bulk actions, and detail drawer.
 - Review Queue: cards for unknowns, transfers, and duplicates.
 - Assets: asset class cards with valuation timeline.
-- Reports: monthly breakdowns and exports.
+- Monthly Close: monthly breakdowns and exports.
