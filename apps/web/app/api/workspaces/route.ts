@@ -71,7 +71,9 @@ export async function GET(request: Request) {
           name: workspace.name,
           currency: workspace.currency,
           owner_id: workspace.owner_id,
-          role: membership.role
+          role: membership.role,
+          plan: (workspace.plan as string) || "free",
+          feature_overrides: (workspace.feature_overrides as string) || "[]",
         });
       } catch {
         // Skip workspaces that no longer exist
@@ -146,7 +148,9 @@ export async function POST(request: Request) {
       {
         name,
         currency,
-        owner_id: user.$id
+        owner_id: user.$id,
+        plan: "free",
+        feature_overrides: "[]",
       }
     );
 
@@ -193,7 +197,9 @@ export async function POST(request: Request) {
         name: workspace.name,
         currency: workspace.currency,
         owner_id: workspace.owner_id,
-        role: "owner"
+        role: "owner",
+        plan: "free",
+        feature_overrides: "[]",
       }
     });
   } catch (error) {

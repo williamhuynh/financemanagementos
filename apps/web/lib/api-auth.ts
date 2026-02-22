@@ -143,7 +143,14 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     throw new Error('Data integrity error: duplicate memberships');
   }
 
-  // 6. Return context with API key databases client (for data access)
+  // 6. Fetch workspace document to get plan data
+  const workspaceDoc = await adminDatabases.getDocument(
+    config.databaseId,
+    COLLECTIONS.WORKSPACES,
+    activeWorkspaceId
+  );
+
+  // 7. Return context with API key databases client (for data access)
   return {
     config,
     user: {
@@ -154,6 +161,8 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     },
     workspaceId: activeWorkspaceId,
     role: membership.documents[0].role as WorkspaceMemberRole,
+    plan: (workspaceDoc.plan as string) || "free",
+    featureOverrides: (workspaceDoc.feature_overrides as string) || "[]",
     databases: adminDatabases,
   };
 });

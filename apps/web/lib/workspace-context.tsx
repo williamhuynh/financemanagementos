@@ -9,6 +9,8 @@ export interface Workspace {
   currency: string;
   owner_id: string;
   role: 'owner' | 'admin' | 'editor' | 'viewer';
+  plan: string;
+  feature_overrides: string;
 }
 
 interface WorkspaceState {
