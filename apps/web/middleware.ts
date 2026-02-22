@@ -27,12 +27,16 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(pathname);
   const isApiAuthRoute = pathname.startsWith("/api/auth/");
   const isPublicAsset = pathname.startsWith("/_next") || pathname.startsWith("/static");
+  const isPwaAsset =
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname.startsWith("/icons/");
   const isPublicApi =
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/invitations/verify");
 
   // Allow public routes and auth API endpoints
-  if (isPublicRoute || isApiAuthRoute || isPublicAsset || isPublicApi) {
+  if (isPublicRoute || isApiAuthRoute || isPublicAsset || isPwaAsset || isPublicApi) {
     return NextResponse.next();
   }
 
