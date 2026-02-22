@@ -2885,3 +2885,68 @@ body.detail-panel-active .app-shell {
   padding: 12px 20px;
   border-top: 1px solid var(--border);
 }
+
+/* Billing page */
+.billing-plan-badge {
+  padding: 16px;
+}
+
+.billing-plan-name {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.billing-upgrade-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.billing-usage {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.billing-usage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.billing-usage-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.billing-at-limit {
+  color: var(--danger, #e74c3c);
+  font-weight: 600;
+}
+
+.billing-usage-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.billing-usage-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.billing-usage-bar-full {
+  background: var(--danger, #e74c3c);
+}
