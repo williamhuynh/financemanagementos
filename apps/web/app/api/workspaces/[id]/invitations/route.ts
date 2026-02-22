@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../../lib/workspace-guard";
 import { createInvitation, listPendingInvitations } from "../../../../../lib/invitation-service";
+import { isAtLimit } from "../../../../../lib/plans";
+import { COLLECTIONS } from "../../../../../lib/collection-names";
+import { getWorkspaceById } from "../../../../../lib/workspace-service";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../../../lib/rate-limit";
 import { validateBody, InvitationCreateSchema } from "../../../../../lib/validations";
 import { writeAuditLog, getClientIp } from "../../../../../lib/audit";
@@ -66,6 +70,29 @@ export async function POST(request: Request, context: RouteContext) {
 
     // Verify user has admin permission for this workspace
     await requireWorkspacePermission(workspaceId, ctx.user.$id, "admin");
+
+    // Check member quota (members + pending invitations count toward limit)
+    const workspace = await getWorkspaceById(workspaceId);
+    const plan = workspace?.plan || "free";
+
+    const [members, pendingInvites] = await Promise.all([
+      ctx.databases.listDocuments(ctx.config.databaseId, COLLECTIONS.WORKSPACE_MEMBERS, [
+        Query.equal("workspace_id", workspaceId),
+        Query.limit(1),
+      ]),
+      ctx.databases.listDocuments(ctx.config.databaseId, COLLECTIONS.WORKSPACE_INVITATIONS, [
+        Query.equal("workspace_id", workspaceId),
+        Query.equal("status", "pending"),
+        Query.limit(1),
+      ]),
+    ]);
+    const totalMembers = members.total + pendingInvites.total;
+    if (isAtLimit(plan, totalMembers, "maxMembers")) {
+      return NextResponse.json(
+        { error: "Member limit reached. Upgrade your plan to invite more people." },
+        { status: 403 }
+      );
+    }
 
     let body: unknown;
     try {
