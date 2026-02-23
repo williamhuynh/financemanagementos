@@ -35,24 +35,40 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
 
-    // Fetch all workspaces
-    // Note: Query.search requires a fulltext index which doesn't exist on workspaces.name.
-    // Filter in JS instead — this is a superadmin endpoint capped at 100 results.
-    const queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
+    // Query.search requires a fulltext index which doesn't exist on workspaces.name,
+    // so we filter in JS. When searching, paginate through all workspaces so older
+    // matches aren't missed. Without a search term, return the newest 100.
+    let filtered: AppwriteDocument[];
 
-    const workspaces = await databases.listDocuments(
-      config.databaseId,
-      COLLECTIONS.WORKSPACES,
-      queries
-    );
-
-    // Apply search filter in JS (case-insensitive substring match)
-    const searchLower = search.toLowerCase();
-    const filtered = search
-      ? workspaces.documents.filter((ws: AppwriteDocument) =>
-          String(ws.name ?? "").toLowerCase().includes(searchLower)
-        )
-      : workspaces.documents;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = [];
+      let cursor: string | undefined;
+      while (filtered.length < 100) {
+        const queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
+        if (cursor) queries.push(Query.cursorAfter(cursor));
+        const page = await databases.listDocuments(
+          config.databaseId,
+          COLLECTIONS.WORKSPACES,
+          queries
+        );
+        for (const ws of page.documents as AppwriteDocument[]) {
+          if (String(ws.name ?? "").toLowerCase().includes(searchLower)) {
+            filtered.push(ws);
+          }
+        }
+        if (page.documents.length === 0) break;
+        cursor = page.documents[page.documents.length - 1].$id;
+      }
+      filtered = filtered.slice(0, 100);
+    } else {
+      const page = await databases.listDocuments(
+        config.databaseId,
+        COLLECTIONS.WORKSPACES,
+        [Query.orderDesc("$createdAt"), Query.limit(100)]
+      );
+      filtered = page.documents as AppwriteDocument[];
+    }
 
     // For each workspace, get usage counts
     const results = await Promise.all(
