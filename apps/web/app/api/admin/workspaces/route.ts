@@ -36,10 +36,9 @@ export async function GET(request: Request) {
     const search = url.searchParams.get("search") || "";
 
     // Fetch all workspaces
+    // Note: Query.search requires a fulltext index which doesn't exist on workspaces.name.
+    // Filter in JS instead — this is a superadmin endpoint capped at 100 results.
     const queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
-    if (search) {
-      queries.push(Query.search("name", search));
-    }
 
     const workspaces = await databases.listDocuments(
       config.databaseId,
@@ -47,9 +46,17 @@ export async function GET(request: Request) {
       queries
     );
 
+    // Apply search filter in JS (case-insensitive substring match)
+    const searchLower = search.toLowerCase();
+    const filtered = search
+      ? workspaces.documents.filter((ws: AppwriteDocument) =>
+          String(ws.name ?? "").toLowerCase().includes(searchLower)
+        )
+      : workspaces.documents;
+
     // For each workspace, get usage counts
     const results = await Promise.all(
-      workspaces.documents.map(async (ws: AppwriteDocument) => {
+      filtered.map(async (ws: AppwriteDocument) => {
         const [members, assets] = await Promise.all([
           databases.listDocuments(config.databaseId, COLLECTIONS.WORKSPACE_MEMBERS, [
             Query.equal("workspace_id", ws.$id),

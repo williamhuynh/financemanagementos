@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     const [assets, members, accountCount] = await Promise.all([
       ctx.databases.listDocuments(ctx.config.databaseId, COLLECTIONS.ASSETS, [
         Query.equal("workspace_id", ctx.workspaceId),
+        Query.equal("status", "active"),
         Query.limit(1),
       ]),
       ctx.databases.listDocuments(
