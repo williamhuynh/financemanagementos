@@ -7,6 +7,7 @@ import { isAtLimit } from "../../../lib/plans";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 import { validateBody, AssetCreateSchema } from "../../../lib/validations";
 import { writeAuditLog, getClientIp } from "../../../lib/audit";
+import { COLLECTIONS } from "../../../lib/collection-names";
 
 export async function POST(request: Request) {
   try {
@@ -26,9 +27,10 @@ export async function POST(request: Request) {
     // Check write permission
     await requireWorkspacePermission(workspaceId, user.$id, 'write');
 
-    // Check asset quota
-    const existingAssets = await databases.listDocuments(config.databaseId, "assets", [
+    // Check asset quota (only count active assets — disposed ones shouldn't block creation)
+    const existingAssets = await databases.listDocuments(config.databaseId, COLLECTIONS.ASSETS, [
       Query.equal("workspace_id", workspaceId),
+      Query.equal("status", "active"),
       Query.limit(1),
     ]);
     if (isAtLimit(ctx.plan, existingAssets.total, "maxAssets")) {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
     const owner = rawOwner || "Joint";
     const currency = rawCurrency || workspaceCurrency;
 
-    const doc = await databases.createDocument(config.databaseId, "assets", ID.unique(), {
+    const doc = await databases.createDocument(config.databaseId, COLLECTIONS.ASSETS, ID.unique(), {
       workspace_id: workspaceId,
       name,
       type,

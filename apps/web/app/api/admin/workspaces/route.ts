@@ -35,21 +35,44 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
 
-    // Fetch all workspaces
-    const queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
-    if (search) {
-      queries.push(Query.search("name", search));
-    }
+    // Query.search requires a fulltext index which doesn't exist on workspaces.name,
+    // so we filter in JS. When searching, paginate through all workspaces so older
+    // matches aren't missed. Without a search term, return the newest 100.
+    let filtered: AppwriteDocument[];
 
-    const workspaces = await databases.listDocuments(
-      config.databaseId,
-      COLLECTIONS.WORKSPACES,
-      queries
-    );
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = [];
+      let cursor: string | undefined;
+      while (filtered.length < 100) {
+        const queries = [Query.orderDesc("$createdAt"), Query.limit(100)];
+        if (cursor) queries.push(Query.cursorAfter(cursor));
+        const page = await databases.listDocuments(
+          config.databaseId,
+          COLLECTIONS.WORKSPACES,
+          queries
+        );
+        for (const ws of page.documents as AppwriteDocument[]) {
+          if (String(ws.name ?? "").toLowerCase().includes(searchLower)) {
+            filtered.push(ws);
+          }
+        }
+        if (page.documents.length === 0) break;
+        cursor = page.documents[page.documents.length - 1].$id;
+      }
+      filtered = filtered.slice(0, 100);
+    } else {
+      const page = await databases.listDocuments(
+        config.databaseId,
+        COLLECTIONS.WORKSPACES,
+        [Query.orderDesc("$createdAt"), Query.limit(100)]
+      );
+      filtered = page.documents as AppwriteDocument[];
+    }
 
     // For each workspace, get usage counts
     const results = await Promise.all(
-      workspaces.documents.map(async (ws: AppwriteDocument) => {
+      filtered.map(async (ws: AppwriteDocument) => {
         const [members, assets] = await Promise.all([
           databases.listDocuments(config.databaseId, COLLECTIONS.WORKSPACE_MEMBERS, [
             Query.equal("workspace_id", ws.$id),
