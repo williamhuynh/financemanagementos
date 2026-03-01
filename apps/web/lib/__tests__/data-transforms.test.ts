@@ -10,6 +10,7 @@ import {
   normalizeReviewFilters,
   toSignedAssetValue,
   formatDirectionLabel,
+  getDateRangeISO,
 } from "../data";
 import type { WorkspaceCategory } from "../data";
 
@@ -352,5 +353,55 @@ describe("normalizeDateToISO", () => {
     const pdf = normalizeDateToISO("2025-01-15");
     expect(csv).toBe(pdf);
     expect(csv).toBe("2025-01-15");
+  });
+});
+
+describe("getDateRangeISO", () => {
+  it("returns single month range", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-03", false);
+    expect(startDate).toBe("2025-03-01");
+    expect(endDate).toBe("2025-04-01");
+  });
+
+  it("returns range including previous month", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-03", true);
+    expect(startDate).toBe("2025-02-01");
+    expect(endDate).toBe("2025-04-01");
+  });
+
+  it("handles January with previous month (December rollover)", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-01", true);
+    expect(startDate).toBe("2024-12-01");
+    expect(endDate).toBe("2025-02-01");
+  });
+
+  it("handles January without previous month", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-01", false);
+    expect(startDate).toBe("2025-01-01");
+    expect(endDate).toBe("2025-02-01");
+  });
+
+  it("handles December (year rollover on end date)", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-12", false);
+    expect(startDate).toBe("2025-12-01");
+    expect(endDate).toBe("2026-01-01");
+  });
+
+  it("handles December with previous month", () => {
+    const { startDate, endDate } = getDateRangeISO("2025-12", true);
+    expect(startDate).toBe("2025-11-01");
+    expect(endDate).toBe("2026-01-01");
+  });
+
+  it("half-open interval captures full month correctly", () => {
+    // For February 2024 (leap year), the range should capture all 29 days
+    const { startDate, endDate } = getDateRangeISO("2024-02", false);
+    expect(startDate).toBe("2024-02-01");
+    expect(endDate).toBe("2024-03-01");
+    // "2024-02-29" >= "2024-02-01" && "2024-02-29" < "2024-03-01" → true
+    expect("2024-02-29" >= startDate).toBe(true);
+    expect("2024-02-29" < endDate).toBe(true);
+    // "2024-03-01" should NOT be included
+    expect("2024-03-01" < endDate).toBe(false);
   });
 });

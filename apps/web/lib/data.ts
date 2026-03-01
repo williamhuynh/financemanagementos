@@ -1009,7 +1009,8 @@ function resolveMonthSelection(options: MonthOption[], selectedMonth?: string) {
 
 function prepareTransactions(
   transactions: ExpenseTransactionRaw[],
-  selectedMonth?: string
+  selectedMonth?: string,
+  monthOptionsOverride?: MonthOption[]
 ) {
   const monthMap = new Map<string, MonthOption>();
   const prepared: PreparedExpenseTransaction[] = [];
@@ -1020,7 +1021,7 @@ function prepareTransactions(
       continue;
     }
     const monthKey = getMonthKey(parsedDate);
-    if (!monthMap.has(monthKey)) {
+    if (!monthOptionsOverride && !monthMap.has(monthKey)) {
       monthMap.set(monthKey, { value: monthKey, label: getMonthLabel(parsedDate) });
     }
     prepared.push({
@@ -1031,10 +1032,9 @@ function prepareTransactions(
     });
   }
 
-  const monthOptions = Array.from(monthMap.values()).sort((a, b) =>
-    b.value.localeCompare(a.value)
-  );
-  const { options, selected } = resolveMonthSelection(monthOptions, selectedMonth);
+  const baseOptions = monthOptionsOverride
+    ?? Array.from(monthMap.values()).sort((a, b) => b.value.localeCompare(a.value));
+  const { options, selected } = resolveMonthSelection(baseOptions, selectedMonth);
 
   return { prepared, monthOptions: options, selectedMonth: selected };
 }
@@ -1042,11 +1042,13 @@ function prepareTransactions(
 export function buildExpenseBreakdown(
   transactions: ExpenseTransactionRaw[],
   homeCurrency: string,
-  selectedMonth?: string
+  selectedMonth?: string,
+  monthOptionsOverride?: MonthOption[]
 ) {
   const { prepared, monthOptions, selectedMonth: selected } = prepareTransactions(
     transactions,
-    selectedMonth
+    selectedMonth,
+    monthOptionsOverride
   );
 
   const totals = new Map<string, ExpenseCategoryBreakdown>();
@@ -1131,14 +1133,25 @@ export function buildExpenseBreakdown(
   };
 }
 
+function decrementMonth(year: number, month: number) {
+  const prevMonth = month - 1;
+  if (prevMonth === 0) {
+    return { year: year - 1, month: 12 };
+  }
+  return { year, month: prevMonth };
+}
+
+function incrementMonth(year: number, month: number) {
+  const nextMonth = month + 1;
+  if (nextMonth === 13) {
+    return { year: year + 1, month: 1 };
+  }
+  return { year, month: nextMonth };
+}
+
 function getPreviousMonthKey(monthKey: string): string {
   const [yearStr, monthStr] = monthKey.split("-");
-  let year = parseInt(yearStr, 10);
-  let month = parseInt(monthStr, 10) - 1;
-  if (month === 0) {
-    month = 12;
-    year -= 1;
-  }
+  const { year, month } = decrementMonth(parseInt(yearStr, 10), parseInt(monthStr, 10));
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
@@ -1178,11 +1191,13 @@ function computePreviousMonthNet(
 export function buildCashFlowWaterfall(
   transactions: ExpenseTransactionRaw[],
   homeCurrency: string,
-  selectedMonth?: string
+  selectedMonth?: string,
+  monthOptionsOverride?: MonthOption[]
 ): CashFlowWaterfall {
   const { prepared, monthOptions, selectedMonth: selected } = prepareTransactions(
     transactions,
-    selectedMonth
+    selectedMonth,
+    monthOptionsOverride
   );
   const categoryTotals = new Map<string, number>();
   const expenseTransactionsByCategory = new Map<string, CashFlowTransaction[]>();
@@ -1960,6 +1975,7 @@ async function listTransactionsForMonth(
   workspaceId: string,
   monthKey: string
 ): Promise<MonthlyCloseTransaction[]> {
+  const { startDate, endDate } = getDateRangeISO(monthKey, false);
   const transactions: MonthlyCloseTransaction[] = [];
   let offset = 0;
   const limit = 200;
@@ -1970,6 +1986,8 @@ async function listTransactionsForMonth(
       "transactions",
       [
         Query.equal("workspace_id", workspaceId),
+        Query.greaterThanEqual("date", startDate),
+        Query.lessThan("date", endDate),
         Query.orderDesc("date"),
         Query.limit(limit),
         Query.offset(offset)
@@ -1980,14 +1998,10 @@ async function listTransactionsForMonth(
       break;
     }
     for (const doc of documents) {
-      const dateValue = String(doc.date ?? "");
-      if (!matchesMonthKey(dateValue, monthKey)) {
-        continue;
-      }
       transactions.push({
         id: String(doc.$id ?? ""),
         description: String(doc.description ?? "Transaction"),
-        date: dateValue,
+        date: String(doc.date ?? ""),
         accountName: String(doc.account_name ?? ""),
         amount: String(doc.amount ?? ""),
         currency: String(doc.currency ?? "AUD"),
@@ -2688,6 +2702,69 @@ export async function getSpendByCategory(
   }));
 }
 
+export function getDateRangeISO(monthKey: string, includePreviousMonth: boolean) {
+  const [yearStr, monthStr] = monthKey.split("-");
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  const start = includePreviousMonth
+    ? decrementMonth(year, month)
+    : { year, month };
+  const end = incrementMonth(year, month);
+
+  const startDate = `${start.year}-${String(start.month).padStart(2, "0")}-01`;
+  const endDate = `${end.year}-${String(end.month).padStart(2, "0")}-01`;
+  return { startDate, endDate };
+}
+
+async function listTransactionsForDateRange(
+  serverClient: ServerAppwriteClient,
+  workspaceId: string,
+  startDate: string,
+  endDate: string
+): Promise<ExpenseTransactionRaw[]> {
+  const transactions: ExpenseTransactionRaw[] = [];
+  let offset = 0;
+  const limit = 200;
+
+  while (true) {
+    const response = await serverClient.databases.listDocuments(
+      serverClient.databaseId,
+      "transactions",
+      [
+        Query.equal("workspace_id", workspaceId),
+        Query.greaterThanEqual("date", startDate),
+        Query.lessThan("date", endDate),
+        Query.orderDesc("date"),
+        Query.limit(limit),
+        Query.offset(offset)
+      ]
+    );
+    const documents = response?.documents ?? [];
+    if (documents.length === 0) {
+      break;
+    }
+    for (const doc of documents) {
+      transactions.push({
+        id: String(doc.$id ?? ""),
+        description: String(doc.description ?? "Transaction"),
+        date: String(doc.date ?? ""),
+        accountName: String(doc.account_name ?? ""),
+        amount: String(doc.amount ?? ""),
+        currency: String(doc.currency ?? "AUD"),
+        direction: String(doc.direction ?? ""),
+        category: String(doc.category_name ?? "Uncategorised")
+      });
+    }
+    offset += documents.length;
+    if (offset >= (response?.total ?? 0)) {
+      break;
+    }
+  }
+
+  return transactions;
+}
+
 export async function getExpenseBreakdown(
   workspaceId: string,
   homeCurrency = "AUD",
@@ -2699,38 +2776,20 @@ export async function getExpenseBreakdown(
   }
 
   try {
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
-      "transactions",
-      [
-        Query.equal("workspace_id", workspaceId),
-        Query.orderDesc("$createdAt"),
-        Query.limit(250)
-      ]
-    );
-    const documents = response?.documents ?? [];
-    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
+    const rollingOptions = buildRollingMonthOptions(12);
+    const { selected } = resolveMonthSelection(rollingOptions, selectedMonth);
+    const { startDate, endDate } = getDateRangeISO(selected, false);
 
-    const transactions = documents.map((doc) => ({
-      id: String(doc.$id ?? ""),
-      description: String(doc.description ?? "Transaction"),
-      date: String(doc.date ?? ""),
-      accountName: String(doc.account_name ?? ""),
-      amount: String(doc.amount ?? ""),
-      currency: String(doc.currency ?? "AUD"),
-      direction: String(doc.direction ?? ""),
-      category: String(doc.category_name ?? "Uncategorised")
-    }));
+    const [transactions, transferPairIds] = await Promise.all([
+      listTransactionsForDateRange(serverClient, workspaceId, startDate, endDate),
+      listTransferPairIds(serverClient, workspaceId)
+    ]);
 
     const filteredTransactions = transactions.filter(
       (txn) => !transferPairIds.has(txn.id)
     );
 
-    if (transactions.length === 0) {
-      return buildExpenseBreakdown([], homeCurrency, selectedMonth);
-    }
-
-    return buildExpenseBreakdown(filteredTransactions, homeCurrency, selectedMonth);
+    return buildExpenseBreakdown(filteredTransactions, homeCurrency, selected, rollingOptions);
   } catch (error) {
     return buildExpenseBreakdown([], homeCurrency, selectedMonth);
   }
@@ -2747,38 +2806,20 @@ export async function getCashFlowWaterfall(
   }
 
   try {
-    const response = await serverClient.databases.listDocuments(
-      serverClient.databaseId,
-      "transactions",
-      [
-        Query.equal("workspace_id", workspaceId),
-        Query.orderDesc("$createdAt"),
-        Query.limit(250)
-      ]
-    );
-    const documents = response?.documents ?? [];
-    const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
+    const rollingOptions = buildRollingMonthOptions(12);
+    const { selected } = resolveMonthSelection(rollingOptions, selectedMonth);
+    const { startDate, endDate } = getDateRangeISO(selected, true);
 
-    const transactions = documents.map((doc) => ({
-      id: String(doc.$id ?? ""),
-      description: String(doc.description ?? "Transaction"),
-      date: String(doc.date ?? ""),
-      accountName: String(doc.account_name ?? ""),
-      amount: String(doc.amount ?? ""),
-      currency: String(doc.currency ?? "AUD"),
-      direction: String(doc.direction ?? ""),
-      category: String(doc.category_name ?? "Uncategorised")
-    }));
+    const [transactions, transferPairIds] = await Promise.all([
+      listTransactionsForDateRange(serverClient, workspaceId, startDate, endDate),
+      listTransferPairIds(serverClient, workspaceId)
+    ]);
 
     const filteredTransactions = transactions.filter(
       (txn) => !transferPairIds.has(txn.id)
     );
 
-    if (transactions.length === 0) {
-      return buildEmptyCashFlowWaterfall(selectedMonth);
-    }
-
-    return buildCashFlowWaterfall(filteredTransactions, homeCurrency, selectedMonth);
+    return buildCashFlowWaterfall(filteredTransactions, homeCurrency, selected, rollingOptions);
   } catch (error) {
     return buildEmptyCashFlowWaterfall(selectedMonth);
   }
