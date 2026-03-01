@@ -43,6 +43,7 @@ type Preset = {
 type ImportHistoryItem = {
   id: string;
   source_name: string;
+  source_account?: string;
   source_owner?: string;
   file_name?: string;
   row_count: number;
@@ -1131,6 +1132,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
               <div className="history-header">
                 <span>File</span>
                 <span>Source</span>
+                <span>Account</span>
                 <span>Owner</span>
                 <span>Rows</span>
                 <span>Status</span>
@@ -1153,6 +1155,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
                 >
                   <span>{item.file_name || "Untitled"}</span>
                   <span>{item.source_name}</span>
+                  <span>{item.source_account || "-"}</span>
                   <span>{item.source_owner || "-"}</span>
                   <span>{item.row_count}</span>
                   <span>{item.status}</span>
@@ -1194,6 +1197,10 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
             <div className="right-drawer-detail">
               <span className="right-drawer-label">Source</span>
               <span className="right-drawer-value">{selectedImport.source_name}</span>
+            </div>
+            <div className="right-drawer-detail">
+              <span className="right-drawer-label">Account</span>
+              <span className="right-drawer-value">{selectedImport.source_account || "-"}</span>
             </div>
             <div className="right-drawer-detail">
               <span className="right-drawer-label">Owner</span>
