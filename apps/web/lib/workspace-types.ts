@@ -35,6 +35,7 @@ export interface AuthenticatedUser {
   email: string;
   name: string;
   emailVerification?: boolean;
+  labels?: string[];
 }
 
 export interface ApiConfig {

@@ -158,6 +158,7 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
       email: user.email,
       name: user.name,
       emailVerification: user.emailVerification,
+      labels: user.labels,
     },
     workspaceId: activeWorkspaceId,
     role: membership.documents[0].role as WorkspaceMemberRole,

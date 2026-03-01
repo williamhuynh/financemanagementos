@@ -1305,7 +1305,13 @@ function buildEmptyCashFlowWaterfall(selectedMonth?: string): CashFlowWaterfall 
   };
 }
 
-export async function getNavItems(): Promise<NavItem[]> {
+export async function getNavItems(options?: { isSuperadmin?: boolean }): Promise<NavItem[]> {
+  if (options?.isSuperadmin) {
+    return [
+      ...navItems,
+      { id: "admin", label: "Admin", href: "/admin", icon: "admin" },
+    ];
+  }
   return navItems;
 }
 

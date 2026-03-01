@@ -11,6 +11,7 @@ import { WorkspaceProvider } from "../../lib/workspace-context";
 import { NumberVisibilityProvider } from "../../lib/number-visibility-context";
 import { ViewProvider } from "../../lib/view-context";
 import { getApiContext } from "../../lib/api-auth";
+import { isSuperadmin } from "../../lib/admin-guard";
 import EmailVerificationBanner from "./EmailVerificationBanner";
 
 // Ensure the shell layout is always dynamically rendered (never cached).
@@ -37,7 +38,7 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
   // getNavItems() is a static return so it's instant, but we parallelize
   // getSidebarMonthlyCloseStatus to avoid sequential await chains.
   const [navItems, monthlyCloseStatus] = await Promise.all([
-    getNavItems(),
+    getNavItems({ isSuperadmin: isSuperadmin(context.user.labels) }),
     getSidebarMonthlyCloseStatus(context.workspaceId, homeCurrency),
   ]);
 
