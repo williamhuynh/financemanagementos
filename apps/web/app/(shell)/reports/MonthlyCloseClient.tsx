@@ -7,6 +7,7 @@ import ExpenseCategoryList from "./expenses/ExpenseCategoryList";
 import type { ExpenseBreakdown, MonthlyCloseSummary } from "../../../lib/data";
 import { useNumberVisibility } from "../../../lib/number-visibility-context";
 import { maskCurrencyValue } from "../../../lib/data";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type MonthlyCloseClientProps = {
   summary: MonthlyCloseSummary;
@@ -88,7 +89,7 @@ export default function MonthlyCloseClient({
     setActionState("saving");
     setError("");
     try {
-      const response = await fetch("/api/monthly-close", {
+      const response = await apiFetch("/api/monthly-close", {
         method: action === "close" ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ month: summary.selectedMonth })

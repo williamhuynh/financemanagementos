@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, DetailPanel } from "@tandemly/ui";
 import { getLocaleForCurrency } from "../../../lib/currencies";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type CategoryItem = {
   id: string;
@@ -126,7 +127,7 @@ export default function CategoriesClient({
     clearMessages();
     setAdding(true);
     try {
-      const res = await fetch("/api/categories", {
+      const res = await apiFetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName, group: newGroup }),
@@ -157,7 +158,7 @@ export default function CategoriesClient({
     }
     setSaving(true);
     try {
-      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
+      const res = await apiFetch(`/api/categories/${selectedCategory.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
@@ -185,7 +186,7 @@ export default function CategoriesClient({
     clearMessages();
     const newGroupValue = selectedCategory.group === "income" ? "expense" : "income";
     try {
-      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
+      const res = await apiFetch(`/api/categories/${selectedCategory.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group: newGroupValue }),
@@ -210,7 +211,7 @@ export default function CategoriesClient({
     }
     setDeleting(true);
     try {
-      const res = await fetch(`/api/categories/${selectedCategory.id}`, {
+      const res = await apiFetch(`/api/categories/${selectedCategory.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remap_to: remapTo || "Uncategorised" }),

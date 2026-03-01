@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, UpgradeModal } from "@tandemly/ui";
 import { useWorkspace } from "../../../lib/workspace-context";
 import { isAtLimit, getLimit, getPlanConfig } from "../../../lib/plans";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type Member = {
   id: string;
@@ -49,9 +50,9 @@ export default function MembersSection({
     async function fetchData() {
       try {
         const [membersRes, invitationsRes] = await Promise.all([
-          fetch(`/api/workspaces/${workspaceId}/members`),
+          apiFetch(`/api/workspaces/${workspaceId}/members`),
           canManageMembers
-            ? fetch(`/api/workspaces/${workspaceId}/invitations`)
+            ? apiFetch(`/api/workspaces/${workspaceId}/invitations`)
             : Promise.resolve({ ok: true, json: () => ({ invitations: [] }) }),
         ]);
 
@@ -81,7 +82,7 @@ export default function MembersSection({
     setInviteUrl(null);
 
     try {
-      const response = await fetch(`/api/workspaces/${workspaceId}/invitations`, {
+      const response = await apiFetch(`/api/workspaces/${workspaceId}/invitations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
@@ -114,7 +115,7 @@ export default function MembersSection({
 
   const handleCancelInvitation = async (invitationId: string) => {
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/workspaces/${workspaceId}/invitations/${invitationId}`,
         { method: "DELETE" }
       );
@@ -133,7 +134,7 @@ export default function MembersSection({
     }
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/workspaces/${workspaceId}/members/${memberId}`,
         { method: "DELETE" }
       );

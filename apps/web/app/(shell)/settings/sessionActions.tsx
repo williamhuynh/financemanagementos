@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@tandemly/ui";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type SignOutState = "idle" | "working" | "error";
 
@@ -14,7 +15,7 @@ export default function SessionActions() {
     setSignOutState("working");
     try {
       // Use server-side session API
-      await fetch("/api/auth/logout", {
+      await apiFetch("/api/auth/logout", {
         method: "POST",
       });
       // Session destroyed server-side

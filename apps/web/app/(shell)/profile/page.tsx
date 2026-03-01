@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SectionHead } from "@tandemly/ui";
 import { useAuth } from "../../../lib/auth-context";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type ActionState = "idle" | "working" | "error";
 type DeleteError = string | null;
@@ -36,7 +37,7 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     setSignOutState("working");
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await apiFetch("/api/auth/logout", { method: "POST" });
       router.replace("/login");
     } catch {
       setSignOutState("error");
@@ -46,7 +47,7 @@ export default function ProfilePage() {
   const handleExport = async () => {
     setExportState("working");
     try {
-      const response = await fetch("/api/account/export");
+      const response = await apiFetch("/api/account/export");
       if (!response.ok) throw new Error("Export failed");
 
       const blob = await response.blob();
@@ -71,7 +72,7 @@ export default function ProfilePage() {
     setDeleteState("working");
     setDeleteError(null);
     try {
-      const response = await fetch("/api/account", { method: "DELETE" });
+      const response = await apiFetch("/api/account", { method: "DELETE" });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(

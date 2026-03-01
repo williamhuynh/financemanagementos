@@ -7,6 +7,7 @@ import type {
   TransferTransaction
 } from "../../../lib/data";
 import { getLocaleForCurrency } from "../../../lib/currencies";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type TransferReviewResponse = {
   paired: TransferPairReview[];
@@ -65,7 +66,7 @@ export default function TransferMatchClient({ homeCurrency = "AUD" }: { homeCurr
     setSaveState((prev) => ({ ...prev, [suggestion.id]: "saving" }));
     setStatus("");
     try {
-      const response = await fetch("/api/transfer-pairs", {
+      const response = await apiFetch("/api/transfer-pairs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,7 +90,7 @@ export default function TransferMatchClient({ homeCurrency = "AUD" }: { homeCurr
     setUnpairState((prev) => ({ ...prev, [pair.id]: "saving" }));
     setStatus("");
     try {
-      const response = await fetch(`/api/transfer-pairs/${pair.id}`, {
+      const response = await apiFetch(`/api/transfer-pairs/${pair.id}`, {
         method: "DELETE"
       });
       const payload = await response.json();

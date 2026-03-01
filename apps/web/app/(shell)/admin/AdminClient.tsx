@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, DetailPanel } from "@tandemly/ui";
 import { ALL_FEATURES } from "../../../lib/plans";
+import { apiFetch } from "../../../lib/api-fetch";
 
 interface AdminWorkspace {
   id: string;
@@ -26,7 +27,7 @@ export default function AdminClient() {
   const fetchWorkspaces = useCallback(async () => {
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : "";
-      const res = await fetch(`/api/admin/workspaces${params}`, { credentials: "include" });
+      const res = await apiFetch(`/api/admin/workspaces${params}`, { credentials: "include" });
       const data = await res.json();
       setWorkspaces(data.workspaces || []);
     } catch {
@@ -62,7 +63,7 @@ export default function AdminClient() {
     if (!selected) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/workspaces/${selected.id}`, {
+      await apiFetch(`/api/admin/workspaces/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

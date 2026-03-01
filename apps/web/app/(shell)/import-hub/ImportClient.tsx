@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DetailPanel } from "@tandemly/ui";
 import Papa from "papaparse";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type ParsedRow = Record<string, string>;
 
@@ -323,7 +324,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     setHistoryLoading(true);
     setHistoryStatus("");
     try {
-      const response = await fetch("/api/imports", { cache: "no-store" });
+      const response = await apiFetch("/api/imports", { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok) {
         setHistoryStatus(payload?.detail ?? "Failed to load import history.");
@@ -357,7 +358,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
   useEffect(() => {
     const loadAccounts = async () => {
       try {
-        const response = await fetch("/api/accounts");
+        const response = await apiFetch("/api/accounts");
         const payload = await response.json();
         if (response.ok && Array.isArray(payload?.accounts)) {
           setAccountOptions(payload.accounts);
@@ -372,7 +373,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
   // --- Load workspace presets ---
   const loadWorkspacePresets = async () => {
     try {
-      const response = await fetch("/api/import-presets", { cache: "no-store" });
+      const response = await apiFetch("/api/import-presets", { cache: "no-store" });
       const payload = await response.json();
       if (response.ok && Array.isArray(payload?.presets)) {
         setWorkspacePresets(
@@ -401,7 +402,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     setIsSavingPreset(true);
     setPresetStatus("");
     try {
-      const response = await fetch("/api/import-presets", {
+      const response = await apiFetch("/api/import-presets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -430,7 +431,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     if (!window.confirm("Delete this saved preset?")) return;
     setPresetStatus("");
     try {
-      const response = await fetch(`/api/import-presets/${presetDocId}`, {
+      const response = await apiFetch(`/api/import-presets/${presetDocId}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -469,7 +470,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
         invertAmount: stored.invertAmount,
       }));
 
-      const response = await fetch("/api/suggest-mapping", {
+      const response = await apiFetch("/api/suggest-mapping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -516,7 +517,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
         formData.append("sourceAccount", sourceAccount);
       }
 
-      const response = await fetch("/api/extract", {
+      const response = await apiFetch("/api/extract", {
         method: "POST",
         body: formData,
       });
@@ -745,7 +746,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
       setProgress((prev) => Math.min(prev + Math.random() * 12 + 6, 92));
     }, 400);
     try {
-      const response = await fetch("/api/imports", {
+      const response = await apiFetch("/api/imports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -804,7 +805,7 @@ export default function ImportClient({ ownerOptions }: ImportClientProps) {
     setDeletingImportId(importId);
     setHistoryStatus("");
     try {
-      const response = await fetch(`/api/imports/${importId}`, {
+      const response = await apiFetch(`/api/imports/${importId}`, {
         method: "DELETE"
       });
       const payload = await response.json();

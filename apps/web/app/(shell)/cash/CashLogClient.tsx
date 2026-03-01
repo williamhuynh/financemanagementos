@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@tandemly/ui";
 import VoiceInput from "./VoiceInput";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type CashLog = {
   id: string;
@@ -107,7 +108,7 @@ export default function CashLogClient({
 
     for (const entry of queue) {
       try {
-        const response = await fetch("/api/cash-logs", {
+        const response = await apiFetch("/api/cash-logs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -184,7 +185,7 @@ export default function CashLogClient({
     setIsSubmitting(true);
     setError(null);
     try {
-      const response = await fetch("/api/cash-logs", {
+      const response = await apiFetch("/api/cash-logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,7 +235,7 @@ export default function CashLogClient({
     }
 
     try {
-      const response = await fetch(`/api/cash-logs/${id}`, {
+      const response = await apiFetch(`/api/cash-logs/${id}`, {
         method: "DELETE"
       });
 
@@ -254,7 +255,7 @@ export default function CashLogClient({
     if (!editText.trim()) return;
 
     try {
-      const response = await fetch(`/api/cash-logs/${id}`, {
+      const response = await apiFetch(`/api/cash-logs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: editText.trim() })
@@ -286,7 +287,7 @@ export default function CashLogClient({
     setError(null);
 
     try {
-      const response = await fetch("/api/cash-logs/process", {
+      const response = await apiFetch("/api/cash-logs/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -369,7 +370,7 @@ export default function CashLogClient({
     setIsCommitting(true);
     setError(null);
     try {
-      const response = await fetch("/api/cash-logs/commit", {
+      const response = await apiFetch("/api/cash-logs/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processed: processedItems })
@@ -407,7 +408,7 @@ export default function CashLogClient({
 
     // Revert all processed logs back to draft status
     const revertPromises = processedItems.map(({ logId }) =>
-      fetch(`/api/cash-logs/${logId}`, {
+      apiFetch(`/api/cash-logs/${logId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "draft" })

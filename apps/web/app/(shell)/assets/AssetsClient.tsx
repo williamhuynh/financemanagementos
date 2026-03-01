@@ -9,6 +9,7 @@ import { maskCurrencyValue, filterSeriesByRange } from "../../../lib/data";
 import { useWorkspace } from "../../../lib/workspace-context";
 import { isAtLimit, getLimit, getPlanConfig } from "../../../lib/plans";
 import AssetDetail from "./AssetDetail";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type AssetsClientProps = {
   overview: AssetOverview;
@@ -130,7 +131,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   const refreshOverview = async () => {
     setRefreshState("saving");
     try {
-      const response = await fetch("/api/assets/overview", {
+      const response = await apiFetch("/api/assets/overview", {
         cache: "no-store"
       });
       if (!response.ok) {
@@ -276,7 +277,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     setAssetState("saving");
     setAssetError("");
     try {
-      const response = await fetch(`/api/assets/${id}`, {
+      const response = await apiFetch(`/api/assets/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -296,7 +297,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     setAssetState("saving");
     setAssetError("");
     try {
-      const response = await fetch("/api/assets", {
+      const response = await apiFetch("/api/assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -328,7 +329,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     setValueState("saving");
     setValueError("");
     try {
-      const response = await fetch("/api/assets/values", {
+      const response = await apiFetch("/api/assets/values", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -357,7 +358,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     setAssetState("saving");
     setAssetError("");
     try {
-      const response = await fetch(`/api/assets/${asset.id}`, {
+      const response = await apiFetch(`/api/assets/${asset.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -383,7 +384,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   const handleHardDeleteAsset = async (asset: AssetItem) => {
     setDeleteState("saving");
     try {
-      const response = await fetch(`/api/assets/${asset.id}`, {
+      const response = await apiFetch(`/api/assets/${asset.id}`, {
         method: "DELETE"
       });
       if (!response.ok) {
@@ -405,7 +406,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
   const handleHardDeleteValue = async (entryId: string) => {
     setDeleteState("saving");
     try {
-      const response = await fetch(`/api/assets/values/${entryId}`, {
+      const response = await apiFetch(`/api/assets/values/${entryId}`, {
         method: "DELETE"
       });
       if (!response.ok) {

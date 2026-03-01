@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReviewItem } from "../../../lib/data";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type ReviewClientProps = {
   items: ReviewItem[];
@@ -47,7 +48,7 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
   const handleSave = async (id: string, category: string) => {
     setSaveState((prev) => ({ ...prev, [id]: "saving" }));
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await apiFetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category })
@@ -76,7 +77,7 @@ export default function ReviewClient({ items, categories }: ReviewClientProps) {
     setCategoryMap((prev) => ({ ...prev, [id]: nextCategory }));
     setTransferState((prev) => ({ ...prev, [id]: "saving" }));
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await apiFetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspace } from "../../lib/workspace-context";
+import { apiFetch } from "../../lib/api-fetch";
 
 export default function WorkspaceSwitcher() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function WorkspaceSwitcher() {
 
     setSwitching(true);
     try {
-      const response = await fetch("/api/workspaces/switch", {
+      const response = await apiFetch("/api/workspaces/switch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId })

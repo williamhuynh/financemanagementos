@@ -149,6 +149,33 @@ export async function POST(request: Request) {
 - Reference implementations: `app/(shell)/ledger/LedgerClient.tsx` (Transactions),
   `app/(shell)/import-hub/ImportClient.tsx` (Import Details).
 
+### CSRF protection (client-side API calls)
+- **Middleware enforcement**: `middleware.ts` validates a `X-CSRF-Token` header on
+  every POST/PATCH/DELETE request to `/api/` routes (except exempt auth routes).
+  Missing or invalid tokens return **403** with `{ error: "Invalid or missing CSRF token" }`.
+- **Server side**: A CSRF token is generated at login/signup and stored in the
+  encrypted iron-session. Clients fetch it via `GET /api/auth/csrf`.
+- **Client side**: Use `apiFetch()` from `lib/api-fetch.ts` instead of bare `fetch()`
+  for ALL client-side API calls. It automatically fetches, caches, and sends the
+  CSRF token. It also retries once with a fresh token on CSRF 403 errors.
+  ```typescript
+  import { apiFetch } from "@/lib/api-fetch";
+  // Use exactly like fetch():
+  const res = await apiFetch("/api/cash-logs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, date }),
+  });
+  ```
+- **When adding new client components** that call `/api/` endpoints with POST/PATCH/DELETE,
+  always use `apiFetch`. Using bare `fetch` will silently fail with 403 in production
+  (the middleware returns before the route handler, so no server logs appear).
+- **GET requests** pass through `apiFetch` unchanged (no CSRF header added), so it's
+  safe to use `apiFetch` for all API calls for consistency.
+- **Exempt routes** (don't need CSRF): `/api/auth/login`, `/api/auth/signup`,
+  `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/verify-email`,
+  `/api/auth/session`, `/api/invitations/verify`, `/api/health`.
+
 ### Rate limiting
 - Auth endpoints use `lib/rate-limit.ts` (in-memory sliding window)
 - Import and apply: `import { rateLimit, AUTH_RATE_LIMITS } from "…/lib/rate-limit"`
@@ -205,5 +232,4 @@ Optional: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `WHISPER_API_KEY`,
 
 ## Current focus
 Phase 2 blockers are done. Fast-follow items remain — see `docs/ROADMAP.md`:
-ToS/Privacy pages, CSRF tokens, consistent error format, empty states,
-workspace deletion.
+ToS/Privacy pages, consistent error format, empty states, workspace deletion.

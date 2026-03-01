@@ -6,6 +6,7 @@ import { DetailPanel } from "@tandemly/ui";
 import type { LedgerRow } from "../../../lib/data";
 import { useView } from "../../../lib/view-context";
 import TransactionDetail from "./TransactionDetail";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type LedgerClientProps = {
   rows: LedgerRow[];
@@ -175,7 +176,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const handleSave = async (id: string, category: string) => {
     setSaveState((prev) => ({ ...prev, [id]: "saving" }));
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await apiFetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category })
@@ -204,7 +205,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
     setCategoryMap((prev) => ({ ...prev, [id]: nextCategory }));
     setTransferState((prev) => ({ ...prev, [id]: "saving" }));
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await apiFetch(`/api/transactions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -233,7 +234,7 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   const handleDelete = async (id: string) => {
     setDeleteState("saving");
     try {
-      const response = await fetch(`/api/transactions/${id}`, {
+      const response = await apiFetch(`/api/transactions/${id}`, {
         method: "DELETE",
       });
       if (!response.ok) {

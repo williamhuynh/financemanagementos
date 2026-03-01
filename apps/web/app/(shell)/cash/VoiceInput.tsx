@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { apiFetch } from "../../../lib/api-fetch";
 
 type VoiceInputProps = {
   onTranscription: (text: string) => void;
@@ -145,7 +146,7 @@ export default function VoiceInput({ onTranscription, disabled }: VoiceInputProp
       const formData = new FormData();
       formData.append("audio", audioBlob, "recording.webm");
 
-      const response = await fetch("/api/transcribe", {
+      const response = await apiFetch("/api/transcribe", {
         method: "POST",
         body: formData
       });
