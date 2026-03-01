@@ -321,7 +321,7 @@ export async function POST(request: Request) {
       category_name: category,
       direction,
       notes: "",
-      is_transfer: false,
+      is_transfer: category === "Transfer",
       needs_review: category === "Uncategorised"
     };
 
@@ -404,14 +404,18 @@ export async function POST(request: Request) {
                 categories
               );
               if (normalizedCategory === "Uncategorised") continue;
+              const updateFields: Record<string, unknown> = {
+                category_name: normalizedCategory,
+                needs_review: false
+              };
+              if (normalizedCategory === "Transfer") {
+                updateFields.is_transfer = true;
+              }
               await databases.updateDocument(
                 config.databaseId,
                 "transactions",
                 match.id,
-                {
-                  category_name: normalizedCategory,
-                  needs_review: false
-                }
+                updateFields
               );
               categorizedIds.add(match.id);
             }
@@ -447,14 +451,18 @@ export async function POST(request: Request) {
             if (normalizedCategory === "Uncategorised") {
               continue;
             }
+            const updateFields: Record<string, unknown> = {
+              category_name: normalizedCategory,
+              needs_review: normalizedCategory === "Uncategorised"
+            };
+            if (normalizedCategory === "Transfer") {
+              updateFields.is_transfer = true;
+            }
             await databases.updateDocument(
               config.databaseId,
               "transactions",
               transaction.id,
-              {
-                category_name: normalizedCategory,
-                needs_review: normalizedCategory === "Uncategorised"
-              }
+              updateFields
             );
           }
         }

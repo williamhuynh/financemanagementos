@@ -1717,7 +1717,10 @@ export async function getTransferReviewData(workspaceId: string): Promise<Transf
       "transactions",
       [
         Query.equal("workspace_id", workspaceId),
-        Query.equal("is_transfer", true),
+        Query.or([
+          Query.equal("is_transfer", true),
+          Query.equal("category_name", "Transfer")
+        ]),
         Query.orderDesc("$createdAt"),
         Query.limit(200)
       ]
