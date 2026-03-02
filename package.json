@@ -14,5 +14,8 @@
     "build": "npm run -w apps/web build",
     "start": "npm run -w apps/web start",
     "lint": "npm run -w apps/web lint"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "^10.40.0"
   }
 }
