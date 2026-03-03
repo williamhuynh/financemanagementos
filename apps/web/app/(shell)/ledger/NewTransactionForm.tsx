@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BottomDrawer } from "@tandemly/ui";
+import { DetailPanel } from "@tandemly/ui";
 import { apiFetch } from "../../../lib/api-fetch";
 
 interface Category {
@@ -97,7 +97,7 @@ export default function NewTransactionForm({
   };
 
   return (
-    <BottomDrawer open={open} onClose={onClose} title="Add Transaction">
+    <DetailPanel open={open} onClose={onClose} title="Add Transaction">
       <form onSubmit={handleSubmit} style={{ padding: "0 16px 16px" }}>
         <div className="form-field">
           <label htmlFor="date">Date *</label>
@@ -211,6 +211,6 @@ export default function NewTransactionForm({
           </button>
         </div>
       </form>
-    </BottomDrawer>
+    </DetailPanel>
   );
 }

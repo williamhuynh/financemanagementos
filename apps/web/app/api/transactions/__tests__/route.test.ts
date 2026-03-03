@@ -10,6 +10,7 @@ vi.mock("../../../../lib/audit");
 
 const mockDatabases = {
   createDocument: vi.fn(),
+  getDocument: vi.fn(),
 };
 
 const mockContext = {
@@ -38,6 +39,9 @@ beforeEach(async () => {
   const audit = await import("../../../../lib/audit");
   vi.mocked(audit.writeAuditLog).mockReturnValue(undefined as any);
   vi.mocked(audit.getClientIp).mockReturnValue("127.0.0.1");
+
+  // Mock workspace fetch for default currency
+  mockDatabases.getDocument.mockResolvedValue({ currency: "USD" });
 });
 
 describe("POST /api/transactions", () => {

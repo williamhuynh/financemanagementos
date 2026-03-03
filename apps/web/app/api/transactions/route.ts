@@ -5,6 +5,7 @@ import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
 import { validateBody, TransactionCreateSchema } from "../../../lib/validations";
 import { writeAuditLog, getClientIp } from "../../../lib/audit";
+import { COLLECTIONS } from "../../../lib/collection-names";
 
 export async function POST(request: Request) {
   const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
@@ -28,6 +29,14 @@ export async function POST(request: Request) {
 
     const { date, amount, account_name, category_name, description, currency, notes } = parsed.data;
 
+    // Fetch workspace to get default currency
+    const workspace = await databases.getDocument(
+      config.databaseId,
+      COLLECTIONS.WORKSPACES,
+      workspaceId
+    );
+    const defaultCurrency = workspace.currency || "AUD";
+
     // Derive direction from amount
     const direction = amount < 0 ? "outflow" : "inflow";
 
@@ -49,7 +58,7 @@ export async function POST(request: Request) {
       amount,
       account_name,
       category_name: normalizedCategory,
-      currency: currency || "",
+      currency: currency || defaultCurrency,
       direction,
       notes: notes || "",
       is_transfer,
@@ -58,7 +67,7 @@ export async function POST(request: Request) {
 
     const doc = await databases.createDocument(
       config.databaseId,
-      "transactions",
+      COLLECTIONS.TRANSACTIONS,
       transactionId,
       transactionDoc
     );
