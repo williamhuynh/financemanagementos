@@ -96,8 +96,14 @@ export default function NewTransactionForm({
     }
   };
 
+  const handleClose = () => {
+    if (!saving) {
+      onClose();
+    }
+  };
+
   return (
-    <DetailPanel open={open} onClose={onClose} title="Add Transaction">
+    <DetailPanel open={open} onClose={handleClose} title="Add Transaction">
       <form onSubmit={handleSubmit} style={{ padding: "0 16px 16px" }}>
         <div className="form-field">
           <label htmlFor="date">Date *</label>
@@ -106,6 +112,7 @@ export default function NewTransactionForm({
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            disabled={saving}
             required
           />
         </div>
@@ -119,6 +126,7 @@ export default function NewTransactionForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Negative for expense, positive for income"
+            disabled={saving}
             required
           />
         </div>
@@ -129,6 +137,7 @@ export default function NewTransactionForm({
             id="account"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
+            disabled={saving}
             required
           >
             <option value="">Select account...</option>
@@ -146,6 +155,7 @@ export default function NewTransactionForm({
             id="category"
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
+            disabled={saving}
           >
             <option value="Uncategorised">Uncategorised</option>
             {categories.map((cat) => (
@@ -163,6 +173,7 @@ export default function NewTransactionForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
+            disabled={saving}
           />
         </div>
 
@@ -174,6 +185,7 @@ export default function NewTransactionForm({
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
             maxLength={10}
+            disabled={saving}
           />
         </div>
 
@@ -184,6 +196,7 @@ export default function NewTransactionForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
+            disabled={saving}
           />
         </div>
 

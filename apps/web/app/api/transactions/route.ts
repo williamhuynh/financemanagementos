@@ -54,15 +54,15 @@ export async function POST(request: Request) {
     const transactionDoc = {
       workspace_id: workspaceId,
       date,
-      description: description || "",
       amount,
       account_name,
       category_name: normalizedCategory,
       currency: currency || defaultCurrency,
       direction,
-      notes: notes || "",
       is_transfer,
       needs_review,
+      ...(description && { description }),
+      ...(notes && { notes }),
     };
 
     const doc = await databases.createDocument(
