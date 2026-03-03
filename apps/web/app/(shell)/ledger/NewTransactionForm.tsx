@@ -87,7 +87,8 @@ export default function NewTransactionForm({
         return;
       }
 
-      // Success - close drawer and refresh
+      // Success - reset state, close drawer and refresh
+      setSaving(false);
       router.refresh();
       onClose();
     } catch (err) {

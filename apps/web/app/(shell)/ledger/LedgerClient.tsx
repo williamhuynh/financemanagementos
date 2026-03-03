@@ -276,7 +276,18 @@ export default function LedgerClient({ rows, categories, defaultCurrency, showNe
   }, [selectedId, visibleItems]);
 
   if (visibleItems.length === 0 && !isLoading) {
-    return <div className="empty-state">No transactions yet.</div>;
+    return (
+      <>
+        <div className="empty-state">No transactions yet.</div>
+        <NewTransactionForm
+          open={showNewForm}
+          onClose={onCloseNewForm}
+          categories={sortedCategories.map(name => ({ name, group: "expense" }))}
+          accounts={[]}
+          defaultCurrency={defaultCurrency}
+        />
+      </>
+    );
   }
 
   return (

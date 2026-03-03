@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     );
     const defaultCurrency = workspace.currency || "AUD";
 
-    // Derive direction from amount
-    const direction = amount < 0 ? "outflow" : "inflow";
+    // Derive direction from amount (credit = positive income, debit = negative expense)
+    const direction = amount < 0 ? "debit" : "credit";
 
     // Normalize category
     const normalizedCategory = category_name?.trim() || "Uncategorised";
@@ -50,18 +50,19 @@ export async function POST(request: Request) {
     // Generate transaction ID
     const transactionId = ID.unique();
 
-    // Create transaction document
+    // Create transaction document matching Appwrite schema
     const transactionDoc = {
       workspace_id: workspaceId,
+      import_id: `manual-${transactionId}`,  // Required by schema
       date,
-      amount,
+      description: description || "",  // Required by schema, default to empty string
+      amount: amount.toString(),  // Schema expects string
       account_name,
       category_name: normalizedCategory,
       currency: currency || defaultCurrency,
       direction,
       is_transfer,
       needs_review,
-      ...(description && { description }),
       ...(notes && { notes }),
     };
 

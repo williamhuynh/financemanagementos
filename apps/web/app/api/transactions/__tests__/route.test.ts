@@ -71,10 +71,12 @@ describe("POST /api/transactions", () => {
       expect.any(String),
       expect.objectContaining({
         workspace_id: "workspace-123",
+        import_id: expect.stringMatching(/^manual-/),
         date: "2026-03-03",
-        amount: -50.00,
+        description: "",
+        amount: "-50",
         account_name: "Checking Account",
-        direction: "outflow",
+        direction: "debit",
         category_name: "Uncategorised",
         needs_review: true,
         is_transfer: false,
@@ -138,12 +140,12 @@ describe("POST /api/transactions", () => {
       expect.any(String),
       expect.any(String),
       expect.objectContaining({
-        direction: "outflow",
+        direction: "debit",
       })
     );
   });
 
-  it("sets direction to inflow for positive amounts", async () => {
+  it("sets direction to credit for positive amounts", async () => {
     mockDatabases.createDocument.mockResolvedValue({ $id: "txn-123" });
 
     const request = new NextRequest("http://localhost/api/transactions", {
@@ -162,7 +164,7 @@ describe("POST /api/transactions", () => {
       expect.any(String),
       expect.any(String),
       expect.objectContaining({
-        direction: "inflow",
+        direction: "credit",
       })
     );
   });
