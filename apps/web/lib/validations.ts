@@ -67,6 +67,16 @@ export const TransactionUpdateSchema = z.object({
   is_transfer: z.boolean().optional(),
 });
 
+export const TransactionCreateSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}/, "Date must be in YYYY-MM-DD format"),
+  amount: z.number().finite().refine(val => val !== 0, "Amount cannot be zero"),
+  account_name: trimmedString.min(1, "Account is required").max(200),
+  category_name: trimmedString.max(100).optional(),
+  description: trimmedString.max(1000).optional(),
+  currency: trimmedString.max(10).optional(),
+  notes: trimmedString.max(500).optional(),
+});
+
 // ─── Assets ──────────────────────────────────────────────────
 
 export const AssetCreateSchema = z.object({

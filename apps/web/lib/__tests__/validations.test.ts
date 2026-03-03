@@ -8,6 +8,7 @@ import {
   CategoryDeleteSchema,
   AssetCreateSchema,
   TransactionUpdateSchema,
+  TransactionCreateSchema,
   ImportCreateSchema,
   TransferPairCreateSchema,
   WorkspaceCreateSchema,
@@ -426,5 +427,133 @@ describe("ImportPresetCreateSchema", () => {
       headerMap: {},
     });
     expect(result.success).toBe(false);
+  });
+});
+
+// ─── TransactionCreateSchema ─────────────────────────────────
+
+describe("TransactionCreateSchema", () => {
+  it("accepts valid transaction with all required fields", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -50.00,
+      account_name: "Checking Account",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.date).toBe("2026-03-03");
+      expect(result.data.amount).toBe(-50.00);
+      expect(result.data.account_name).toBe("Checking Account");
+    }
+  });
+
+  it("accepts valid transaction with all fields", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -50.00,
+      account_name: "Checking Account",
+      category_name: "Groceries",
+      description: "Weekly shopping",
+      currency: "USD",
+      notes: "Bought milk and bread",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing date", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      amount: -50.00,
+      account_name: "Checking Account",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("date");
+    }
+  });
+
+  it("rejects invalid date format", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "03/03/2026",
+      amount: -50.00,
+      account_name: "Checking Account",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("date");
+    }
+  });
+
+  it("rejects missing amount", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      account_name: "Checking Account",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("amount");
+    }
+  });
+
+  it("rejects zero amount", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: 0,
+      account_name: "Checking Account",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Amount cannot be zero");
+    }
+  });
+
+  it("rejects missing account_name", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -50.00,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("account_name");
+    }
+  });
+
+  it("rejects empty account_name", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -50.00,
+      account_name: "",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Account is required");
+    }
+  });
+
+  it("accepts positive and negative amounts", () => {
+    const negative = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -100.50,
+      account_name: "Checking",
+    });
+    const positive = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: 200.75,
+      account_name: "Checking",
+    });
+    expect(negative.success).toBe(true);
+    expect(positive.success).toBe(true);
+  });
+
+  it("accepts optional fields", () => {
+    const result = validateBody(TransactionCreateSchema, {
+      date: "2026-03-03",
+      amount: -50.00,
+      account_name: "Checking Account",
+      category_name: "",
+      description: "",
+      currency: "",
+      notes: "",
+    });
+    expect(result.success).toBe(true);
   });
 });

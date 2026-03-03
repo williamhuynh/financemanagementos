@@ -6,11 +6,15 @@ import { DetailPanel } from "@tandemly/ui";
 import type { LedgerRow } from "../../../lib/data";
 import { useView } from "../../../lib/view-context";
 import TransactionDetail from "./TransactionDetail";
+import NewTransactionForm from "./NewTransactionForm";
 import { apiFetch } from "../../../lib/api-fetch";
 
 type LedgerClientProps = {
   rows: LedgerRow[];
   categories: string[];
+  defaultCurrency: string;
+  showNewForm: boolean;
+  onCloseNewForm: () => void;
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -25,7 +29,7 @@ function getOwnerBadgeLabel(owner?: string): string {
   ).toUpperCase() || owner.charAt(0).toUpperCase();
 }
 
-export default function LedgerClient({ rows, categories }: LedgerClientProps) {
+export default function LedgerClient({ rows, categories, defaultCurrency, showNewForm, onCloseNewForm }: LedgerClientProps) {
   const searchParams = useSearchParams();
   const { isVisibleOwner } = useView();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -272,7 +276,18 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
   }, [selectedId, visibleItems]);
 
   if (visibleItems.length === 0 && !isLoading) {
-    return <div className="empty-state">No transactions yet.</div>;
+    return (
+      <>
+        <div className="empty-state">No transactions yet.</div>
+        <NewTransactionForm
+          open={showNewForm}
+          onClose={onCloseNewForm}
+          categories={sortedCategories.map(name => ({ name, group: "expense" }))}
+          accounts={[]}
+          defaultCurrency={defaultCurrency}
+        />
+      </>
+    );
   }
 
   return (
@@ -400,6 +415,13 @@ export default function LedgerClient({ rows, categories }: LedgerClientProps) {
           />
         ) : null}
       </DetailPanel>
+      <NewTransactionForm
+        open={showNewForm}
+        onClose={onCloseNewForm}
+        categories={sortedCategories.map(name => ({ name, group: "expense" }))}
+        accounts={Array.from(new Set(items.map(r => r.account).filter((a): a is string => Boolean(a))))}
+        defaultCurrency={defaultCurrency}
+      />
     </div>
   );
 }
