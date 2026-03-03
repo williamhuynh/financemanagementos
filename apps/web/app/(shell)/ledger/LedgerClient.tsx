@@ -408,7 +408,7 @@ export default function LedgerClient({ rows, categories, defaultCurrency, showNe
         open={showNewForm}
         onClose={onCloseNewForm}
         categories={sortedCategories.map(name => ({ name, group: "expense" }))}
-        accounts={Array.from(new Set(items.map(r => r.account).filter(Boolean)))}
+        accounts={Array.from(new Set(items.map(r => r.account).filter((a): a is string => Boolean(a))))}
         defaultCurrency={defaultCurrency}
       />
     </div>

@@ -14,9 +14,12 @@ const mockDatabases = {
 
 const mockContext = {
   databases: mockDatabases,
-  config: { databaseId: "test-db" },
+  config: { databaseId: "test-db", endpoint: "", projectId: "", apiKey: "" },
   workspaceId: "workspace-123",
-  user: { $id: "user-123" },
+  user: { $id: "user-123", email: "test@example.com", name: "Test User" },
+  role: "owner" as const,
+  plan: "free",
+  featureOverrides: "[]",
 };
 
 beforeEach(async () => {
@@ -27,13 +30,13 @@ beforeEach(async () => {
   vi.mocked(apiAuth.getApiContext).mockResolvedValue(mockContext);
 
   const rateLimit = await import("../../../../lib/rate-limit");
-  vi.mocked(rateLimit.rateLimit).mockResolvedValue(null);
+  vi.mocked(rateLimit.rateLimit).mockResolvedValue(null as any);
 
   const workspaceGuard = await import("../../../../lib/workspace-guard");
-  vi.mocked(workspaceGuard.requireWorkspacePermission).mockResolvedValue(undefined);
+  vi.mocked(workspaceGuard.requireWorkspacePermission).mockResolvedValue(undefined as any);
 
   const audit = await import("../../../../lib/audit");
-  vi.mocked(audit.writeAuditLog).mockReturnValue(undefined);
+  vi.mocked(audit.writeAuditLog).mockReturnValue(undefined as any);
   vi.mocked(audit.getClientIp).mockReturnValue("127.0.0.1");
 });
 
@@ -300,7 +303,8 @@ describe("POST /api/transactions", () => {
 
   it("enforces rate limiting", async () => {
     const rateLimit = await import("../../../../lib/rate-limit");
-    const blockedResponse = new Response("Rate limited", { status: 429 });
+    const { NextResponse } = await import("next/server");
+    const blockedResponse = NextResponse.json({ error: "Rate limited" }, { status: 429 });
     vi.mocked(rateLimit.rateLimit).mockResolvedValue(blockedResponse);
 
     const request = new NextRequest("http://localhost/api/transactions", {
