@@ -6,6 +6,7 @@ import {
   isAtLimit,
   hasFeature,
   getWorkspaceFeatures,
+  calculateOverrides,
 } from "../plans";
 
 describe("PLAN_IDS", () => {
@@ -138,5 +139,45 @@ describe("getWorkspaceFeatures", () => {
     const features = getWorkspaceFeatures("free", "broken json");
     expect(features).toContain("csv_import");
     expect(features.length).toBe(6);
+  });
+});
+
+describe("calculateOverrides", () => {
+  it("returns empty array when active features match plan features exactly", () => {
+    const activeFeatures = ["csv_import", "pdf_import", "manual_assets", "ai_categorization", "voice_logs", "bank_feeds"];
+    const overrides = calculateOverrides("free", activeFeatures);
+    expect(overrides).toEqual([]);
+  });
+
+  it("returns added features when active features include extras", () => {
+    const activeFeatures = ["csv_import", "pdf_import", "manual_assets", "ai_categorization", "voice_logs", "bank_feeds", "custom_feature"];
+    const overrides = calculateOverrides("free", activeFeatures);
+    expect(overrides).toContain("custom_feature");
+    expect(overrides.length).toBe(1);
+  });
+
+  it("returns negated features when active features exclude plan features", () => {
+    const activeFeatures = ["csv_import", "pdf_import", "manual_assets", "voice_logs", "bank_feeds"];
+    const overrides = calculateOverrides("free", activeFeatures);
+    expect(overrides).toContain("!ai_categorization");
+  });
+
+  it("handles both additions and removals", () => {
+    const activeFeatures = ["csv_import", "pdf_import", "manual_assets", "voice_logs", "custom_feature"];
+    const overrides = calculateOverrides("free", activeFeatures);
+    expect(overrides).toContain("!ai_categorization");
+    expect(overrides).toContain("!bank_feeds");
+    expect(overrides).toContain("custom_feature");
+  });
+
+  it("works with pro plan", () => {
+    const activeFeatures = ["csv_import", "custom_feature"];
+    const overrides = calculateOverrides("pro", activeFeatures);
+    expect(overrides).toContain("!pdf_import");
+    expect(overrides).toContain("!manual_assets");
+    expect(overrides).toContain("!ai_categorization");
+    expect(overrides).toContain("!voice_logs");
+    expect(overrides).toContain("!bank_feeds");
+    expect(overrides).toContain("custom_feature");
   });
 });
