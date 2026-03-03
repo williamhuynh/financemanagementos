@@ -140,6 +140,19 @@ describe("getWorkspaceFeatures", () => {
     expect(features).toContain("csv_import");
     expect(features.length).toBe(6);
   });
+
+  it("filters out non-string override items", () => {
+    const features = getWorkspaceFeatures("free", '[1, "custom_feature", null, "!csv_import"]');
+    expect(features).toContain("custom_feature");
+    expect(features).not.toContain("csv_import"); // should be removed by !csv_import
+    expect(features.length).toBe(6); // 6 base features - csv_import + custom_feature = 6
+  });
+
+  it("handles array with only non-string items gracefully", () => {
+    const features = getWorkspaceFeatures("free", '[1, 2, null, true]');
+    expect(features).toContain("csv_import");
+    expect(features.length).toBe(6); // all base features, non-strings ignored
+  });
 });
 
 describe("calculateOverrides", () => {

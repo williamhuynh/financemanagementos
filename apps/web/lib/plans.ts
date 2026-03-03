@@ -95,8 +95,13 @@ export function getWorkspaceFeatures(planId: string, featureOverrides: string): 
   // Start with plan features
   let features = [...planFeatures];
 
-  // Process overrides
+  // Process overrides - filter out non-string items first
   for (const override of overrides) {
+    // Skip non-string items to prevent runtime errors
+    if (typeof override !== 'string') {
+      continue;
+    }
+
     if (override.startsWith('!')) {
       // Negated feature - remove it
       const feature = override.substring(1);
