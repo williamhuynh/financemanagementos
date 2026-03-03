@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Card, DetailPanel } from "@tandemly/ui";
-import { ALL_FEATURES } from "../../../lib/plans";
+import { ALL_FEATURES, getWorkspaceFeatures, calculateOverrides } from "../../../lib/plans";
 import { apiFetch } from "../../../lib/api-fetch";
 
 interface AdminWorkspace {
@@ -21,7 +21,7 @@ export default function AdminClient() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AdminWorkspace | null>(null);
   const [editPlan, setEditPlan] = useState("free");
-  const [editOverrides, setEditOverrides] = useState<string[]>([]);
+  const [editActiveFeatures, setEditActiveFeatures] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchWorkspaces = useCallback(async () => {
@@ -44,15 +44,13 @@ export default function AdminClient() {
   const openDetail = (ws: AdminWorkspace) => {
     setSelected(ws);
     setEditPlan(ws.plan);
-    try {
-      setEditOverrides(JSON.parse(ws.feature_overrides));
-    } catch {
-      setEditOverrides([]);
-    }
+    // Get active features (plan features + overrides)
+    const activeFeatures = getWorkspaceFeatures(ws.plan, ws.feature_overrides);
+    setEditActiveFeatures(activeFeatures);
   };
 
-  const toggleOverride = (feature: string) => {
-    setEditOverrides((prev) =>
+  const toggleFeature = (feature: string) => {
+    setEditActiveFeatures((prev) =>
       prev.includes(feature)
         ? prev.filter((f) => f !== feature)
         : [...prev, feature]
@@ -63,25 +61,29 @@ export default function AdminClient() {
     if (!selected) return;
     setSaving(true);
     try {
+      // Calculate the override array from active features
+      const overrides = calculateOverrides(editPlan, editActiveFeatures);
+      const overridesJson = JSON.stringify(overrides);
+
       await apiFetch(`/api/admin/workspaces/${selected.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           plan: editPlan,
-          feature_overrides: JSON.stringify(editOverrides),
+          feature_overrides: overridesJson,
         }),
       });
       // Update local state
       setWorkspaces((prev) =>
         prev.map((ws) =>
           ws.id === selected.id
-            ? { ...ws, plan: editPlan, feature_overrides: JSON.stringify(editOverrides) }
+            ? { ...ws, plan: editPlan, feature_overrides: overridesJson }
             : ws
         )
       );
       setSelected((prev) =>
-        prev ? { ...prev, plan: editPlan, feature_overrides: JSON.stringify(editOverrides) } : null
+        prev ? { ...prev, plan: editPlan, feature_overrides: overridesJson } : null
       );
     } catch {
       // silently fail for now
@@ -135,21 +137,26 @@ export default function AdminClient() {
           <div style={{ padding: "0 16px 16px" }}>
             <div className="admin-detail-field">
               <label>Plan</label>
-              <select value={editPlan} onChange={(e) => setEditPlan(e.target.value)}>
+              <select value={editPlan} onChange={(e) => {
+                const newPlan = e.target.value;
+                setEditPlan(newPlan);
+                // Recalculate active features when plan changes
+                // Keep the current active features, which will be converted to appropriate overrides
+              }}>
                 <option value="free">Free</option>
                 <option value="pro">Pro</option>
               </select>
             </div>
 
             <div className="admin-detail-field">
-              <label>Feature Overrides</label>
+              <label>Active Features</label>
               <div className="admin-feature-list">
                 {ALL_FEATURES.map((feature) => (
                   <label key={feature} className="admin-feature-item">
                     <input
                       type="checkbox"
-                      checked={editOverrides.includes(feature)}
-                      onChange={() => toggleOverride(feature)}
+                      checked={editActiveFeatures.includes(feature)}
+                      onChange={() => toggleFeature(feature)}
                     />
                     {feature.replace(/_/g, " ")}
                   </label>

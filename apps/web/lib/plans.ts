@@ -91,9 +91,53 @@ function parseOverrides(featureOverrides: string): string[] {
 export function getWorkspaceFeatures(planId: string, featureOverrides: string): string[] {
   const planFeatures = getPlanConfig(planId).features;
   const overrides = parseOverrides(featureOverrides);
-  return [...new Set([...planFeatures, ...overrides])];
+
+  // Start with plan features
+  let features = [...planFeatures];
+
+  // Process overrides - filter out non-string items first
+  for (const override of overrides) {
+    // Skip non-string items to prevent runtime errors
+    if (typeof override !== 'string') {
+      continue;
+    }
+
+    if (override.startsWith('!')) {
+      // Negated feature - remove it
+      const feature = override.substring(1);
+      features = features.filter(f => f !== feature);
+    } else {
+      // Added feature - add it if not already present
+      if (!features.includes(override)) {
+        features.push(override);
+      }
+    }
+  }
+
+  return features;
 }
 
 export function hasFeature(planId: string, featureOverrides: string, featureKey: string): boolean {
   return getWorkspaceFeatures(planId, featureOverrides).includes(featureKey);
+}
+
+export function calculateOverrides(planId: string, activeFeatures: string[]): string[] {
+  const planFeatures = getPlanConfig(planId).features;
+  const overrides: string[] = [];
+
+  // Add features that are active but not in the base plan
+  for (const feature of activeFeatures) {
+    if (!planFeatures.includes(feature)) {
+      overrides.push(feature);
+    }
+  }
+
+  // Add negated features that are in the base plan but not active
+  for (const feature of planFeatures) {
+    if (!activeFeatures.includes(feature)) {
+      overrides.push(`!${feature}`);
+    }
+  }
+
+  return overrides;
 }
