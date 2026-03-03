@@ -1,7 +1,5 @@
-import { SectionHead } from "@tandemly/ui";
 import { redirect } from "next/navigation";
-import LedgerClient from "./LedgerClient";
-import LedgerFilters from "./LedgerFilters";
+import LedgerPageClient from "./LedgerPageClient";
 import {
   getCategories,
   getLedgerRows,
@@ -9,6 +7,7 @@ import {
   type LedgerFilterParams
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
+import { getWorkspaceById } from "../../../lib/workspace-service";
 
 type LedgerSearchParams = {
   account?: string;
@@ -56,8 +55,8 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
     }
   }
 
-  // Fetch ledger data and categories in parallel
-  const [ledgerRows, categories] = await Promise.all([
+  // Fetch ledger data, categories, and workspace in parallel
+  const [ledgerRows, categories, workspace] = await Promise.all([
     getLedgerRows(context.workspaceId, {
       account: resolvedSearchParams?.account,
       category: resolvedSearchParams?.category,
@@ -66,15 +65,16 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
       sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
     }),
     getCategories(context.workspaceId),
+    getWorkspaceById(context.workspaceId),
   ]);
 
+  const defaultCurrency = workspace?.currency || "AUD";
+
   return (
-    <>
-      <SectionHead
-        title="All Transactions"
-        actions={<LedgerFilters categories={categories} />}
-      />
-      <LedgerClient rows={ledgerRows} categories={categories} />
-    </>
+    <LedgerPageClient
+      rows={ledgerRows}
+      categories={categories}
+      defaultCurrency={defaultCurrency}
+    />
   );
 }
