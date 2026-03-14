@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     }
 
     const { databases, config, workspaceId, user } = ctx;
-    await requireWorkspacePermission(workspaceId, user.$id, "read");
+    await requireWorkspacePermission(workspaceId, user.$id, "write");
 
     const body = await request.json();
     const title = String(body.title ?? "").trim();

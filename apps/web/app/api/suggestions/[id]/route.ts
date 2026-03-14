@@ -37,7 +37,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const { databases, config, workspaceId, user } = ctx;
-    await requireWorkspacePermission(workspaceId, user.$id, "read");
+    await requireWorkspacePermission(workspaceId, user.$id, "write");
 
     const existing = await databases.getDocument(
       config.databaseId,
@@ -126,7 +126,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     const { databases, config, workspaceId, user } = ctx;
-    await requireWorkspacePermission(workspaceId, user.$id, "read");
+    await requireWorkspacePermission(workspaceId, user.$id, "write");
 
     const existing = await databases.getDocument(
       config.databaseId,
