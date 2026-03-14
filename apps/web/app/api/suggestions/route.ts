@@ -4,28 +4,12 @@ import { getApiContext } from "../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../lib/collection-names";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../lib/rate-limit";
+import { formatSuggestion } from "../../../lib/suggestions";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-function formatSuggestion(doc: AppwriteDocument, currentUserId?: string) {
-  const upvotedBy: string[] = JSON.parse(String(doc.upvoted_by || "[]"));
-  return {
-    id: doc.$id,
-    workspace_id: doc.workspace_id,
-    user_id: doc.user_id,
-    user_name: doc.user_name,
-    title: doc.title,
-    description: doc.description,
-    status: doc.status,
-    upvote_count: upvotedBy.length,
-    has_upvoted: currentUserId ? upvotedBy.includes(currentUserId) : false,
-    created_at: doc.$createdAt,
-    updated_at: doc.$updatedAt,
-  };
-}
 
 export async function GET(request: Request) {
   const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);

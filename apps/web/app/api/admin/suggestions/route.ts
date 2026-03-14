@@ -4,27 +4,11 @@ import { getApiContext, createSessionClient } from "../../../../lib/api-auth";
 import { isSuperadmin } from "../../../../lib/admin-guard";
 import { COLLECTIONS } from "../../../../lib/collection-names";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { formatSuggestionAdmin } from "../../../../lib/suggestions";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 
 export const dynamic = "force-dynamic";
-
-function formatSuggestion(doc: AppwriteDocument, workspaceName?: string) {
-  const upvotedBy: string[] = JSON.parse(String(doc.upvoted_by || "[]"));
-  return {
-    id: doc.$id,
-    workspace_id: doc.workspace_id,
-    workspace_name: workspaceName ?? doc.workspace_id,
-    user_id: doc.user_id,
-    user_name: doc.user_name,
-    title: doc.title,
-    description: doc.description,
-    status: doc.status,
-    upvote_count: upvotedBy.length,
-    created_at: doc.$createdAt,
-    updated_at: doc.$updatedAt,
-  };
-}
 
 export async function GET(request: Request) {
   const blocked = await rateLimit(request, DATA_RATE_LIMITS.read);
@@ -78,10 +62,10 @@ export async function GET(request: Request) {
     );
 
     const suggestions = (response.documents as AppwriteDocument[]).map((doc) =>
-      formatSuggestion(doc, workspaceNames.get(String(doc.workspace_id)))
+      formatSuggestionAdmin(doc, workspaceNames.get(String(doc.workspace_id)))
     );
 
-    return NextResponse.json({ suggestions });
+    return NextResponse.json({ suggestions, total: response.total });
   } catch (error) {
     console.error("Admin suggestions GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

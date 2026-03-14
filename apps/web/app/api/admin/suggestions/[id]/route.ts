@@ -3,6 +3,7 @@ import { getApiContext, createSessionClient } from "../../../../../lib/api-auth"
 import { isSuperadmin } from "../../../../../lib/admin-guard";
 import { COLLECTIONS } from "../../../../../lib/collection-names";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../../../lib/rate-limit";
+import { formatSuggestionAdmin } from "../../../../../lib/suggestions";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 type RouteContext = { params: Promise<{ id: string }> };
@@ -61,21 +62,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       update
     ) as AppwriteDocument;
 
-    const upvotedBy: string[] = JSON.parse(String(updated.upvoted_by || "[]"));
-    return NextResponse.json({
-      suggestion: {
-        id: updated.$id,
-        workspace_id: updated.workspace_id,
-        user_id: updated.user_id,
-        user_name: updated.user_name,
-        title: updated.title,
-        description: updated.description,
-        status: updated.status,
-        upvote_count: upvotedBy.length,
-        created_at: updated.$createdAt,
-        updated_at: updated.$updatedAt,
-      },
-    });
+    return NextResponse.json({ suggestion: formatSuggestionAdmin(updated) });
   } catch (error) {
     if (
       error instanceof Error &&

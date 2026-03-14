@@ -44,7 +44,7 @@ export default function AdminClient() {
 
   // Workspaces tab state
   const [workspaces, setWorkspaces] = useState<AdminWorkspace[]>([]);
-  const [wsLoading, setWsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AdminWorkspace | null>(null);
   const [editPlan, setEditPlan] = useState("free");
@@ -59,6 +59,7 @@ export default function AdminClient() {
   const [sgUpdatingId, setSgUpdatingId] = useState<string | null>(null);
   const [sgError, setSgError] = useState<string | null>(null);
   const [sgSuccess, setSgSuccess] = useState<string | null>(null);
+  const [sgTotal, setSgTotal] = useState<number>(0);
 
   const fetchWorkspaces = useCallback(async () => {
     try {
@@ -69,7 +70,7 @@ export default function AdminClient() {
     } catch {
       setWorkspaces([]);
     } finally {
-      setWsLoading(false);
+      setLoading(false);
     }
   }, [search]);
 
@@ -85,6 +86,7 @@ export default function AdminClient() {
       const res = await apiFetch(`/api/admin/suggestions${params}`, { credentials: "include" });
       const data = await res.json();
       setSuggestions(data.suggestions || []);
+      setSgTotal(data.total ?? data.suggestions?.length ?? 0);
       setSgLoaded(true);
     } catch {
       setSgError("Failed to load suggestions");
@@ -118,6 +120,7 @@ export default function AdminClient() {
     if (!selected) return;
     setSaving(true);
     try {
+      // Calculate the override array from active features
       const overrides = calculateOverrides(editPlan, editActiveFeatures);
       const overridesJson = JSON.stringify(overrides);
 
@@ -130,6 +133,7 @@ export default function AdminClient() {
           feature_overrides: overridesJson,
         }),
       });
+      // Update local state
       setWorkspaces((prev) =>
         prev.map((ws) =>
           ws.id === selected.id
@@ -163,9 +167,14 @@ export default function AdminClient() {
         setSgError(data.error || "Failed to update");
         return;
       }
-      setSuggestions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, status } : s))
-      );
+      // If a filter is active, remove rows that no longer match; otherwise update in place
+      if (sgStatusFilter && status !== sgStatusFilter) {
+        setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      } else {
+        setSuggestions((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, status } : s))
+        );
+      }
       setSgSuccess("Status updated.");
     } catch {
       setSgError("Failed to update suggestion");
@@ -174,6 +183,7 @@ export default function AdminClient() {
     }
   };
 
+  // Filter locally too (in case search param doesn't work without a full-text index)
   const filtered = search
     ? workspaces.filter((ws) => ws.name.toLowerCase().includes(search.toLowerCase()))
     : workspaces;
@@ -207,8 +217,8 @@ export default function AdminClient() {
           </div>
 
           <Card title={`Workspaces (${filtered.length})`}>
-            {wsLoading && <p style={{ padding: 16 }}>Loading...</p>}
-            {!wsLoading && filtered.length === 0 && <p style={{ padding: 16 }}>No workspaces found.</p>}
+            {loading && <p style={{ padding: 16 }}>Loading...</p>}
+            {!loading && filtered.length === 0 && <p style={{ padding: 16 }}>No workspaces found.</p>}
             {filtered.map((ws) => (
               <div
                 key={ws.id}
@@ -238,6 +248,8 @@ export default function AdminClient() {
                   <select value={editPlan} onChange={(e) => {
                     const newPlan = e.target.value;
                     setEditPlan(newPlan);
+                    // Recalculate active features when plan changes
+                    // Keep the current active features, which will be converted to appropriate overrides
                   }}>
                     <option value="free">Free</option>
                     <option value="pro">Pro</option>
@@ -300,7 +312,11 @@ export default function AdminClient() {
             </select>
           </div>
 
-          <Card title={`Suggestions (${suggestions.length})`}>
+          <Card title={
+            sgLoaded && sgTotal > suggestions.length
+              ? `Suggestions (showing ${suggestions.length} of ${sgTotal})`
+              : `Suggestions (${suggestions.length})`
+          }>
             {sgLoading && <p style={{ padding: 16 }}>Loading...</p>}
             {!sgLoading && sgLoaded && suggestions.length === 0 && (
               <p style={{ padding: 16 }}>No suggestions found.</p>

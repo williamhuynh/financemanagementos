@@ -1,29 +1,12 @@
 import { NextResponse } from "next/server";
-import { Query } from "node-appwrite";
 import { getApiContext } from "../../../../lib/api-auth";
 import { requireWorkspacePermission } from "../../../../lib/workspace-guard";
 import { COLLECTIONS } from "../../../../lib/collection-names";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { formatSuggestion, parseUpvotedBy } from "../../../../lib/suggestions";
 
 type AppwriteDocument = { $id: string; [key: string]: unknown };
 type RouteContext = { params: Promise<{ id: string }> };
-
-function formatSuggestion(doc: AppwriteDocument, currentUserId?: string) {
-  const upvotedBy: string[] = JSON.parse(String(doc.upvoted_by || "[]"));
-  return {
-    id: doc.$id,
-    workspace_id: doc.workspace_id,
-    user_id: doc.user_id,
-    user_name: doc.user_name,
-    title: doc.title,
-    description: doc.description,
-    status: doc.status,
-    upvote_count: upvotedBy.length,
-    has_upvoted: currentUserId ? upvotedBy.includes(currentUserId) : false,
-    created_at: doc.$createdAt,
-    updated_at: doc.$updatedAt,
-  };
-}
 
 export async function PATCH(request: Request, context: RouteContext) {
   const blocked = await rateLimit(request, DATA_RATE_LIMITS.write);
@@ -76,7 +59,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     // Upvote toggle — any workspace member
     if (body.upvote !== undefined) {
-      const upvotedBy: string[] = JSON.parse(String(existing.upvoted_by || "[]"));
+      const upvotedBy = parseUpvotedBy(existing.upvoted_by);
       const alreadyUpvoted = upvotedBy.includes(user.$id);
 
       if (body.upvote && !alreadyUpvoted) {
@@ -85,7 +68,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         const idx = upvotedBy.indexOf(user.$id);
         upvotedBy.splice(idx, 1);
       }
-      update.upvoted_by = JSON.stringify(upvotedBy);
+      // Deduplicate to guard against concurrent writes inflating the count
+      update.upvoted_by = JSON.stringify([...new Set(upvotedBy)]);
     }
 
     if (Object.keys(update).length === 0) {

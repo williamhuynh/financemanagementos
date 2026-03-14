@@ -47,7 +47,8 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
   const [editDescription, setEditDescription] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
-  // Delete state
+  // Delete state — confirmDeleteId is set on first click; second click confirms
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Upvote in-flight
@@ -157,6 +158,7 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
         return;
       }
       setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      setConfirmDeleteId(null);
       setSuccessMessage("Suggestion deleted.");
     } catch {
       setError("Failed to delete suggestion");
@@ -344,13 +346,30 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
                               >
                                 Edit
                               </button>
-                              <button
-                                className="danger-btn small-btn"
-                                onClick={() => handleDelete(s.id)}
-                                disabled={deletingId === s.id}
-                              >
-                                {deletingId === s.id ? "Deleting..." : "Delete"}
-                              </button>
+                              {confirmDeleteId === s.id ? (
+                                <>
+                                  <button
+                                    className="danger-btn small-btn"
+                                    onClick={() => handleDelete(s.id)}
+                                    disabled={deletingId === s.id}
+                                  >
+                                    {deletingId === s.id ? "Deleting..." : "Confirm"}
+                                  </button>
+                                  <button
+                                    className="secondary-btn small-btn"
+                                    onClick={() => setConfirmDeleteId(null)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  className="danger-btn small-btn"
+                                  onClick={() => setConfirmDeleteId(s.id)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
