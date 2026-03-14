@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  type TooltipProps,
 } from "recharts";
 import type { NetWorthPoint } from "../../../lib/data";
 
@@ -15,16 +14,6 @@ type Props = {
   series: NetWorthPoint[];
 };
 
-function NetWorthTooltip({ active, payload }: TooltipProps<number, string>) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload as NetWorthPoint;
-  return (
-    <div className="net-worth-tooltip">
-      <div className="net-worth-tooltip-label">{point.label}</div>
-      <div className="net-worth-tooltip-value">{point.formattedValue}</div>
-    </div>
-  );
-}
 
 export function NetWorthChart({ series }: Props) {
   const hasData = series.length >= 2;
@@ -52,7 +41,17 @@ export function NetWorthChart({ series }: Props) {
         />
         <Tooltip
           cursor={{ stroke: "rgba(255,255,255,0.1)" }}
-          content={<NetWorthTooltip />}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          content={({ active, payload }: any) => {
+            if (!active || !payload?.length) return null;
+            const point = payload[0].payload as NetWorthPoint;
+            return (
+              <div className="net-worth-tooltip">
+                <div className="net-worth-tooltip-label">{point.label}</div>
+                <div className="net-worth-tooltip-value">{point.formattedValue}</div>
+              </div>
+            );
+          }}
         />
         <Line
           dataKey="value"
