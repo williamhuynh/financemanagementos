@@ -11,6 +11,7 @@ export const COLLECTIONS = {
   TRANSFER_PAIRS: 'transfer_pairs',
   IMPORT_PRESETS: 'import_presets',
   AUDIT_LOGS: 'audit_logs',
+  SUGGESTIONS: 'suggestions',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];
