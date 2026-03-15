@@ -15,9 +15,9 @@ import { maskCurrencyValue, formatCurrencyValue, filterSeriesByRange } from "../
 import MonthSelector from "../reports/expenses/MonthSelector";
 import WaterfallDrilldown from "./WaterfallDrilldown";
 import SpendByCategoryControls from "./SpendByCategoryControls";
+import { NetWorthChart } from "./NetWorthChart";
 
 import type {
-  NetWorthPoint,
   AssetCategorySummary,
   AssetItem,
   AssetOverview,
@@ -38,29 +38,6 @@ type DashboardClientProps = {
 type DonutSegment = { className: string; value: number };
 type DonutLegend = { label: string; dot: string };
 
-function buildTrendPoints(series: NetWorthPoint[]) {
-  if (series.length < 2) {
-    return "";
-  }
-  const width = 360;
-  const top = 20;
-  const bottom = 120;
-  const height = bottom - top;
-  const values = series.map((point) => point.value);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const step = width / (series.length - 1);
-
-  return series
-    .map((point, index) => {
-      const x = index * step;
-      const normalized = (point.value - min) / range;
-      const y = bottom - normalized * height;
-      return `${x},${y}`;
-    })
-    .join(" ");
-}
 
 function buildPortfolioSegments(categories: AssetCategorySummary[]) {
   const byType = new Map(categories.map((category) => [category.type, category]));
@@ -212,8 +189,6 @@ export default function DashboardClient({
     () => filterSeriesByRange(assetOverview.netWorthSeries, trendRange),
     [assetOverview.netWorthSeries, trendRange]
   );
-  const netWorthPoints = buildTrendPoints(filteredNetWorthSeries);
-  const hasNetWorthTrend = netWorthPoints.length > 0;
   const heroSub =
     assetOverview.lastUpdatedLabel === "No updates yet"
       ? "No updates yet"
@@ -284,13 +259,7 @@ export default function DashboardClient({
             <TrendRangeToggle value={trendRange} onChange={setTrendRange} />
           </div>
           <div className="chart-body">
-            {hasNetWorthTrend ? (
-              <svg viewBox="0 0 360 140" aria-hidden="true">
-                <polyline className="trend" points={netWorthPoints} />
-              </svg>
-            ) : (
-              <div className="empty-state">Add monthly snapshots to see the trend.</div>
-            )}
+            <NetWorthChart series={filteredNetWorthSeries} />
           </div>
         </article>
       </div>

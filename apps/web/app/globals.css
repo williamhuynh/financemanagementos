@@ -1395,6 +1395,25 @@ body.detail-panel-active .app-shell {
   stroke-linecap: round;
 }
 
+.net-worth-tooltip {
+  background: var(--surface, #1a2233);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.net-worth-tooltip-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.net-worth-tooltip-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .waterfall {
   display: flex;
   align-items: flex-end;
