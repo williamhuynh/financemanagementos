@@ -4,6 +4,7 @@ import {
   LineChart,
   Line,
   XAxis,
+  YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -24,6 +25,13 @@ export function NetWorthChart({ series }: Props) {
     );
   }
 
+  const values = series.map((p) => p.value);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const range = maxVal - minVal || Math.abs(maxVal) * 0.05 || 1000;
+  const pad = range * 0.2;
+  const yDomain: [number, number] = [minVal - pad, maxVal + pad];
+
   return (
     <ResponsiveContainer width="100%" height={140}>
       <LineChart
@@ -31,6 +39,7 @@ export function NetWorthChart({ series }: Props) {
         margin={{ left: 0, right: 0, top: 8, bottom: 0 }}
       >
         <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
+        <YAxis domain={yDomain} hide />
         <XAxis
           dataKey="label"
           tickLine={false}
