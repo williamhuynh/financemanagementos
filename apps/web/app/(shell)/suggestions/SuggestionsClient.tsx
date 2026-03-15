@@ -215,25 +215,17 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
 
   return (
     <div className="suggestions-page">
-      {error && (
-        <div className="form-error" style={{ marginBottom: 12 }}>
-          {error}
-        </div>
-      )}
-      {successMessage && (
-        <div className="form-success" style={{ marginBottom: 12 }}>
-          {successMessage}
-        </div>
-      )}
+      {error && <div className="form-error">{error}</div>}
+      {successMessage && <div className="form-success">{successMessage}</div>}
 
-      <div style={{ marginBottom: 16 }}>
+      <div className="suggestions-actions">
         {!showForm ? (
           <button className="primary-btn" onClick={() => { setShowForm(true); clearMessages(); }}>
             + New Suggestion
           </button>
         ) : (
           <Card title="New Suggestion">
-            <form onSubmit={handleCreate} style={{ padding: "0 16px 16px" }}>
+            <form onSubmit={handleCreate} className="suggestion-new-form">
               <div className="form-field">
                 <label>Title</label>
                 <input
@@ -257,7 +249,7 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
                   required
                 />
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <div className="form-row">
                 <button type="submit" className="primary-btn" disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit"}
                 </button>
@@ -275,18 +267,18 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
       </div>
 
       {loading ? (
-        <p style={{ padding: 16 }}>Loading...</p>
+        <div className="suggestions-loading">Loading suggestions…</div>
       ) : (
         <div className="suggestions-board">
           {STATUS_COLUMNS.map(({ key, label }) => (
-            <div key={key} className="suggestions-column">
+            <div key={key} className="suggestions-column" data-status={key}>
               <div className="suggestions-column-header">
                 <span className="suggestions-column-title">{label}</span>
                 <span className="suggestions-column-count">{byStatus(key).length}</span>
               </div>
               <div className="suggestions-column-cards">
                 {byStatus(key).length === 0 && (
-                  <p className="suggestions-empty">No suggestions</p>
+                  <div className="suggestions-empty">No suggestions yet</div>
                 )}
                 {byStatus(key).map((s) => (
                   <div key={s.id} className="suggestion-card">
@@ -306,13 +298,13 @@ export default function SuggestionsClient({ userId }: SuggestionsClientProps) {
                           rows={3}
                           className="suggestion-edit-textarea"
                         />
-                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <div className="suggestion-edit-actions">
                           <button
                             className="primary-btn small-btn"
                             onClick={() => handleEdit(s.id)}
                             disabled={editSaving}
                           >
-                            {editSaving ? "Saving..." : "Save"}
+                            {editSaving ? "Saving…" : "Save"}
                           </button>
                           <button
                             className="secondary-btn small-btn"

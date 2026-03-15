@@ -3071,3 +3071,303 @@ body.detail-panel-active .app-shell {
 .admin-feature-item input[type="checkbox"] {
   accent-color: var(--accent);
 }
+
+/* ── Suggestions ──────────────────────────────────────────── */
+
+.suggestions-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.suggestions-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* New suggestion form card */
+.suggestion-new-form {
+  padding: 4px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.suggestion-new-form .form-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Form fields */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.form-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-field input,
+.form-field textarea,
+.suggestion-edit-input,
+.suggestion-edit-textarea {
+  background: var(--base-800);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color 0.2s ease;
+  resize: vertical;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.suggestion-edit-input:focus,
+.suggestion-edit-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-field input::placeholder,
+.form-field textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+/* Feedback messages */
+.form-error {
+  background: rgba(226, 106, 90, 0.1);
+  border: 1px solid rgba(226, 106, 90, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: #f28b7d;
+  font-size: 13px;
+}
+
+.form-success {
+  background: rgba(76, 195, 138, 0.1);
+  border: 1px solid rgba(76, 195, 138, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--asset);
+  font-size: 13px;
+}
+
+/* Kanban board */
+.suggestions-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .suggestions-board {
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+}
+
+/* Kanban column */
+.suggestions-column {
+  background: var(--base-800);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.suggestions-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.suggestions-column-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.suggestions-column-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text-secondary);
+}
+
+/* Status-specific column accent colours */
+.suggestions-column[data-status="approved"] .suggestions-column-title {
+  color: var(--accent);
+}
+.suggestions-column[data-status="approved"] .suggestions-column-count {
+  background: rgba(242, 164, 59, 0.15);
+  color: var(--accent);
+}
+
+.suggestions-column[data-status="in_progress"] .suggestions-column-title {
+  color: var(--warn);
+}
+.suggestions-column[data-status="in_progress"] .suggestions-column-count {
+  background: rgba(242, 157, 73, 0.15);
+  color: var(--warn);
+}
+
+.suggestions-column[data-status="done"] .suggestions-column-title {
+  color: var(--asset);
+}
+.suggestions-column[data-status="done"] .suggestions-column-count {
+  background: rgba(76, 195, 138, 0.15);
+  color: var(--asset);
+}
+
+/* Cards list */
+.suggestions-column-cards {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.suggestions-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 12px;
+  opacity: 0.6;
+}
+
+/* Suggestion card */
+.suggestion-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.suggestion-card:hover {
+  border-color: var(--surface-strong);
+}
+
+.suggestion-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.suggestion-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.suggestion-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.suggestion-card-author {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.suggestion-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* Upvote button */
+.upvote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 30px;
+}
+
+.upvote-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(242, 164, 59, 0.08);
+}
+
+.upvote-btn.upvoted {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(242, 164, 59, 0.12);
+}
+
+.upvote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small button modifier */
+.small-btn {
+  padding: 5px 12px !important;
+  font-size: 12px !important;
+  min-height: 30px;
+}
+
+/* Edit form within card */
+.suggestion-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.suggestion-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Loading state */
+.suggestions-loading {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
