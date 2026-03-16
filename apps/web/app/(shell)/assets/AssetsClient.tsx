@@ -10,6 +10,8 @@ import { useWorkspace } from "../../../lib/workspace-context";
 import { isAtLimit, getLimit, getPlanConfig } from "../../../lib/plans";
 import AssetDetail from "./AssetDetail";
 import { apiFetch } from "../../../lib/api-fetch";
+import { AssetTrendChart } from "./AssetTrendChart";
+import type { AssetTrendSeries } from "./AssetTrendChart";
 
 type AssetsClientProps = {
   overview: AssetOverview;
@@ -19,12 +21,6 @@ type AssetsClientProps = {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-type AssetSeries = {
-  id: string;
-  label: string;
-  points: string;
-  color: string;
-};
 
 type PanelState =
   | { mode: "view"; assetId: string }
@@ -35,26 +31,6 @@ function normalizeKey(value: string) {
   return value.trim().toLowerCase();
 }
 
-function buildTrendPoints(series: AssetOverview["netWorthSeries"], min: number, max: number) {
-  if (series.length === 0) {
-    return "";
-  }
-  const width = 360;
-  const top = 20;
-  const bottom = 120;
-  const height = bottom - top;
-  const range = max - min || 1;
-  const step = series.length > 1 ? width / (series.length - 1) : width;
-
-  return series
-    .map((point, index) => {
-      const x = index * step;
-      const normalized = (point.value - min) / range;
-      const y = bottom - normalized * height;
-      return `${x},${y}`;
-    })
-    .join(" ");
-}
 
 function getSeriesColor(assetType: string) {
   switch (assetType) {
@@ -162,51 +138,27 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
     return result;
   }, [assetSeries, trendRange]);
 
-  const trendData = useMemo(() => {
-    const allSeries = [filteredNetWorthSeries];
-    Object.values(filteredAssetSeries).forEach((series) => {
-      if (series.length > 0) {
-        allSeries.push(series);
-      }
-    });
-    const values = allSeries.flatMap((series) => series.map((point) => point.value));
-    const min = values.length > 0 ? Math.min(...values) : 0;
-    const max = values.length > 0 ? Math.max(...values) : 1;
-    return {
-      min,
-      max,
-      netWorthPoints: buildTrendPoints(filteredNetWorthSeries, min, max)
-    };
-  }, [filteredNetWorthSeries, filteredAssetSeries]);
-
-  const chartSeries = useMemo<AssetSeries[]>(() => {
-    const series: AssetSeries[] = [
+  const chartSeries = useMemo<AssetTrendSeries[]>(() => {
+    const series: AssetTrendSeries[] = [
       {
         id: "net-worth",
         label: "Net worth",
-        points: trendData.netWorthPoints,
-        color: "var(--accent-soft)"
+        color: "var(--accent-soft)",
+        data: filteredNetWorthSeries,
       }
     ];
     assets.forEach((asset) => {
       const assetTrend = filteredAssetSeries[asset.id] ?? [];
-      if (assetTrend.length === 0) {
-        return;
-      }
+      if (assetTrend.length === 0) return;
       series.push({
         id: asset.id,
         label: asset.name,
-        points: buildTrendPoints(assetTrend, trendData.min, trendData.max),
-        color: getSeriesColor(asset.type)
+        color: getSeriesColor(asset.type),
+        data: assetTrend,
       });
     });
     return series;
-  }, [assets, filteredAssetSeries, trendData]);
-
-  const hasTrend = useMemo(
-    () => chartSeries.some((series) => series.points.split(" ").length > 1),
-    [chartSeries]
-  );
+  }, [assets, filteredNetWorthSeries, filteredAssetSeries]);
 
   const historyByAsset = useMemo(() => {
     const map = new Map<string, AssetHistoryEntry[]>();
@@ -466,35 +418,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
             <TrendRangeToggle value={trendRange} onChange={setTrendRange} />
           </div>
           <div className="chart-body">
-            {hasTrend ? (
-              <div className="asset-trend">
-                <svg viewBox="0 0 360 140" aria-hidden="true">
-                  {chartSeries.map((series) => (
-                    <polyline
-                      key={series.id}
-                      className="trend-line"
-                      points={series.points}
-                      style={{ stroke: series.color }}
-                    />
-                  ))}
-                </svg>
-                <div className="chart-legend asset-trend-legend">
-                  {chartSeries.map((series) => (
-                    <div key={`${series.id}-legend`}>
-                      <span
-                        className="legend-swatch"
-                        style={{ background: series.color }}
-                      />
-                      {series.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="empty-state">
-                Add at least two monthly snapshots to see the trend.
-              </div>
-            )}
+            <AssetTrendChart series={chartSeries} />
           </div>
         </article>
       </div>
