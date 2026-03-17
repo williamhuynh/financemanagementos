@@ -418,7 +418,7 @@ export default function AssetsClient({ overview, ownerOptions, homeCurrency }: A
             <TrendRangeToggle value={trendRange} onChange={setTrendRange} />
           </div>
           <div className="chart-body">
-            <AssetTrendChart series={chartSeries} />
+            <AssetTrendChart series={chartSeries} isVisible={isVisible} />
           </div>
         </article>
       </div>

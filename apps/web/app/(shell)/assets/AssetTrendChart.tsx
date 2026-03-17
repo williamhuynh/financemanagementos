@@ -11,6 +11,7 @@ import {
   Legend,
 } from "recharts";
 import type { NetWorthPoint } from "../../../lib/data";
+import { maskCurrencyValue } from "../../../lib/data";
 
 export type AssetTrendSeries = {
   id: string;
@@ -21,6 +22,7 @@ export type AssetTrendSeries = {
 
 type Props = {
   series: AssetTrendSeries[];
+  isVisible?: boolean;
 };
 
 type MergedPoint = {
@@ -54,7 +56,7 @@ function mergeSeriesData(series: AssetTrendSeries[]): MergedPoint[] {
   });
 }
 
-export function AssetTrendChart({ series }: Props) {
+export function AssetTrendChart({ series, isVisible = true }: Props) {
   const hasData = series.some((s) => s.data.length >= 2);
 
   if (!hasData) {
@@ -94,8 +96,9 @@ export function AssetTrendChart({ series }: Props) {
               <div className="net-worth-tooltip">
                 <div className="net-worth-tooltip-label">{label}</div>
                 {series.map((s) => {
-                  const formatted = payload[0]?.payload?.[`${s.id}_formatted`] as string | undefined;
-                  if (!formatted) return null;
+                  const raw = payload[0]?.payload?.[`${s.id}_formatted`] as string | undefined;
+                  if (!raw) return null;
+                  const formatted = maskCurrencyValue(raw, isVisible);
                   return (
                     <div key={s.id} className="net-worth-tooltip-row">
                       <span
