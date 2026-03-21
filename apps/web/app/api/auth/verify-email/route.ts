@@ -22,9 +22,8 @@ export async function POST(request: Request) {
 
     const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
     const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-    const apiKey = process.env.APPWRITE_API_KEY;
 
-    if (!endpoint || !projectId || !apiKey) {
+    if (!endpoint || !projectId) {
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 }
@@ -71,13 +70,22 @@ export async function POST(request: Request) {
         );
       }
 
-      const adminClient = new Client()
+      // updateEmailVerification requires user session auth, not admin API key
+      const session = await getSession();
+      if (!session.isLoggedIn || !session.appwriteSession) {
+        return NextResponse.json(
+          { error: "Not authenticated" },
+          { status: 401 }
+        );
+      }
+
+      const sessionClient = new Client()
         .setEndpoint(endpoint)
         .setProject(projectId)
-        .setKey(apiKey);
-      const adminAccount = new Account(adminClient);
+        .setSession(session.appwriteSession);
+      const sessionAccount = new Account(sessionClient);
 
-      await adminAccount.updateVerification(userId, secret);
+      await sessionAccount.updateEmailVerification(userId, secret);
 
       return NextResponse.json({
         success: true,
