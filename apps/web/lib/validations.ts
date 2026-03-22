@@ -42,6 +42,20 @@ export const VerifyEmailSchema = z.object({
   secret: z.string().optional(),
 });
 
+export const UpdateNameSchema = z.object({
+  name: trimmedString.min(1, "Name is required").max(128),
+});
+
+export const UpdateEmailSchema = z.object({
+  email: trimmedString.min(1, "Email is required").email("Invalid email"),
+  password: z.string().min(1, "Password is required").max(256),
+});
+
+export const UpdatePasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters").max(256),
+  oldPassword: z.string().min(8, "Current password must be at least 8 characters").max(256),
+});
+
 // ─── Categories ──────────────────────────────────────────────
 
 export const CategoryCreateSchema = z.object({

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SectionHead } from "@tandemly/ui";
 import { useAuth } from "../../../lib/auth-context";
 import { apiFetch } from "../../../lib/api-fetch";
@@ -112,6 +113,9 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="profile-actions">
+          <Link className="ghost-btn" href="/profile/edit">
+            Edit profile
+          </Link>
           <button
             className="ghost-btn"
             type="button"
