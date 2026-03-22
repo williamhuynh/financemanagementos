@@ -5,7 +5,6 @@ import { Topbar } from "@tandemly/ui";
 import { useAuth } from "../../lib/auth-context";
 import { useNumberVisibility } from "../../lib/number-visibility-context";
 import { useView } from "../../lib/view-context";
-import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import { useDrawer } from "./AppShell";
 
 export default function TopbarWithUser() {
@@ -30,7 +29,6 @@ export default function TopbarWithUser() {
       numbersVisible={isVisible}
       viewMode={mode}
       onToggleViewMode={toggleMode}
-      workspaceSwitcher={<WorkspaceSwitcher />}
       onMenuToggle={toggle}
     />
   );
