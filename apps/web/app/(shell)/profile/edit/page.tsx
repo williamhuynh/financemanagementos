@@ -122,12 +122,12 @@ export default function EditProfilePage() {
       <SectionHead title="Edit Profile" />
 
       {/* Name */}
-      <div className="profile-card" style={{ maxWidth: 480 }}>
+      <div className="profile-card" style={{ maxWidth: 480, width: "100%" }}>
         <div className="profile-info">
           <span className="profile-label">Display name</span>
         </div>
         <form onSubmit={handleNameSave} style={{ width: "100%", display: "grid", gap: 12 }}>
-          <div className="form-row">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <input
               className="text-input"
               type="text"
@@ -163,7 +163,7 @@ export default function EditProfilePage() {
       </div>
 
       {/* Email */}
-      <div className="profile-card" style={{ maxWidth: 480, marginTop: 20 }}>
+      <div className="profile-card" style={{ maxWidth: 480, width: "100%", marginTop: 20 }}>
         <div className="profile-info">
           <span className="profile-label">Email address</span>
           <span className="profile-value" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
@@ -210,7 +210,7 @@ export default function EditProfilePage() {
       </div>
 
       {/* Password */}
-      <div className="profile-card" style={{ maxWidth: 480, marginTop: 20 }}>
+      <div className="profile-card" style={{ maxWidth: 480, width: "100%", marginTop: 20 }}>
         <div className="profile-info">
           <span className="profile-label">Password</span>
         </div>
@@ -259,7 +259,7 @@ export default function EditProfilePage() {
       </div>
 
       {/* Back */}
-      <div style={{ maxWidth: 480, marginTop: 20 }}>
+      <div style={{ maxWidth: 480, width: "100%", marginTop: 20 }}>
         <Link href="/profile" className="ghost-btn" style={{ display: "inline-block" }}>
           ← Back to profile
         </Link>
