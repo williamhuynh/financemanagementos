@@ -49,9 +49,12 @@ describe("validateCsrfToken", () => {
 
   it("is timing-safe (does not short-circuit on first mismatch)", () => {
     // We can't directly test timing, but we verify the logic path
-    // handles same-length different strings correctly
+    // handles same-length different strings correctly.
+    // Use a guaranteed-different first character to avoid the case where
+    // base already starts with "0", which would make modified === base.
     const base = generateCsrfToken();
-    const modified = "0" + base.slice(1);
+    const differentChar = base[0] === "0" ? "1" : "0";
+    const modified = differentChar + base.slice(1);
     expect(validateCsrfToken(base, modified)).toBe(false);
   });
 });
