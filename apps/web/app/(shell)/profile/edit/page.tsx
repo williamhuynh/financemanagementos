@@ -30,6 +30,7 @@ export default function EditProfilePage() {
   const [emailPassword, setEmailPassword] = useState("");
   const [emailState, setEmailState] = useState<SectionState>("idle");
   const [emailError, setEmailError] = useState("");
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -74,12 +75,13 @@ export default function EditProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: newEmail, password: emailPassword }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Update failed.");
       }
       await refreshAuth();
       setEmailPassword("");
+      setEmailVerificationSent(data.emailVerificationSent === true);
       setEmailState("success");
     } catch (err) {
       setEmailState("error");
@@ -186,7 +188,11 @@ export default function EditProfilePage() {
             required
           />
           {emailState === "success" && (
-            <div className="auth-success">Email updated. Check your inbox to re-verify.</div>
+            <div className="auth-success">
+              {emailVerificationSent
+                ? "Email updated. Check your inbox to re-verify."
+                : "Email updated. Please request a new verification email from your profile."}
+            </div>
           )}
           {emailState === "error" && emailError && (
             <div className="auth-error">{emailError}</div>

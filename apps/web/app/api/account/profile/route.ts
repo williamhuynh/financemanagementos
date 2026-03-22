@@ -53,17 +53,19 @@ export async function PATCH(request: Request) {
       await sessionClient.account.updateEmail(parsed.data.email, parsed.data.password);
 
       // Email change resets verification — send a new verification email
+      let emailVerificationSent = false;
       try {
         const origin =
           process.env.NEXT_PUBLIC_APP_URL ||
           request.headers.get("origin") ||
           "http://localhost:3000";
         await sessionClient.account.createVerification(`${origin}/verify-email`);
+        emailVerificationSent = true;
       } catch {
         // Non-critical — email was updated successfully even if re-verification fails
       }
 
-      return NextResponse.json({ success: true, emailVerificationSent: true });
+      return NextResponse.json({ success: true, emailVerificationSent });
     }
 
     if (action === "password") {
