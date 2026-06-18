@@ -76,7 +76,19 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     let renamedCount = 0;
 
-    // Handle rename
+    // Build the update payload first
+    const updatePayload: Record<string, string> = {};
+    if (newName && newName !== currentName) {
+      updatePayload.name = newName;
+    }
+    if (newGroup !== undefined && (newGroup === "income" || newGroup === "expense")) {
+      updatePayload.group = newGroup;
+    }
+    if (newColor !== undefined) {
+      updatePayload.color = newColor;
+    }
+
+    // Handle rename: validate, then update category document FIRST, then transactions
     if (newName && newName !== currentName) {
       if (isSystemCategory(newName)) {
         return NextResponse.json(
@@ -100,6 +112,16 @@ export async function PATCH(request: Request, context: RouteContext) {
         return NextResponse.json(
           { error: "A category with this name already exists" },
           { status: 409 }
+        );
+      }
+
+      // Update the category document first so it's consistent before touching transactions
+      if (Object.keys(updatePayload).length > 0) {
+        await databases.updateDocument(
+          config.databaseId,
+          COLLECTIONS.CATEGORIES,
+          id,
+          updatePayload
         );
       }
 
@@ -134,21 +156,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         if (batch.documents.length < BATCH_SIZE) break;
         cursor = batch.documents[batch.documents.length - 1].$id;
       }
-    }
-
-    // Build the update payload
-    const updatePayload: Record<string, string> = {};
-    if (newName && newName !== currentName) {
-      updatePayload.name = newName;
-    }
-    if (newGroup !== undefined && (newGroup === "income" || newGroup === "expense")) {
-      updatePayload.group = newGroup;
-    }
-    if (newColor !== undefined) {
-      updatePayload.color = newColor;
-    }
-
-    if (Object.keys(updatePayload).length > 0) {
+    } else if (Object.keys(updatePayload).length > 0) {
+      // No rename — just update group/color on category document
       await databases.updateDocument(
         config.databaseId,
         COLLECTIONS.CATEGORIES,

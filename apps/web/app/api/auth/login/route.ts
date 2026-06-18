@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     } catch (sessionError: unknown) {
       const err = sessionError as { code?: number; type?: string; message?: string };
       return NextResponse.json(
-        { error: "Invalid credentials", detail: err.message },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     const err = error as { code?: number; type?: string; message?: string };
     return NextResponse.json(
-      { error: "Invalid credentials", detail: err.message },
+      { error: "Invalid credentials" },
       { status: 401 }
     );
   }

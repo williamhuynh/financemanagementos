@@ -96,30 +96,38 @@ export async function POST(request: Request) {
     const workspace = await getWorkspaceById(workspaceId);
     const homeCurrency = workspace?.currency ?? "AUD";
 
-    let created = 0;
+    // Collect the distinct currencies needed across all valid items
+    const validItems = items.filter(
+      (item) => item.assetName && Number.isFinite(item.value)
+    );
+    const distinctCurrencies = [
+      ...new Set(validItems.map((item) => (item.currency ?? homeCurrency).toUpperCase()))
+    ];
+
+    // Pre-fetch ALL FX rates before any writes — fail early if any rate is unavailable
     const rateCache = new Map<string, { rate: number; source: string }>();
-    for (const item of items) {
-      if (!item.assetName || !Number.isFinite(item.value)) {
-        continue;
-      }
-      const currency = (item.currency ?? homeCurrency).toUpperCase();
-      let rate = rateCache.get(currency);
-      if (!rate) {
-        try {
-          rate = await fetchHomeCurrencyRate(currency, homeCurrency);
-        } catch (error) {
-          return NextResponse.json(
-            {
-              detail:
-                error instanceof Error
-                  ? error.message
-                  : `Unable to fetch FX rate for ${currency}.`
-            },
-            { status: 502 }
-          );
-        }
+    for (const currency of distinctCurrencies) {
+      try {
+        const rate = await fetchHomeCurrencyRate(currency, homeCurrency);
         rateCache.set(currency, rate);
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : `Unable to fetch FX rate for ${currency}.`
+          },
+          { status: 502 }
+        );
       }
+    }
+
+    // All rates available — now write all documents
+    let created = 0;
+    for (const item of validItems) {
+      const currency = (item.currency ?? homeCurrency).toUpperCase();
+      const rate = rateCache.get(currency)!;
       const homeValue = item.value * rate.rate;
       await databases.createDocument(config.databaseId, "asset_values", ID.unique(), {
         workspace_id: workspaceId,

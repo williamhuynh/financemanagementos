@@ -319,14 +319,22 @@ describe("InvitationCreateSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("validates all four roles", () => {
-    for (const role of ["owner", "admin", "editor", "viewer"]) {
+  it("validates all three roles (owner excluded from invitations)", () => {
+    for (const role of ["admin", "editor", "viewer"]) {
       const result = InvitationCreateSchema.safeParse({
         email: "u@e.com",
         role,
       });
       expect(result.success).toBe(true);
     }
+  });
+
+  it("rejects owner role in invitations", () => {
+    const result = InvitationCreateSchema.safeParse({
+      email: "u@e.com",
+      role: "owner",
+    });
+    expect(result.success).toBe(false);
   });
 });
 
