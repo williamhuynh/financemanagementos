@@ -909,6 +909,11 @@ function buildLedgerQueries(
   if (normalized.amount === "outflow") {
     queries.push(Query.equal("direction", "debit"));
   }
+  if (normalized.month) {
+    const { startDate, endDate } = getDateRangeISO(normalized.month, false);
+    queries.push(Query.greaterThanEqual("date", startDate));
+    queries.push(Query.lessThan("date", endDate));
+  }
   if (typeof options?.limit === "number") {
     queries.push(Query.limit(options.limit));
   }
@@ -1490,6 +1495,53 @@ export async function getLedgerRows(
   return response.rows;
 }
 
+function docToLedgerRow(
+  doc: Record<string, unknown>,
+  transferPairIds: Set<string>
+): LedgerRow {
+  const date = String(doc.date ?? "");
+  const amount = String(doc.amount ?? "");
+  const direction = String(doc.direction ?? "");
+  const amountValue = parseAmountValue(amount);
+  const formattedAmount = formatAmount(amount, String(doc.currency ?? "AUD"));
+  const category = String(doc.category_name ?? "Uncategorised");
+  const needsReview =
+    Boolean(doc.needs_review) || category === "Uncategorised";
+  const tone =
+    direction === "credit" || (!amount.startsWith("-") && amount !== "")
+      ? "positive"
+      : "negative";
+  const label = formatDirectionLabel(direction, amount);
+  const account = String(doc.account_name ?? "Unassigned");
+  const sourceAccount = String(doc.source_account ?? "").trim();
+  const sourceLabel =
+    sourceAccount && sourceAccount !== account
+      ? `Source: ${sourceAccount}`
+      : "";
+  const sourceOwner = String(doc.source_owner ?? "").trim() || undefined;
+  return {
+    id: String(doc.$id ?? ""),
+    title: String(doc.description ?? "Transaction"),
+    sub: [date, label, account, sourceLabel].filter(Boolean).join(" - "),
+    category,
+    amount: formattedAmount,
+    tone,
+    isTransfer: Boolean(doc.is_transfer),
+    isTransferMatched: transferPairIds.has(String(doc.$id ?? "")),
+    chip: needsReview ? "warn" : undefined,
+    highlight: needsReview,
+    date,
+    account,
+    direction,
+    amountValue,
+    sourceOwner,
+    notes: String(doc.notes ?? "").trim() || undefined,
+    sourceAccount: sourceAccount || undefined,
+    currency: String(doc.currency ?? "AUD"),
+    needsReview,
+  };
+}
+
 export async function getLedgerRowsWithTotal(
   workspaceId: string,
   options?: LedgerFilterParams & { limit?: number; offset?: number }
@@ -1511,23 +1563,31 @@ export async function getLedgerRowsWithTotal(
     const normalizedFilters = normalizeLedgerFilters(options);
     const monthFilter = normalizedFilters.month;
     const transferPairIds = await listTransferPairIds(serverClient, workspaceId);
+
+    // When a month filter is set, the date range is pushed to the DB query via
+    // buildLedgerQueries. Appwrite handles filtering and pagination, so a single
+    // query with the user's limit/offset is sufficient — no batching needed.
+    if (monthFilter) {
+      const response = await serverClient.databases.listDocuments(
+        serverClient.databaseId,
+        "transactions",
+        buildLedgerQueries(workspaceId, { ...normalizedFilters, limit, offset })
+      );
+      const documents = response?.documents ?? [];
+      const total = response?.total ?? 0;
+      const rows = (documents as Record<string, unknown>[]).map((doc) =>
+        docToLedgerRow(doc, transferPairIds)
+      );
+      return { rows, total, hasMore: offset + rows.length < total };
+    }
+
+    // No month filter: batch through all pages, counting matches in memory.
     const rows: LedgerRow[] = [];
     const batchSize = 100;
     let rawOffset = 0;
     let matchCount = 0;
     let total = 0;
     let hasMore = false;
-
-    const matchesMonth = (value: string) => {
-      if (!monthFilter) {
-        return true;
-      }
-      const parsed = parseDateValue(value);
-      if (!parsed) {
-        return false;
-      }
-      return getMonthKey(parsed) === monthFilter;
-    };
 
     while (true) {
       const response = await serverClient.databases.listDocuments(
@@ -1541,69 +1601,21 @@ export async function getLedgerRowsWithTotal(
       );
       const documents = response?.documents ?? [];
       if (documents.length === 0) {
-        total = monthFilter ? matchCount : response?.total ?? matchCount;
+        total = response?.total ?? matchCount;
         break;
       }
 
-      for (const doc of documents) {
-        const date = String(doc.date ?? "");
-        if (!matchesMonth(date)) {
-          continue;
-        }
+      for (const doc of documents as Record<string, unknown>[]) {
         matchCount += 1;
         if (matchCount <= offset) {
           continue;
         }
         if (rows.length >= limit) {
           hasMore = true;
-          total = monthFilter ? matchCount : response?.total ?? matchCount;
+          total = response?.total ?? matchCount;
           break;
         }
-        const amount = String(doc.amount ?? "");
-        const direction = String(doc.direction ?? "");
-        const amountValue = parseAmountValue(amount);
-        const formattedAmount = formatAmount(
-          amount,
-          String(doc.currency ?? "AUD")
-        );
-        const category = String(doc.category_name ?? "Uncategorised");
-        const needsReview =
-          Boolean(doc.needs_review) || category === "Uncategorised";
-        const tone =
-          direction === "credit" || (!amount.startsWith("-") && amount !== "")
-            ? "positive"
-            : "negative";
-        const label = formatDirectionLabel(direction, amount);
-        const account = String(doc.account_name ?? "Unassigned");
-        const sourceAccount = String(doc.source_account ?? "").trim();
-        const sourceLabel =
-          sourceAccount && sourceAccount !== account
-            ? `Source: ${sourceAccount}`
-            : "";
-
-        const sourceOwner = String(doc.source_owner ?? "").trim() || undefined;
-
-        rows.push({
-          id: String(doc.$id ?? ""),
-          title: String(doc.description ?? "Transaction"),
-          sub: [date, label, account, sourceLabel].filter(Boolean).join(" - "),
-          category,
-          amount: formattedAmount,
-          tone,
-          isTransfer: Boolean(doc.is_transfer),
-          isTransferMatched: transferPairIds.has(String(doc.$id ?? "")),
-          chip: needsReview ? "warn" : undefined,
-          highlight: needsReview,
-          date,
-          account,
-          direction,
-          amountValue,
-          sourceOwner,
-          notes: String(doc.notes ?? "").trim() || undefined,
-          sourceAccount: sourceAccount || undefined,
-          currency: String(doc.currency ?? "AUD"),
-          needsReview
-        });
+        rows.push(docToLedgerRow(doc, transferPairIds));
       }
 
       if (hasMore) {
@@ -1611,7 +1623,7 @@ export async function getLedgerRowsWithTotal(
       }
       rawOffset += documents.length;
       if (rawOffset >= (response?.total ?? 0)) {
-        total = monthFilter ? matchCount : response?.total ?? matchCount;
+        total = response?.total ?? matchCount;
         break;
       }
     }
