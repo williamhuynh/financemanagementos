@@ -3109,26 +3109,78 @@ export async function getSidebarMonthlyCloseStatus(workspaceId: string, homeCurr
   monthKey: string;
 } | null> {
   try {
-    // Get the earliest unclosed month
-    const monthKey = await getEarliestUnclosedMonth(workspaceId);
-    if (!monthKey) {
-      return null;
-    }
+    const serverClient = getServerAppwrite();
+    if (!serverClient) return null;
 
-    // Get the monthly close summary for that month
-    const summary = await getMonthlyCloseSummary(workspaceId, homeCurrency, monthKey);
+    // One batch query for all closed months (replaces 12 sequential DB calls)
+    const monthOptions = buildRollingMonthOptions(12);
+    const closedResponse = await serverClient.databases.listDocuments(
+      serverClient.databaseId,
+      "monthly_closes",
+      [
+        Query.equal("workspace_id", workspaceId),
+        Query.equal("status", "closed"),
+        Query.limit(12)
+      ]
+    );
+    const closedMonths = new Set(
+      (closedResponse?.documents ?? []).map((d) => String(d.month ?? ""))
+    );
 
-    // Count items with "attention" status
-    const unresolvedCount = summary.checklist.filter(
-      (item) => item.status === "attention"
-    ).length;
+    const monthKey =
+      monthOptions.find((opt) => !closedMonths.has(opt.value))?.value ??
+      monthOptions[0]?.value ??
+      null;
+    if (!monthKey) return null;
 
-    return {
-      unresolvedCount,
-      monthKey
-    };
-  } catch (error) {
-    // Return null on error to prevent layout crash
+    // Three targeted count queries in parallel (replaces full getMonthlyCloseSummary)
+    const { startDate, endDate } = getDateRangeISO(monthKey, false);
+
+    const [hasUncategorised, hasImports, hasAssetUpdates] = await Promise.all([
+      serverClient.databases.listDocuments(
+        serverClient.databaseId,
+        "transactions",
+        [
+          Query.equal("workspace_id", workspaceId),
+          Query.greaterThanEqual("date", startDate),
+          Query.lessThan("date", endDate),
+          Query.equal("category_name", "Uncategorised"),
+          Query.limit(1)
+        ]
+      ).then((r) => (r?.total ?? 0) > 0),
+      serverClient.databases.listDocuments(
+        serverClient.databaseId,
+        "imports",
+        [
+          Query.equal("workspace_id", workspaceId),
+          Query.greaterThanEqual("uploaded_at", startDate),
+          Query.lessThan("uploaded_at", endDate),
+          Query.limit(1)
+        ]
+      ).then((r) => (r?.total ?? 0) > 0),
+      serverClient.databases.listDocuments(
+        serverClient.databaseId,
+        "asset_values",
+        [
+          Query.equal("workspace_id", workspaceId),
+          Query.greaterThanEqual("recorded_at", startDate),
+          Query.lessThan("recorded_at", endDate),
+          Query.limit(1)
+        ]
+      ).then((r) => (r?.total ?? 0) > 0)
+    ]);
+
+    // Mirror buildMonthlyCloseChecklist attention logic:
+    // imports "attention" when no imports; review "attention" when uncategorised exist;
+    // assets "attention" when no asset value updates this month
+    const unresolvedCount = [
+      !hasImports,
+      hasUncategorised,
+      !hasAssetUpdates
+    ].filter(Boolean).length;
+
+    return { unresolvedCount, monthKey };
+  } catch {
     return null;
   }
 }
