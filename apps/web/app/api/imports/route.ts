@@ -286,7 +286,7 @@ export async function POST(request: Request) {
     source_owner: sourceOwner ?? "",
     file_name: fileName ?? "",
     row_count: rows.length,
-    status: "imported",
+    status: "pending",
     uploaded_at: new Date().toISOString()
   };
 
@@ -298,48 +298,61 @@ export async function POST(request: Request) {
   const workspaceCurrency = workspace?.currency ?? "AUD";
   const referenceDate = getReferenceDate(rows);
 
-  for (const row of rows) {
-    const amount = row.amount ?? "";
-    const direction = amount.startsWith("-") ? "debit" : "credit";
-    const rawCategory = row.category?.trim() ?? "";
-    const category =
-      !rawCategory || rawCategory.toLowerCase() === "unknown"
-        ? "Uncategorised"
-        : rawCategory;
-    const transactionId = ID.unique();
-    const normalizedDate = normalizeDateToISO(row.date ?? "");
-    const transactionDoc = {
-      workspace_id: workspaceId,
-      import_id: importId,
-      date: normalizedDate,
-      description: row.description ?? "",
-      amount,
-      currency: row.currency ?? workspaceCurrency,
-      account_name: row.account ?? sourceAccount ?? "Unassigned",
-      source_account: sourceAccount ?? "",
-      source_owner: sourceOwner ?? "",
-      category_name: category,
-      direction,
-      notes: "",
-      is_transfer: category === "Transfer",
-      needs_review: category === "Uncategorised"
-    };
+  const BATCH_SIZE = 25;
+  for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+    const batch = rows.slice(batchStart, batchStart + BATCH_SIZE);
+    const batchInputs = batch.map((row) => {
+      const amount = row.amount ?? "";
+      const direction = amount.startsWith("-") ? "debit" : "credit";
+      const rawCategory = row.category?.trim() ?? "";
+      const category =
+        !rawCategory || rawCategory.toLowerCase() === "unknown"
+          ? "Uncategorised"
+          : rawCategory;
+      const transactionId = ID.unique();
+      const normalizedDate = normalizeDateToISO(row.date ?? "");
+      return {
+        transactionId,
+        normalizedDate,
+        amount,
+        direction,
+        category,
+        description: row.description ?? "",
+        account: row.account ?? sourceAccount ?? "Unassigned",
+        doc: {
+          workspace_id: workspaceId,
+          import_id: importId,
+          date: normalizedDate,
+          description: row.description ?? "",
+          amount,
+          currency: row.currency ?? workspaceCurrency,
+          account_name: row.account ?? sourceAccount ?? "Unassigned",
+          source_account: sourceAccount ?? "",
+          source_owner: sourceOwner ?? "",
+          category_name: category,
+          direction,
+          notes: "",
+          is_transfer: category === "Transfer",
+          needs_review: category === "Uncategorised"
+        }
+      };
+    });
 
-    await databases.createDocument(
-      config.databaseId,
-      "transactions",
-      transactionId,
-      transactionDoc
+    await Promise.all(
+      batchInputs.map(({ transactionId, doc }) =>
+        databases.createDocument(config.databaseId, "transactions", transactionId, doc)
+      )
     );
 
-    createdTransactions.push({
-      id: transactionId,
-      date: normalizedDate,
-      description: row.description ?? "",
-      amount,
-      account: row.account ?? sourceAccount ?? "Unassigned"
-    });
+    for (const { transactionId, normalizedDate, amount, description, account } of batchInputs) {
+      createdTransactions.push({ id: transactionId, date: normalizedDate, description, amount, account });
+    }
   }
+
+  // Mark the import as fully complete now that all transactions are written
+  await databases.updateDocument(config.databaseId, "imports", importId, {
+    status: "imported",
+  });
 
   const shouldAutoCategorize = rows.every((row) => {
     const rawCategory = row.category?.trim();

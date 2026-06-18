@@ -215,7 +215,7 @@ export const WorkspaceSwitchSchema = z.object({
 
 export const InvitationCreateSchema = z.object({
   email: trimmedString.min(1, "Email is required").email("Invalid email"),
-  role: z.enum(["owner", "admin", "editor", "viewer"]),
+  role: z.enum(["admin", "editor", "viewer"]),
 });
 
 export const InvitationAcceptSchema = z.object({

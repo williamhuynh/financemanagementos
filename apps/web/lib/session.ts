@@ -10,15 +10,15 @@ export interface SessionData {
   csrfToken: string; // CSRF synchronizer token
 }
 
-// Fail-fast if SESSION_SECRET is not set in production
-if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+// Fail-fast if SESSION_SECRET is not set in any environment
+if (!process.env.SESSION_SECRET) {
   throw new Error(
     "FATAL: SESSION_SECRET environment variable is not set. " +
-    "Set SESSION_SECRET to a random 32+ character string before running in production."
+    "Set SESSION_SECRET to a random 32+ character string before running."
   );
 }
 
-const SESSION_PASSWORD = process.env.SESSION_SECRET || "complex_password_at_least_32_characters_long_for_dev_only";
+const SESSION_PASSWORD = process.env.SESSION_SECRET;
 
 export const sessionOptions: SessionOptions = {
   password: SESSION_PASSWORD,

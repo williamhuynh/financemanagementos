@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const workspaceCategories = await getCategoriesWithMeta(workspaceId);
 
     for (const group of processedGroups) {
-      // Fetch the original log to get the date
+      // Fetch the original log to get the date and check idempotency
       let logDate: string;
       let logIsIncome = false;
 
@@ -54,6 +54,11 @@ export async function POST(request: Request) {
           "cash_logs",
           group.logId
         );
+        // Idempotency guard: skip logs already committed
+        if (logDoc.status === "committed") {
+          updatedLogs.push(group.logId);
+          continue;
+        }
         logDate = String(logDoc.date ?? new Date().toISOString().split("T")[0]);
         logIsIncome = Boolean(logDoc.isIncome);
       } catch {

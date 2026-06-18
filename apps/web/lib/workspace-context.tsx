@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useAuth } from './auth-context';
+import { apiFetch } from './api-fetch';
 
 export interface Workspace {
   id: string;
@@ -103,7 +104,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     currency: string = 'AUD'
   ): Promise<Workspace | null> => {
     try {
-      const response = await fetch('/api/workspaces', {
+      const response = await apiFetch('/api/workspaces', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -118,7 +119,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Failed to create workspace: ${response.status} ${errorData.detail || response.statusText}`);
+        throw new Error(`Failed to create workspace: ${response.status} ${errorData.error || response.statusText}`);
       }
 
       const data = await response.json();

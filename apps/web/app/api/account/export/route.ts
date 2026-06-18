@@ -3,6 +3,7 @@ import { Query } from "node-appwrite";
 import { getApiContext, getServerConfig, createDatabasesClient } from "../../../../lib/api-auth";
 import { COLLECTIONS } from "../../../../lib/collection-names";
 import { rateLimit, DATA_RATE_LIMITS } from "../../../../lib/rate-limit";
+import { writeAuditLog, getClientIp } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +136,17 @@ export async function GET(request: Request) {
     }
 
     exportData.workspaces = workspaces;
+
+    writeAuditLog(databases, databaseId, {
+      workspace_id: ctx.user.$id, // export spans all workspaces; use userId as resource scope
+      user_id: ctx.user.$id,
+      action: "export",
+      resource_type: "account",
+      resource_id: ctx.user.$id,
+      summary: `User exported all account data (${workspaceIds.length} workspace(s))`,
+      metadata: { workspaceCount: workspaceIds.length },
+      ip_address: getClientIp(request),
+    });
 
     return new NextResponse(JSON.stringify(exportData, null, 2), {
       status: 200,

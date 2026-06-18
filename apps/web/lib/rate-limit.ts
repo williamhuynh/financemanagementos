@@ -215,8 +215,10 @@ export async function rateLimit(
   const store = getStore();
 
   // Use forwarded IP, then fall back to a generic key
+  const realIp = request.headers.get("x-real-ip")?.trim();
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || "unknown";
+  const forwardedSegments = forwarded?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+  const ip = realIp || forwardedSegments[forwardedSegments.length - 1] || "unknown";
   const key = `${ip}:${new URL(request.url).pathname}`;
 
   try {

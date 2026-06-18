@@ -128,74 +128,88 @@ export async function POST(request: Request) {
     const month = parsed.data!.month;
 
     const snapshotPayload = await buildMonthlySnapshotPayload(workspaceId, month);
-  if (!snapshotPayload) {
-    return NextResponse.json(
-      { error: "Unable to build monthly snapshot." },
-      { status: 500 }
-    );
-  }
+    if (!snapshotPayload) {
+      return NextResponse.json(
+        { error: "Unable to build monthly snapshot." },
+        { status: 500 }
+      );
+    }
 
-  let snapshot;
-  try {
-    snapshot = await createMonthlySnapshot(
-      databases,
-      config.databaseId,
-      snapshotPayload
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create snapshot.";
-    const attributes = await listCollectionAttributes(
-      databases,
-      config.databaseId,
-      "monthly_snapshots"
-    );
-    const pendingAttributes = (attributes ?? []).filter(
-      (attr) => attr.status && attr.status !== "available"
-    );
-    console.error("Monthly close snapshot failed.", {
-      message,
-      databaseId: config.databaseId,
-      projectId: config.projectId,
-      attributes,
-      pendingAttributes
-    });
-    return NextResponse.json(
-      {
-        detail: message,
-        hint: getSchemaHintMessage(config.databaseId, config.projectId),
+    // Step 1: Create or update the monthly_closes record FIRST (before snapshot)
+    // so the close intent is recorded even if snapshot creation fails.
+    const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
+    const closePayload = {
+      workspace_id: workspaceId,
+      month,
+      status: "closed",
+      closed_at: new Date().toISOString(),
+      closed_by: "system",
+      notes: parsed.data!.notes ?? "",
+      snapshot_id: "" // will be updated after snapshot is created
+    };
+
+    let closeDocId: string;
+    if (existing) {
+      await databases.updateDocument(
+        config.databaseId,
+        "monthly_closes",
+        String(existing.$id),
+        closePayload
+      );
+      closeDocId = String(existing.$id);
+    } else {
+      const closeDoc = await databases.createDocument(
+        config.databaseId,
+        "monthly_closes",
+        ID.unique(),
+        closePayload
+      );
+      closeDocId = String(closeDoc.$id);
+    }
+
+    // Step 2: Create the snapshot document
+    let snapshot;
+    try {
+      snapshot = await createMonthlySnapshot(
+        databases,
+        config.databaseId,
+        snapshotPayload
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to create snapshot.";
+      const attributes = await listCollectionAttributes(
+        databases,
+        config.databaseId,
+        "monthly_snapshots"
+      );
+      const pendingAttributes = (attributes ?? []).filter(
+        (attr) => attr.status && attr.status !== "available"
+      );
+      console.error("Monthly close snapshot failed.", {
+        message,
+        databaseId: config.databaseId,
+        projectId: config.projectId,
         attributes,
         pendingAttributes
-      },
-      { status: 500 }
-    );
-  }
+      });
+      return NextResponse.json(
+        {
+          detail: message,
+          hint: getSchemaHintMessage(config.databaseId, config.projectId),
+          attributes,
+          pendingAttributes
+        },
+        { status: 500 }
+      );
+    }
 
-  const existing = await getCloseDocument(databases, config.databaseId, workspaceId, month);
-  const updatePayload = {
-    workspace_id: workspaceId,
-    month,
-    status: "closed",
-    closed_at: new Date().toISOString(),
-    closed_by: "system",
-    notes: parsed.data!.notes ?? "",
-    snapshot_id: String(snapshot.$id ?? "")
-  };
-
-  if (existing) {
+    // Step 3: Update the monthly_closes record with the real snapshot_id
     await databases.updateDocument(
       config.databaseId,
       "monthly_closes",
-      String(existing.$id),
-      updatePayload
+      closeDocId,
+      { snapshot_id: String(snapshot.$id ?? "") }
     );
-  } else {
-    await databases.createDocument(
-      config.databaseId,
-      "monthly_closes",
-      ID.unique(),
-      updatePayload
-    );
-  }
 
     // Fire-and-forget audit log
     writeAuditLog(databases, config.databaseId, {
