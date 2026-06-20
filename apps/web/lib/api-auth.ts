@@ -119,16 +119,24 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     }
   }
 
-  // 5. Use API key client to validate workspace membership
+  // 5+6. Validate workspace membership and fetch workspace doc in parallel
+  // (both only need activeWorkspaceId, which is now known)
   const adminDatabases = createDatabasesClient(config);
-  const membership = await adminDatabases.listDocuments(
-    config.databaseId,
-    COLLECTIONS.WORKSPACE_MEMBERS,
-    [
-      Query.equal('user_id', user.$id),
-      Query.equal('workspace_id', activeWorkspaceId),
-    ]
-  );
+  const [membership, workspaceDoc] = await Promise.all([
+    adminDatabases.listDocuments(
+      config.databaseId,
+      COLLECTIONS.WORKSPACE_MEMBERS,
+      [
+        Query.equal('user_id', user.$id),
+        Query.equal('workspace_id', activeWorkspaceId),
+      ]
+    ),
+    adminDatabases.getDocument(
+      config.databaseId,
+      COLLECTIONS.WORKSPACES,
+      activeWorkspaceId
+    ),
+  ]);
 
   if (membership.documents.length === 0) {
     throw new Error('User not member of active workspace');
@@ -142,13 +150,6 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     });
     throw new Error('Data integrity error: duplicate memberships');
   }
-
-  // 6. Fetch workspace document to get plan data
-  const workspaceDoc = await adminDatabases.getDocument(
-    config.databaseId,
-    COLLECTIONS.WORKSPACES,
-    activeWorkspaceId
-  );
 
   // 7. Return context with API key databases client (for data access)
   return {
@@ -164,6 +165,7 @@ export const getApiContext = cache(async (): Promise<ApiContext | null> => {
     role: membership.documents[0].role as WorkspaceMemberRole,
     plan: (workspaceDoc.plan as string) || "free",
     featureOverrides: (workspaceDoc.feature_overrides as string) || "[]",
+    currency: (workspaceDoc.currency as string) || "AUD",
     databases: adminDatabases,
   };
 });
