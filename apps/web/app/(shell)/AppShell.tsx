@@ -22,21 +22,36 @@ export function useDrawer() {
   return useContext(DrawerContext);
 }
 
+type MonthlyCloseData = {
+  unresolvedCount: number;
+  monthKey: string;
+} | null;
+
 type AppShellProps = {
   navItems: NavItem[];
-  monthlyCloseData?: {
-    unresolvedCount: number;
-    monthKey: string;
-  } | null;
   children: ReactNode;
 };
 
-export default function AppShell({ navItems, monthlyCloseData, children }: AppShellProps) {
+export default function AppShell({ navItems, children }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [monthlyCloseData, setMonthlyCloseData] = useState<MonthlyCloseData>(null);
   const pathname = usePathname();
 
   useEffect(() => {
     setDrawerOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/workspace/sidebar-status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setMonthlyCloseData(data.status ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   const toggle = useCallback(() => {

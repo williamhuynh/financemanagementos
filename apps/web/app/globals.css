@@ -3371,3 +3371,70 @@ body.detail-panel-active .app-shell {
   color: var(--text-secondary);
   font-size: 14px;
 }
+
+/* ── Page skeleton loading ── */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    var(--surface-strong) 50%,
+    var(--surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+.page-loading-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.page-loading-title {
+  height: 28px;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.page-loading-action {
+  height: 32px;
+  width: 100px;
+  border-radius: 20px;
+}
+
+.page-loading-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.page-loading-card {
+  height: 88px;
+  border-radius: var(--radius-lg);
+}
+
+.page-loading-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.page-loading-row {
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.page-loading-row:last-child {
+  border-bottom: none;
+}

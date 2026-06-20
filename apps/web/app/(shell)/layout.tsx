@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { getNavItems, getSidebarMonthlyCloseStatus } from "../../lib/data";
+import { getNavItems } from "../../lib/data";
 import AuthGate from "./authGate";
 import TopbarWithUser from "./TopbarWithUser";
 import AppShell from "./AppShell";
@@ -29,14 +29,9 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
     redirect("/login");
   }
 
-  // currency is now returned directly from getApiContext (no extra DB call needed)
-  const homeCurrency = context.currency;
-
-  // Fetch nav items and sidebar status in parallel
-  const [navItems, monthlyCloseStatus] = await Promise.all([
-    getNavItems({ isSuperadmin: isSuperadmin(context.user.labels) }),
-    getSidebarMonthlyCloseStatus(context.workspaceId, homeCurrency),
-  ]);
+  // Fetch nav items (instant — returns static array, no Appwrite calls)
+  // Sidebar monthly-close status is fetched client-side in AppShell to unblock layout render
+  const navItems = await getNavItems({ isSuperadmin: isSuperadmin(context.user.labels) });
 
   // Email verification is already available from getApiContext() — no extra API call needed
   const emailVerified = context.user.emailVerification ?? true;
@@ -53,7 +48,7 @@ export default async function ShellLayout({ children }: ShellLayoutProps) {
       <WorkspaceProvider>
         <NumberVisibilityProvider>
           <ViewProvider>
-            <AppShell navItems={navItems} monthlyCloseData={monthlyCloseStatus}>
+            <AppShell navItems={navItems}>
               <EmailVerificationBanner emailVerified={emailVerified} />
               <Suspense fallback={<div className="topbar" />}>
                 <TopbarWithUser />
