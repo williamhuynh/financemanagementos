@@ -7,7 +7,6 @@ import {
   type LedgerFilterParams
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
-import { getWorkspaceById } from "../../../lib/workspace-service";
 
 type LedgerSearchParams = {
   account?: string;
@@ -55,8 +54,10 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
     }
   }
 
-  // Fetch ledger data, categories, and workspace in parallel
-  const [ledgerRows, categories, workspace] = await Promise.all([
+  const defaultCurrency = context.currency;
+
+  // Fetch ledger data and categories in parallel
+  const [ledgerRows, categories] = await Promise.all([
     getLedgerRows(context.workspaceId, {
       account: resolvedSearchParams?.account,
       category: resolvedSearchParams?.category,
@@ -65,10 +66,7 @@ export default async function LedgerPage({ searchParams }: LedgerPageProps) {
       sort: resolvedSearchParams?.sort as LedgerFilterParams["sort"]
     }),
     getCategories(context.workspaceId),
-    getWorkspaceById(context.workspaceId),
   ]);
-
-  const defaultCurrency = workspace?.currency || "AUD";
 
   return (
     <LedgerPageClient

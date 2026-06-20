@@ -5,7 +5,6 @@ import {
   getExpenseBreakdown
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
-import { getWorkspaceById } from "../../../lib/workspace-service";
 import DashboardClient from "./DashboardClient";
 
 type DashboardPageProps = {
@@ -24,8 +23,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const workspace = await getWorkspaceById(context.workspaceId);
-  const homeCurrency = workspace?.currency ?? "AUD";
+  const homeCurrency = context.currency;
 
   // Fetch all dashboard data in parallel instead of sequentially
   const [assetOverview, breakdown, cashFlow] = await Promise.all([

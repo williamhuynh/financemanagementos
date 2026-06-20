@@ -9,7 +9,6 @@ import {
   type ReviewFilterParams
 } from "../../../lib/data";
 import { getApiContext } from "../../../lib/api-auth";
-import { getWorkspaceById } from "../../../lib/workspace-service";
 
 type ReviewSearchParams = {
   account?: string;
@@ -29,8 +28,7 @@ export default async function ReviewPage({ searchParams }: ReviewPageProps) {
   }
 
   const resolvedSearchParams = await searchParams;
-  const workspace = await getWorkspaceById(context.workspaceId);
-  const homeCurrency = workspace?.currency ?? "AUD";
+  const homeCurrency = context.currency;
 
   // Fetch review items and categories in parallel
   const [reviewItems, categories] = await Promise.all([

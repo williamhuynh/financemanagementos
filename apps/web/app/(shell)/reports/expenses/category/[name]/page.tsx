@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Card, ListRow, SectionHead } from "@tandemly/ui";
 import { getExpenseBreakdown } from "../../../../../../lib/data";
 import { getApiContext } from "../../../../../../lib/api-auth";
-import { getWorkspaceById } from "../../../../../../lib/workspace-service";
 import MonthSelector from "../../MonthSelector";
 
 type CategoryExpensePageProps = {
@@ -24,8 +23,7 @@ export default async function CategoryExpensePage({
   const { name } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const categoryName = decodeURIComponent(name);
-  const workspace = await getWorkspaceById(context.workspaceId);
-  const homeCurrency = workspace?.currency ?? "AUD";
+  const homeCurrency = context.currency;
   const breakdown = await getExpenseBreakdown(context.workspaceId, homeCurrency, resolvedSearchParams?.month);
   const category = breakdown.categories.find(
     (item) => item.name.toLowerCase() === categoryName.toLowerCase()
