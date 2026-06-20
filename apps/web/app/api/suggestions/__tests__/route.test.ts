@@ -19,6 +19,7 @@ const mockContext = {
   role: "owner" as const,
   plan: "free",
   featureOverrides: "[]",
+  currency: "AUD",
 };
 
 beforeEach(async () => {

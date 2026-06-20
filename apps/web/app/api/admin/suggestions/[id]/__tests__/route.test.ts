@@ -17,6 +17,7 @@ const mockCtx = {
   role: "owner" as const,
   plan: "free",
   featureOverrides: "[]",
+  currency: "AUD",
 };
 
 const mockAccount = { get: vi.fn() };

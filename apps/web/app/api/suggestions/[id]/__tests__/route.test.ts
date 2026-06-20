@@ -20,6 +20,7 @@ const mockContext = {
   role: "owner" as const,
   plan: "free",
   featureOverrides: "[]",
+  currency: "AUD",
 };
 
 const makeRouteContext = (id = "suggestion-1") => ({
