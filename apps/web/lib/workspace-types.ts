@@ -52,6 +52,7 @@ export interface ApiContext {
   role: WorkspaceMemberRole;
   plan: string;
   featureOverrides: string;
+  currency: string;
   databases: any; // Databases type from node-appwrite
 }
 
